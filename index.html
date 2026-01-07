@@ -10,12 +10,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+      @font-face {
+        font-family: 'QuiviexCustom';
+        src: url('./font.ttf') format('truetype');
+        font-display: swap;
+      }
+
       :root {
         --accent-primary: #a855f7;
         --liquid-speed: 25s;
       }
       body {
-        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-family: 'QuiviexCustom', 'Plus Jakarta Sans', sans-serif;
         overflow-x: hidden;
         background-color: #f1f5f9;
         scroll-behavior: smooth;
@@ -99,5 +105,20 @@
     
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+      // Font loading detection
+      if ('fonts' in document) {
+        document.fonts.load('1em QuiviexCustom').then(function(fonts) {
+          if (fonts.length === 0) {
+            console.warn('Quiviex: Custom font "font.ttf" failed to load. Falling back to system fonts.');
+          } else {
+            console.log('Quiviex: Custom font "font.ttf" loaded successfully.');
+          }
+        }).catch(function(error) {
+          console.error('Quiviex: Error while loading custom font:', error);
+          console.warn('Quiviex: Using fallback font "Plus Jakarta Sans".');
+        });
+      }
+    </script>
   </body>
 </html>
