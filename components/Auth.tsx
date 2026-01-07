@@ -222,9 +222,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 animate-in fade-in duration-1000">
-      <div className="glass rounded-[3rem] p-8 sm:p-12 max-w-[460px] w-full animate-in zoom-in-95 duration-500 relative z-10 border border-white">
+      <div className="glass rounded-[3.5rem] p-8 sm:p-12 max-w-[460px] w-full animate-in zoom-in-95 duration-500 relative z-10 border border-white">
         
-        <div className="flex justify-center mb-8 transform hover:scale-105 transition-transform duration-500">
+        <div className="flex justify-center mb-10">
           <Logo variant="large" />
         </div>
 
