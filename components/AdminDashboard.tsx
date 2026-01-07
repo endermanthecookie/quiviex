@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Feedback } from '../types';
 import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2 } from 'lucide-react';
@@ -84,6 +83,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                   },
                   achievements: p.achievements || [],
                   history: [],
+                  savedQuizIds: p.saved_quiz_ids || []
               }));
               setAllUsers(mapped);
           }
@@ -252,7 +252,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                      <div className="mt-2 flex gap-2 animate-in slide-in-from-top-2">
                                          <textarea 
                                              value={replyContent} 
-                                             // Fix: Cast e.target to any to access value property
                                              onChange={(e) => setReplyContent((e.target as any).value)} 
                                              placeholder="Type reply..." 
                                              className="flex-1 p-3 border border-blue-100 rounded-xl focus:outline-none focus:border-blue-500 text-sm" 

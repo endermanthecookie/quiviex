@@ -1,7 +1,6 @@
-
 import React, { useState, useRef } from 'react';
 import { X, Music, Upload, Play, Pause, Check } from 'lucide-react';
-import { DEFAULT_MUSIC_TRACKS } from '../constants';
+import { DEFAULT_MUSIC_TRACKS } from './constants';
 
 interface MusicSelectionModalProps {
   currentMusic: string;
@@ -16,22 +15,16 @@ export const MusicSelectionModal: React.FC<MusicSelectionModalProps> = ({ curren
 
   const togglePreview = (url: string) => {
     if (playingPreview === url) {
-      // Fix: Cast to any to access pause method on HTMLAudioElement
       (audioRef.current as any)?.pause();
       setPlayingPreview(null);
     } else {
       if (audioRef.current) {
-        // Fix: Cast to any to access pause method on HTMLAudioElement
         (audioRef.current as any).pause();
       }
       if (url) {
-        // Fix: Access Audio via window to resolve "Cannot find name 'Audio'" error
         audioRef.current = new (window as any).Audio(url);
-        // Fix: Cast to any to access volume property on HTMLAudioElement
         (audioRef.current as any).volume = 0.5;
-        // Fix: Cast to any to access play method and use window.console
         (audioRef.current as any).play().catch((e: any) => (window as any).console.log("Preview error", e));
-        // Fix: Cast to any to access onended property on HTMLAudioElement
         (audioRef.current as any).onended = () => setPlayingPreview(null);
         setPlayingPreview(url);
       }
@@ -39,36 +32,30 @@ export const MusicSelectionModal: React.FC<MusicSelectionModalProps> = ({ curren
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Fix: Cast e.target to any to access files property
     const file = (e.target as any).files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB Limit for local storage safety
-        // Fix: Use window.alert
+      if (file.size > 2 * 1024 * 1024) {
         (window as any).alert("File is too large! Please upload an MP3 under 2MB.");
         return;
       }
 
       if (!file.type.startsWith('audio/')) {
-         // Fix: Use window.alert
          (window as any).alert("Please upload a valid audio file.");
          return;
       }
 
-      // Fix: Access FileReader via window to resolve "Cannot find name 'FileReader'" error
       const reader = new (window as any).FileReader();
       reader.onload = (e: any) => {
         const result = e.target?.result as string;
-        onSelect(result); // Pass base64 data
+        onSelect(result);
         onClose();
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Stop audio when closing
   React.useEffect(() => {
     return () => {
-        // Fix: Cast to any to access pause method on HTMLAudioElement
         if(audioRef.current) (audioRef.current as any).pause();
     }
   }, []);
@@ -88,7 +75,7 @@ export const MusicSelectionModal: React.FC<MusicSelectionModalProps> = ({ curren
 
         <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 px-2">Default Tracks</p>
-            {DEFAULT_MUSIC_TRACKS.map((track) => {
+            {DEFAULT_MUSIC_TRACKS.map((track: any) => {
                 const isSelected = track.url === currentMusic || (track.id === 'none' && !currentMusic);
                 const isPreviewing = playingPreview === track.url;
 
@@ -129,10 +116,9 @@ export const MusicSelectionModal: React.FC<MusicSelectionModalProps> = ({ curren
             <div className="my-4 border-t border-slate-100 pt-4">
                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 px-2">Custom Upload</p>
                  <div 
-                    // Fix: Cast to any to access click method
                     onClick={() => (fileInputRef.current as any)?.click()}
                     className={`border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition-all ${
-                        currentMusic && !DEFAULT_MUSIC_TRACKS.find(t => t.url === currentMusic) ? 'bg-green-50 border-green-300' : ''
+                        currentMusic && !DEFAULT_MUSIC_TRACKS.find((t: any) => t.url === currentMusic) ? 'bg-green-50 border-green-300' : ''
                     }`}
                  >
                     <input 
@@ -142,9 +128,9 @@ export const MusicSelectionModal: React.FC<MusicSelectionModalProps> = ({ curren
                         accept="audio/mp3,audio/mpeg"
                         onChange={handleFileUpload} 
                     />
-                    <Upload size={24} className={currentMusic && !DEFAULT_MUSIC_TRACKS.find(t => t.url === currentMusic) ? 'text-green-500' : 'text-slate-400'} />
+                    <Upload size={24} className={currentMusic && !DEFAULT_MUSIC_TRACKS.find((t: any) => t.url === currentMusic) ? 'text-green-500' : 'text-slate-400'} />
                     <span className="text-sm font-bold text-slate-600 mt-1">
-                        {currentMusic && !DEFAULT_MUSIC_TRACKS.find(t => t.url === currentMusic) 
+                        {currentMusic && !DEFAULT_MUSIC_TRACKS.find((t: any) => t.url === currentMusic) 
                             ? 'Custom Track Active (Click to change)' 
                             : 'Upload MP3 (Max 2MB)'
                         }
