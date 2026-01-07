@@ -12,7 +12,7 @@
     <style>
       @font-face {
         font-family: 'QuiviexCustom';
-        src: url('./font.ttf') format('truetype');
+        src: url('font.ttf') format('truetype');
         font-display: swap;
       }
 
@@ -106,17 +106,24 @@
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
-      // Font loading detection
+      // Enhanced font loading detection with explicit path verification
       if ('fonts' in document) {
         document.fonts.load('1em QuiviexCustom').then(function(fonts) {
           if (fonts.length === 0) {
-            console.warn('Quiviex: Custom font "font.ttf" failed to load. Falling back to system fonts.');
+            console.warn('Quiviex: Custom font "font.ttf" not found in document. Checking network...');
+            // Fallback check: browser might need usage before it counts as loaded
+            document.fonts.ready.then(function() {
+              if (!document.fonts.check('1em QuiviexCustom')) {
+                 console.error('Quiviex: Custom font load failed after ready state. Using "Plus Jakarta Sans".');
+              }
+            });
           } else {
             console.log('Quiviex: Custom font "font.ttf" loaded successfully.');
           }
         }).catch(function(error) {
-          console.error('Quiviex: Error while loading custom font:', error);
-          console.warn('Quiviex: Using fallback font "Plus Jakarta Sans".');
+          // If network error happens, it's logged here
+          console.error('Quiviex: Network error or 404 while loading "font.ttf":', error.message || error);
+          console.warn('Quiviex: Falling back to "Plus Jakarta Sans" for the application interface.');
         });
       }
     </script>
