@@ -1,0 +1,5 @@
+{
+  "name": "Quiviex",
+  "description": "A comprehensive quiz creation and taking application. Create custom quizzes with multiple question types including multiple choice, true/false, text input, and polls. Features a responsive design, tutorial mode, and real-time score tracking.",
+  "requestFramePermissions": []
+}
