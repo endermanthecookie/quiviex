@@ -12,6 +12,7 @@
     <style>
       @font-face {
         font-family: 'QuiviexCustom';
+        /* Removed ./ prefix to see if environment resolves relative assets more reliably without it */
         src: url('font.ttf') format('truetype');
         font-display: swap;
       }
@@ -21,6 +22,7 @@
         --liquid-speed: 25s;
       }
       body {
+        /* Fallback to Plus Jakarta Sans if QuiviexCustom is not available */
         font-family: 'QuiviexCustom', 'Plus Jakarta Sans', sans-serif;
         overflow-x: hidden;
         background-color: #f1f5f9;
@@ -99,6 +101,9 @@
 </script>
 </head>
   <body class="text-slate-900 antialiased selection:bg-purple-500/30">
+    <!-- Invisible element to force browser to initiate the font download -->
+    <div style="font-family: 'QuiviexCustom'; position: absolute; opacity: 0; pointer-events: none; visibility: hidden;">.</div>
+
     <div class="liquid-blob bg-blue-100 top-[-20%] left-[-10%]" style="--liquid-speed: 24s;"></div>
     <div class="liquid-blob bg-purple-100 bottom-[-10%] right-[-5%]" style="--liquid-speed: 30s;"></div>
     <div class="liquid-blob bg-indigo-50 top-[30%] right-[10%]" style="--liquid-speed: 28s;"></div>
@@ -106,24 +111,30 @@
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
-      // Enhanced font loading detection with explicit path verification
+      /**
+       * Font loading detection script
+       * We rely on the browser's native FontFaceSet (document.fonts) to monitor
+       * the status of fonts declared in CSS, rather than manually fetching.
+       */
       if ('fonts' in document) {
-        document.fonts.load('1em QuiviexCustom').then(function(fonts) {
-          if (fonts.length === 0) {
-            console.warn('Quiviex: Custom font "font.ttf" not found in document. Checking network...');
-            // Fallback check: browser might need usage before it counts as loaded
-            document.fonts.ready.then(function() {
-              if (!document.fonts.check('1em QuiviexCustom')) {
-                 console.error('Quiviex: Custom font load failed after ready state. Using "Plus Jakarta Sans".');
-              }
-            });
+        // Monitor the ready state of all fonts used in the document
+        document.fonts.ready.then(function() {
+          // Check if our specific branded font is loaded and active
+          if (document.fonts.check('1em QuiviexCustom')) {
+            console.log('Quiviex: Branded font "font.ttf" loaded successfully.');
           } else {
-            console.log('Quiviex: Custom font "font.ttf" loaded successfully.');
+            console.warn('Quiviex: "font.ttf" not detected after document ready. Using fallback font "Plus Jakarta Sans".');
+            // One final check after a short delay for slow environments
+            setTimeout(function() {
+              if (document.fonts.check('1em QuiviexCustom')) {
+                console.log('Quiviex: Branded font loaded late.');
+              } else {
+                console.warn('Quiviex: Fallback font is officially active.');
+              }
+            }, 1500);
           }
         }).catch(function(error) {
-          // If network error happens, it's logged here
-          console.error('Quiviex: Network error or 404 while loading "font.ttf":', error.message || error);
-          console.warn('Quiviex: Falling back to "Plus Jakarta Sans" for the application interface.');
+          console.error('Quiviex: Critical error during font set preparation:', error);
         });
       }
     </script>
