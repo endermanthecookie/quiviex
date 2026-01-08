@@ -1,4 +1,3 @@
-
 import { Question, UserPreferences } from '../types';
 
 export const generateQuizWithAI = async (

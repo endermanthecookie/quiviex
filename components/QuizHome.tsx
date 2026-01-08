@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle } from 'lucide-react';
+import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare } from 'lucide-react';
 import { Quiz, User as UserType } from '../types';
 import { Logo } from './Logo';
 
@@ -21,6 +21,7 @@ interface QuizHomeProps {
   onImportQuiz: (file: any) => void;
   onViewCommunity: () => void;
   onViewTutorial?: () => void;
+  onOpenFeedback: () => void;
 }
 
 export const QuizHome: React.FC<QuizHomeProps> = ({
@@ -38,7 +39,8 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
   onViewSettings,
   onExportQuiz,
   onViewCommunity,
-  onViewTutorial
+  onViewTutorial,
+  onOpenFeedback
 }) => {
   const [activeTab, setActiveTab] = useState<'my' | 'saved'>('my');
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,10 +69,11 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
             <span className="text-sm font-bold text-slate-700">@{user.username}</span>
           </div>
           {onViewTutorial && (
-            <button onClick={onViewTutorial} className="p-3 bg-white border border-slate-100 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-indigo-600 shadow-sm click-scale"><HelpCircle size={20} /></button>
+            <button onClick={onViewTutorial} title="Help" className="p-3 bg-white border border-slate-100 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-indigo-600 shadow-sm click-scale"><HelpCircle size={20} /></button>
           )}
-          <button onClick={onViewSettings} className="p-3 bg-white border border-slate-100 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-purple-600 shadow-sm click-scale"><Settings size={20} /></button>
-          <button onClick={onLogout} className="p-3 bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-500 rounded-2xl transition-all click-scale shadow-sm"><LogOut size={20} /></button>
+          <button onClick={onOpenFeedback} title="Give Feedback" className="p-3 bg-white border border-slate-100 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-blue-600 shadow-sm click-scale"><MessageSquare size={20} /></button>
+          <button onClick={onViewSettings} title="Settings" className="p-3 bg-white border border-slate-100 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-purple-600 shadow-sm click-scale"><Settings size={20} /></button>
+          <button onClick={onLogout} title="Sign Out" className="p-3 bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-500 rounded-2xl transition-all click-scale shadow-sm"><LogOut size={20} /></button>
         </div>
       </header>
 
@@ -110,7 +113,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
              <button onClick={onViewAchievements} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 hover:border-yellow-300 flex flex-row items-center justify-between group click-scale transition-all shadow-sm">
                 <div className="text-left">
                     <h3 className="text-2xl font-black tracking-tight text-slate-800">Trophies</h3>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Your Milestones</p>
+                    <p className="text--[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Your Milestones</p>
                 </div>
                 <Trophy size={36} className="text-yellow-500 group-hover:scale-110 transition-transform" />
              </button>

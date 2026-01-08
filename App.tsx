@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Quiz, QuizResult, User, UserStats, Achievement } from './types';
+import { Quiz, QuizResult, User, UserStats, Achievement, Feedback } from './types';
 import { QuizHome } from './components/QuizHome';
 import { QuizCreator } from './components/QuizCreator';
 import { QuizTaker } from './components/QuizTaker';
@@ -13,6 +13,7 @@ import { CommunityPage } from './components/CommunityPage';
 import { Auth } from './components/Auth';
 import { THEMES } from './constants';
 import { NotificationToast } from './components/NotificationToast';
+import { FeedbackModal } from './components/FeedbackModal';
 import { exportQuizToQZX, exportAllQuizzesToZip } from './services/exportService';
 import { supabase, checkSupabaseConnection } from './services/supabase';
 import { AlertTriangle } from 'lucide-react';
@@ -44,6 +45,7 @@ export default function App() {
   const [achievementsDefinitions, setAchievementsDefinitions] = useState<Achievement[]>([]);
   const [notification, setNotification] = useState<{title: string, message: string} | null>(null);
   const [showNotification, setShowNotification] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   
   // Track verified available fonts from Supabase to prevent network error loops
   const [verifiedFonts, setVerifiedFonts] = useState<Set<string>>(new Set());
@@ -250,6 +252,18 @@ export default function App() {
     } catch (error) { console.error("Failed to save user data:", error); }
   };
 
+  const handleFeedbackSubmit = async (feedback: any) => {
+      const { error } = await supabase.from('feedback').insert({
+          id: feedback.id,
+          user_id: user?.id,
+          username: user?.username,
+          type: feedback.type,
+          content: feedback.content,
+          status: 'new'
+      });
+      if (error) throw error;
+  };
+
   const renderContent = () => {
       if (dbError) return (
           <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-red-50">
@@ -262,7 +276,7 @@ export default function App() {
       if (!user) return <Auth onLogin={() => {}} />;
       
       switch(view) {
-          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => setView('create')} onEditQuiz={(q) => { setView('create'); }} onDeleteQuiz={async (id) => { if(confirm('Delete?')){ await supabase.from('quizzes').delete().eq('id', id); fetchQuizzes(user.id); } }} onLogout={async () => { await supabase.auth.signOut(); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} />;
+          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => setView('create')} onEditQuiz={(q) => { setView('create'); }} onDeleteQuiz={async (id) => { if(confirm('Delete?')){ await supabase.from('quizzes').delete().eq('id', id); fetchQuizzes(user.id); } }} onLogout={async () => { await supabase.auth.signOut(); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} />;
           case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user} onSave={async (q) => { await supabase.from('quizzes').upsert({ user_id: user.id, ...q }); fetchQuizzes(user.id); setView('home'); }} onExit={() => setView('home')} startWithTutorial={!user.hasSeenTutorial} onStatUpdate={(type) => handleStatUpdate(type === 'create' ? 'quizzesCreated' : type === 'ai_quiz' ? 'aiQuizzesGenerated' : 'aiImagesGenerated')} onOpenSettings={() => setView('settings')} />;
           case 'take': return activeQuiz ? <QuizTaker quiz={activeQuiz} onComplete={(answers, score) => { setActiveResults({answers, score}); setView('results'); handleStatUpdate('quizzesPlayed'); }} onExit={() => setView('home')} /> : null;
           case 'results': return activeQuiz && activeResults ? <QuizResults quiz={activeQuiz} userAnswers={activeResults.answers} score={activeResults.score} onPlayAgain={() => setView('take')} onHome={() => setView('home')} /> : null;
@@ -280,6 +294,13 @@ export default function App() {
   return (
     <div className={`min-h-screen transition-all duration-500 bg-gradient-to-br ${theme.gradient} ${theme.text}`}>
         <NotificationToast title={notification?.title || ''} message={notification?.message || ''} isVisible={showNotification} onClose={() => setShowNotification(false)} />
+        {showFeedbackModal && user && (
+            <FeedbackModal
+                user={user}
+                onClose={() => setShowFeedbackModal(false)}
+                onSubmit={handleFeedbackSubmit}
+            />
+        )}
         {renderContent()}
     </div>
   );

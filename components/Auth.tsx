@@ -68,6 +68,26 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     return msg;
   };
 
+  const handleOAuthLogin = async (provider: 'google' | 'github' | 'discord') => {
+    clearErrors();
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+
+      if (error) throw error;
+      // Browser will redirect to provider
+    } catch (err: any) {
+      console.error(`${provider} login error:`, err);
+      setError(err.message || `Failed to connect to ${provider}`);
+      setIsLoading(false);
+    }
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     clearErrors();
@@ -137,14 +157,34 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       if (!email.trim()) { setError("Email is required"); return; }
       setIsLoading(true);
       try {
+        // Check if user actually exists before sending reset
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('email', email.trim())
+            .single();
+
+        if (profileError || !profile) {
+            throw new Error("No account found with this email.");
+        }
+
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
         if (error) throw error;
         setSuccessMsg("Check your email for the security code!");
         setForgotStage('code');
+        // Reset captcha to ensure fresh verification for next step if needed
+        setCaptchaToken(null);
+        recaptchaRef.current?.reset();
       } catch (err: any) { setError(formatAuthError(err.message)); } finally { setIsLoading(false); }
     } else {
       if (otp.length < 8) { setError("Enter the full 8-digit code"); return; }
       if (password.length < 8) { setError("New password must be at least 8 characters."); return; }
+      
+      if (!captchaToken) {
+          setError("Please complete the security verification.");
+          return;
+      }
+
       setIsLoading(true);
       try {
         const { error: verifyError } = await supabase.auth.verifyOtp({ email: email.trim(), token: otp, type: 'recovery' });
@@ -154,7 +194,14 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         setSuccessMsg("Success! Please log in with your new password.");
         setMode('login');
         setForgotStage('email');
-      } catch (err: any) { setError(formatAuthError(err.message)); } finally { setIsLoading(false); }
+        setCaptchaToken(null);
+      } catch (err: any) { 
+          setError(formatAuthError(err.message)); 
+          setCaptchaToken(null);
+          recaptchaRef.current?.reset();
+      } finally { 
+          setIsLoading(false); 
+      }
     }
   };
 
@@ -210,7 +257,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         </div>
       </div>
 
-      <button type="submit" disabled={isLoading} className="w-full h-14 bg-slate-900 text-white font-black rounded-2xl flex items-center justify-center gap-2 click-scale uppercase tracking-widest shadow-lg">
+      <div className="flex flex-col items-center py-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+        <div className="transform scale-[0.85] sm:scale-100 origin-center">
+            <ReCAPTCHA
+                sitekey="6LfwC0MsAAAAAMF3wFKcYYLgusVeFmQQrF3Whgum"
+                onChange={(token) => setCaptchaToken(token)}
+                ref={recaptchaRef}
+            />
+        </div>
+      </div>
+
+      <button type="submit" disabled={isLoading || !captchaToken} className="w-full h-14 bg-slate-900 text-white font-black rounded-2xl flex items-center justify-center gap-2 click-scale uppercase tracking-widest shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
         {isLoading ? <Loader2 className="animate-spin" /> : <ShieldCheck size={20} />} CONFIRM CHANGE
       </button>
     </div>
@@ -244,14 +301,14 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         <div className="stagger-in">
           {(mode === 'login' || mode === 'signup') && (
             <div className="space-y-3 mb-8">
-              <button type="button" onClick={() => {}} className="w-full bg-white border-2 border-slate-100 text-slate-600 font-extrabold py-3 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all click-scale shadow-sm text-sm">
+              <button type="button" onClick={() => handleOAuthLogin('google')} className="w-full bg-white border-2 border-slate-100 text-slate-600 font-extrabold py-3 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all click-scale shadow-sm text-sm">
                 <GoogleIcon /> Continue with Google
               </button>
               <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => {}} className="bg-slate-900 text-white font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 click-scale hover:bg-black transition-all text-xs">
+                <button type="button" onClick={() => handleOAuthLogin('github')} className="bg-slate-900 text-white font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 click-scale hover:bg-black transition-all text-xs">
                   <Github size={18} /> GitHub
                 </button>
-                <button type="button" onClick={() => {}} className="bg-[#5865F2] text-white font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 click-scale hover:bg-[#4752C4] transition-all text-xs">
+                <button type="button" onClick={() => handleOAuthLogin('discord')} className="bg-[#5865F2] text-white font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 click-scale hover:bg-[#4752C4] transition-all text-xs">
                   <DiscordIcon /> Discord
                 </button>
               </div>
@@ -299,7 +356,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-1">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">SECURITY</span>
-                  {mode === 'login' && <button type="button" onClick={() => setMode('forgot')} className="text-xs font-black text-purple-600 hover:text-purple-700">Forgot Password?</button>}
+                  {mode === 'login' && <button type="button" onClick={() => { setMode('forgot'); setCaptchaToken(null); }} className="text-xs font-black text-purple-600 hover:text-purple-700">Forgot Password?</button>}
                 </div>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-purple-500 transition-colors">

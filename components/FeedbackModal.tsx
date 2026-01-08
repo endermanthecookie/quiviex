@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, MessageSquare, Send, Bug, Lightbulb, HelpCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { User, Feedback } from '../types';
@@ -21,7 +20,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ user, onClose, onS
 
     setIsSubmitting(true);
     const newFeedback: Feedback = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         userId: user.id,
         username: user.username,
         type,

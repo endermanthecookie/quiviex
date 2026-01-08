@@ -32,7 +32,7 @@ export const GitHubAIModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, us
       const result = await generateQuizWithAI(topic, difficulty, count, user.preferences, quizType);
       setGeneratedData(result);
       const allIndices = new Set<number>();
-      result.questions.forEach((_, i) => allIndices.add(i));
+      result.questions.forEach((_: any, i: number) => allIndices.add(i));
       setSelectedIndices(allIndices);
       setStep('review');
     } catch (err: any) {
