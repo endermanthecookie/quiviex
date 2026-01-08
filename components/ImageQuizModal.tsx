@@ -1,26 +1,20 @@
 import React, { useState } from 'react';
-import { X, Upload, Sparkles, Loader2, Image as ImageIcon, BarChart, Hash, AlertCircle, Info } from 'lucide-react';
-import { Question } from '../types';
+import { X, Upload, Sparkles, Loader2, Image as ImageIcon, Sparkles as SparklesIcon } from 'lucide-react';
 import { generateQuizFromImage, generateImageForQuestion } from '../services/genAI';
 import { compressImage } from '../services/imageUtils';
 
-export const ImageQuizModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, imageModel = 'dall-e-3' }) => {
+export const ImageQuizModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, user }) => {
   const [image, setImage] = useState<string | null>(null);
   const [count, setCount] = useState(5);
   const [difficulty, setDifficulty] = useState('medium');
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [autoImages, setAutoImages] = useState(true);
-
-  // Fix: Use window.localStorage
-  const openaiKey = (window as any).localStorage.getItem('openai_api_key');
+  const [autoImages, setAutoImages] = useState(false);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Fix: Cast e.target to any
     const file = (e.target as any).files?.[0];
     if (file) {
-      // Fix: Use window.FileReader
       const reader = new (window as any).FileReader();
       reader.onloadend = async () => {
         const compressed = await compressImage(reader.result as string);
@@ -32,28 +26,24 @@ export const ImageQuizModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, i
   };
 
   const handleGenerate = async () => {
-    if (!openaiKey) {
-        setError("OpenAI API Key is missing. Add it in Settings.");
-        return;
-    }
     if (!image) {
       setError("Please upload an image first.");
       return;
     }
 
     setIsGenerating(true);
-    setLoadingStatus('Analyzing image with GPT-4o...');
+    setLoadingStatus('Analyzing visuals...');
     setError(null);
 
     try {
-      const result = await generateQuizFromImage(image, difficulty, count);
+      const result = await generateQuizFromImage(image, difficulty, count, user.preferences);
       let finalQuestions = result.questions;
 
       if (autoImages) {
-        setLoadingStatus(`Creating visuals...`);
+        setLoadingStatus(`Creating illustrations...`);
         finalQuestions = await Promise.all(result.questions.map(async (q) => {
             try {
-                const imageUrl = await generateImageForQuestion(q.question, imageModel);
+                const imageUrl = await generateImageForQuestion(q.question, user.preferences);
                 if (imageUrl) {
                     const compressedUrl = await compressImage(imageUrl);
                     return { ...q, image: compressedUrl };
@@ -69,7 +59,7 @@ export const ImageQuizModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, i
       onGenerate(finalQuestions, result.title);
       onClose();
     } catch (err: any) {
-      setError("Failed to analyze image. Please try again.");
+      setError(err.message || "Failed to analyze image. Ensure OpenAI Key is valid.");
     } finally {
       setIsGenerating(false);
       setLoadingStatus('');
@@ -82,7 +72,7 @@ export const ImageQuizModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, i
         <div className="bg-gradient-to-r from-pink-600 to-rose-600 p-6 flex justify-between items-center text-white">
           <div className="flex items-center gap-3">
             <ImageIcon size={24} />
-            <h2 className="font-black text-xl">Image to Quiz</h2>
+            <h2 className="font-black text-xl">Visual Insight</h2>
           </div>
           <button onClick={onClose} className="hover:bg-white/20 rounded-full p-2">
             <X size={20} />
@@ -90,7 +80,6 @@ export const ImageQuizModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, i
         </div>
 
         <div className="p-6 space-y-6">
-          {!openaiKey && <div className="bg-amber-50 p-3 rounded-xl text-amber-800 text-sm font-bold border border-amber-100">OpenAI Key Required in Settings</div>}
           {error && <div className="bg-red-50 text-red-700 p-3 rounded text-sm">{error}</div>}
 
           <div className="relative">
@@ -109,12 +98,10 @@ export const ImageQuizModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, i
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Fix: Cast e.target to any */}
             <select value={count} onChange={(e) => setCount(Number((e.target as any).value))} className="px-4 py-3 bg-slate-50 border-2 rounded-xl">
                 <option value={3}>3 Questions</option>
                 <option value={5}>5 Questions</option>
             </select>
-            {/* Fix: Cast e.target to any */}
             <select value={difficulty} onChange={(e) => setDifficulty((e.target as any).value)} className="px-4 py-3 bg-slate-50 border-2 rounded-xl">
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
@@ -123,11 +110,11 @@ export const ImageQuizModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, i
 
           <button
             onClick={handleGenerate}
-            disabled={isGenerating || !image || !openaiKey}
+            disabled={isGenerating || !image}
             className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-50"
           >
             {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles size={20} />}
-            {isGenerating ? loadingStatus : 'Generate Quiz with GPT-4o'}
+            {isGenerating ? loadingStatus : 'Generate Quiz via Vision'}
           </button>
         </div>
       </div>

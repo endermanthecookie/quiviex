@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
-import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book } from 'lucide-react';
+// Added Check to the lucide-react imports to fix "Cannot find name 'Check'" error
+import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check } from 'lucide-react';
 import { Quiz, Question, QuestionType, User, CustomTheme, QuizVisibility } from '../types';
 import { COLORS, TUTORIAL_STEPS, THEMES } from '../constants';
 import { TutorialWidget } from './TutorialWidget';
@@ -176,15 +178,15 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   };
 
   const checkComplianceWithAI = async (title: string, questions: Question[]) => {
-      const token = (window as any).localStorage.getItem('gh_models_token') || (window as any).localStorage.getItem('openai_api_key');
+      const token = currentUser.preferences?.githubToken || currentUser.preferences?.openaiKey;
       if (!token) return true; 
       
-      const provider = (window as any).localStorage.getItem('ai_text_provider') || 'github';
+      const provider = currentUser.preferences?.aiTextProvider || 'github';
       const endpoint = provider === 'github' 
         ? "https://models.github.ai/inference/chat/completions"
         : "https://api.openai.com/v1/chat/completions";
         
-      const model = provider === 'github' ? 'gpt-4o-mini' : 'gpt-4o-mini';
+      const model = 'gpt-4o-mini';
 
       const prompt = `You are a content moderator for a quiz app. Review the following quiz.
       Title: ${title}
@@ -217,7 +219,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
         }
         return true;
       } catch (e) {
-          (window as any).console.error("Mod check error", e);
           return true; 
       }
   };
@@ -340,71 +341,71 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
             />
         )}
         
-        {showImageModal && <ImageSelectionModal onSelect={handleImageSelect} onClose={() => setShowImageModal(false)} onAiUsed={() => onStatUpdate('ai_img')} />}
-        {showAIModal && <GitHubAIModal onGenerate={handleAIGenerated} onClose={() => setShowAIModal(false)} onAiUsed={() => onStatUpdate('ai_quiz')} textModel={currentUser.preferences?.textModel} imageModel={currentUser.preferences?.imageModel} />}
-        {showImageQuizModal && <ImageQuizModal onGenerate={handleAIGenerated} onClose={() => setShowImageQuizModal(false)} onAiUsed={() => onStatUpdate('ai_quiz')} />}
+        {showImageModal && <ImageSelectionModal onSelect={handleImageSelect} onClose={() => setShowImageModal(false)} onAiUsed={() => onStatUpdate('ai_img')} preferences={currentUser.preferences} />}
+        {showAIModal && <GitHubAIModal onGenerate={handleAIGenerated} onClose={() => setShowAIModal(false)} onAiUsed={() => onStatUpdate('ai_quiz')} user={currentUser} />}
+        {showImageQuizModal && <ImageQuizModal onGenerate={handleAIGenerated} onClose={() => setShowImageQuizModal(false)} onAiUsed={() => onStatUpdate('ai_quiz')} user={currentUser} />}
         {showMusicModal && <MusicSelectionModal currentMusic={bgMusic} onSelect={setBgMusic} onClose={() => setShowMusicModal(false)} />}
         {showThemeEditor && <ThemeEditorModal initialTheme={customTheme} onSave={(t) => { setCustomTheme(t); setShowThemeEditor(false); }} onClose={() => setShowThemeEditor(false)} onAiUsed={() => onStatUpdate('ai_img')} />}
         {showTokenHelpModal && <GitHubTokenHelpModal onClose={() => setShowTokenHelpModal(false)} />}
         
-        <div className={`fixed inset-y-0 left-0 w-72 bg-slate-900/90 backdrop-blur-2xl text-white transform transition-transform duration-300 z-30 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 flex flex-col border-r border-white/10`}>
-             <div className="p-6 border-b border-white/5 flex justify-between items-center">
-                 <div className="flex items-center gap-2 font-bold text-xl">
+        <div className={`fixed inset-y-0 left-0 w-80 bg-slate-900 text-white transform transition-transform duration-300 z-30 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 flex flex-col border-r border-white/10 shadow-2xl`}>
+             <div className="p-8 border-b border-white/5 flex justify-between items-center bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
+                 <div className="flex items-center gap-3 font-black text-2xl tracking-tighter">
                      <PenTool className="text-indigo-400" />
                      <span>Editor</span>
                  </div>
-                 <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400">
+                 <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400 p-2 hover:bg-white/10 rounded-full">
                      <X size={24} />
                  </button>
              </div>
 
-             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">
+             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-3">
                  {questions.map((q, idx) => (
                      <div 
                         key={idx}
                         onClick={() => setCurrentQuestionIndex(idx)}
-                        className={`p-4 rounded-xl cursor-pointer transition-all group relative border ${
+                        className={`p-5 rounded-2xl cursor-pointer transition-all group relative border ${
                             currentQuestionIndex === idx 
-                            ? 'bg-indigo-600/80 shadow-lg border-indigo-400' 
+                            ? 'bg-indigo-600 shadow-xl border-indigo-400 scale-[1.02]' 
                             : 'bg-white/5 border-white/5 hover:bg-white/10'
                         }`}
                      >
-                         <div className="flex justify-between items-start mb-2">
-                             <span className={`text-[10px] font-bold uppercase tracking-wider ${currentQuestionIndex === idx ? 'text-indigo-200' : 'text-slate-500'}`}>Question {idx + 1}</span>
+                         <div className="flex justify-between items-start mb-3">
+                             <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${currentQuestionIndex === idx ? 'text-indigo-200' : 'text-slate-500'}`}>Q.{idx + 1}</span>
                              <button 
                                 onClick={(e) => { e.stopPropagation(); removeQuestion(idx); }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/20 rounded text-red-300 transition-all"
+                                className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-white/20 rounded-xl text-red-300 transition-all"
                              >
-                                 <Trash2 size={14} />
+                                 <Trash2 size={16} />
                              </button>
                          </div>
-                         <p className="text-sm font-medium line-clamp-2 h-10 text-slate-200">
-                             {q.question || <span className="italic opacity-50">Empty Question...</span>}
+                         <p className="text-sm font-bold line-clamp-2 h-10 text-slate-200 leading-tight">
+                             {q.question || <span className="italic opacity-30 font-medium">Untitled Task...</span>}
                          </p>
                      </div>
                  ))}
                  
                  <button 
                     onClick={addQuestion}
-                    className="w-full py-4 border-2 border-dashed border-white/10 rounded-xl text-slate-400 hover:border-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all font-bold flex items-center justify-center gap-2"
+                    className="w-full py-5 border-2 border-dashed border-white/10 rounded-2xl text-slate-400 hover:border-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all font-black flex items-center justify-center gap-2 uppercase text-xs tracking-widest"
                  >
-                     <PlusCircle size={20} /> Add Question
+                     <PlusCircle size={20} /> Add Item
                  </button>
              </div>
 
-             <div className="p-4 border-t border-white/5 space-y-2">
-                 <button onClick={() => setShowGuidelines(true)} className="flex items-center gap-2 text-xs text-slate-400 hover:text-white mb-2 ml-2">
-                    <Book size={12} /> Content Guidelines
+             <div className="p-6 border-t border-white/5 space-y-3 bg-slate-950/50 backdrop-blur-xl">
+                 <button onClick={() => setShowGuidelines(true)} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white mb-2 ml-2 transition-colors">
+                    <Book size={12} /> Guidelines
                  </button>
                  <button 
                     onClick={() => setShowAIModal(true)}
-                    className="w-full bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg text-sm border border-indigo-400/30"
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl text-sm border border-indigo-400/50 uppercase tracking-widest"
                  >
                      <Sparkles size={16} className="text-yellow-400" /> AI Generator
                  </button>
                  <button 
                     onClick={() => setShowImageQuizModal(true)}
-                    className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg text-sm border border-white/10"
+                    className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all border border-white/10 text-sm uppercase tracking-widest"
                  >
                      <ImageIcon size={16} className="text-rose-400" /> Image to Quiz
                  </button>
@@ -412,13 +413,13 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
         </div>
 
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
-            <div className="bg-white/40 backdrop-blur-xl border-b border-white/40 p-4 flex items-center justify-between shadow-sm z-20">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 bg-white/50 rounded-lg shadow-sm">
-                        <Menu size={24} className="text-slate-600" />
+            <div className="bg-white/80 backdrop-blur-2xl border-b border-slate-100 p-5 flex items-center justify-between shadow-sm z-20">
+                <div className="flex items-center gap-4 flex-1">
+                    <button onClick={() => setSidebarOpen(true)} className="md:hidden p-3 bg-slate-100 rounded-2xl shadow-sm text-slate-600">
+                        <Menu size={20} />
                     </button>
-                    <div className="flex items-center gap-2 w-full max-w-lg">
-                        <button onClick={onExit} className="p-2 hover:bg-white/80 rounded-lg text-slate-500 transition-colors" title="Exit">
+                    <div className="flex items-center gap-2 w-full max-w-xl">
+                        <button onClick={onExit} className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-colors" title="Exit">
                             <ArrowLeft size={24} />
                         </button>
                         <input 
@@ -426,146 +427,210 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                             value={quizTitle}
                             onChange={(e) => setQuizTitle((e.target as any).value)}
                             placeholder="Untitled Quiz"
-                            className="text-xl sm:text-2xl font-black bg-transparent text-slate-900 border-none px-3 py-1 focus:ring-0 placeholder-slate-400 w-full"
+                            className="text-2xl font-black bg-transparent text-slate-900 border-none px-3 py-1 focus:ring-0 placeholder-slate-300 w-full tracking-tight"
                         />
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 sm:gap-4">
-                    <button onClick={startPreview} className="hidden sm:flex items-center gap-2 text-slate-600 font-bold hover:bg-white/60 px-4 py-2 rounded-xl transition-all shadow-sm border border-white/40">
-                        <Eye size={20} /> Preview
+                <div className="flex items-center gap-3">
+                    <button onClick={startPreview} className="hidden sm:flex items-center gap-2 text-slate-600 font-black hover:bg-white px-5 py-3 rounded-2xl transition-all shadow-sm border border-slate-200 uppercase text-xs tracking-widest">
+                        <Eye size={18} /> Preview
                     </button>
-                    <button onClick={handleInitiateSave} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2 border border-indigo-400/30">
+                    <button onClick={handleInitiateSave} className="bg-slate-900 hover:bg-black text-white font-black px-8 py-3.5 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center gap-2 uppercase text-sm tracking-widest">
                         Save Quiz
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
-                <div className="max-w-4xl mx-auto space-y-6">
-                    <div className="glass p-4 rounded-2xl flex flex-wrap gap-4 items-center justify-between">
-                         <div className="flex items-center gap-2">
-                             <div className="flex items-center gap-2 bg-white/40 px-3 py-1.5 rounded-lg border border-white/60">
-                                 <input type="checkbox" checked={shuffleQuestions} onChange={(e) => setShuffleQuestions((e.target as any).checked)} id="shuffle" className="accent-indigo-600 w-4 h-4" />
-                                 <label htmlFor="shuffle" className="text-sm font-bold text-slate-600 cursor-pointer select-none">Shuffle</label>
+            <div className="flex-1 overflow-y-auto p-6 sm:p-12 custom-scrollbar bg-slate-50/50">
+                <div className="max-w-4xl mx-auto space-y-8">
+                    <div className="bg-white p-5 rounded-3xl flex flex-wrap gap-4 items-center justify-between shadow-sm border border-slate-200/60">
+                         <div className="flex items-center gap-3">
+                             <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100 shadow-inner">
+                                 <input type="checkbox" checked={shuffleQuestions} onChange={(e) => setShuffleQuestions((e.target as any).checked)} id="shuffle" className="accent-indigo-600 w-4 h-4 rounded-md" />
+                                 <label htmlFor="shuffle" className="text-xs font-black text-slate-500 cursor-pointer select-none uppercase tracking-widest">Shuffle</label>
                              </div>
-                             <button onClick={() => setShowMusicModal(true)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-bold transition-all shadow-sm ${bgMusic ? 'bg-indigo-50/80 border-indigo-200 text-indigo-600' : 'bg-white/40 border-white/60 text-slate-600 hover:bg-white/60'}`}>
-                                 <Music size={16} /> {bgMusic ? 'Music On' : 'No Music'}
+                             <button onClick={() => setShowMusicModal(true)} className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all shadow-sm ${bgMusic ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white'}`}>
+                                 <Music size={16} /> {bgMusic ? 'Audio On' : 'No Audio'}
                              </button>
                          </div>
                          <div className="flex items-center gap-2">
-                             <div className="flex items-center bg-white/30 backdrop-blur-md rounded-lg p-1 border border-white/40">
+                             <div className="flex items-center bg-slate-100/50 rounded-2xl p-1.5 border border-slate-200 shadow-inner">
                                  {Object.entries(THEMES).map(([key, theme]) => (
-                                     <button key={key} onClick={() => { setQuizTheme(key); setCustomTheme(undefined); }} className={`w-8 h-8 rounded-md transition-all ${quizTheme === key && !customTheme ? 'bg-white shadow-md scale-110' : 'opacity-50 hover:opacity-100'}`} title={theme.label}>
+                                     <button key={key} onClick={() => { setQuizTheme(key); setCustomTheme(undefined); }} className={`w-9 h-9 rounded-xl transition-all ${quizTheme === key && !customTheme ? 'bg-white shadow-lg scale-110' : 'opacity-40 hover:opacity-100'}`} title={theme.label}>
                                          <div className={`w-4 h-4 rounded-full mx-auto bg-gradient-to-br ${theme.gradient}`}></div>
                                      </button>
                                  ))}
-                                 <button onClick={() => setShowThemeEditor(true)} className={`w-8 h-8 rounded-md transition-all flex items-center justify-center ${customTheme ? 'bg-white shadow-md scale-110 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`} title="Custom Theme">
-                                     <Palette size={16} />
+                                 <button onClick={() => setShowThemeEditor(true)} className={`w-9 h-9 rounded-xl transition-all flex items-center justify-center ${customTheme ? 'bg-white shadow-lg scale-110 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`} title="Custom Theme">
+                                     <Palette size={18} />
                                  </button>
                              </div>
                          </div>
                     </div>
 
-                    <div className="glass rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/60">
-                        <div className="bg-white/20 border-b border-white/40 p-6 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <span className="bg-white/40 text-slate-600 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border border-white/60">Question {currentQuestionIndex + 1}</span>
-                                <select value={currentQ.type} onChange={(e) => updateQuestion(currentQuestionIndex, 'type', (e.target as any).value)} className="bg-white/60 backdrop-blur-md border border-white/60 text-slate-900 font-bold text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+                    <div className="bg-white rounded-[3.5rem] shadow-2xl overflow-hidden border border-slate-100 stagger-in">
+                        <div className="bg-slate-50/80 border-b border-slate-100 p-8 flex flex-wrap justify-between items-center gap-4">
+                            <div className="flex items-center gap-4 w-full sm:w-auto">
+                                <span className="bg-white text-indigo-600 px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border border-indigo-100 shadow-sm whitespace-nowrap">Question {currentQuestionIndex + 1}</span>
+                                <select value={currentQ.type} onChange={(e) => updateQuestion(currentQuestionIndex, 'type', (e.target as any).value)} className="bg-white border border-slate-200 text-slate-900 font-black text-xs uppercase tracking-widest rounded-2xl px-5 py-3 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all cursor-pointer flex-1 sm:flex-none">
                                     <option value="multiple-choice">Multiple Choice</option>
                                     <option value="true-false">True / False</option>
-                                    <option value="text-input">Text Input</option>
-                                    <option value="fill-in-the-blank">Fill in Blank</option>
-                                    <option value="ordering">Ordering</option>
-                                    <option value="matching">Matching</option>
-                                    <option value="slider">Slider / Range</option>
+                                    <option value="text-input">Text Entry</option>
+                                    <option value="fill-in-the-blank">Fill Space</option>
+                                    <option value="ordering">Sequence</option>
+                                    <option value="matching">Logic Pairs</option>
+                                    <option value="slider">Range Slider</option>
                                 </select>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <label className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest">
-                                    <span>Time:</span>
-                                    <input type="number" min="5" max="300" step="5" value={currentQ.timeLimit} onChange={(e) => updateQuestion(currentQuestionIndex, 'timeLimit', parseInt((e.target as any).value))} className="w-16 bg-white/60 border border-white/60 text-slate-900 rounded-lg px-2 py-1 text-center font-black focus:ring-2 focus:ring-indigo-500/30 outline-none" />
-                                    <span>s</span>
-                                </label>
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-3 bg-white px-5 py-2 rounded-2xl border border-slate-100 shadow-sm">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Limit:</span>
+                                    <input type="number" min="5" max="300" step="5" value={currentQ.timeLimit} onChange={(e) => updateQuestion(currentQuestionIndex, 'timeLimit', parseInt((e.target as any).value))} className="w-12 bg-transparent text-slate-900 text-center font-black text-sm outline-none" />
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sec</span>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="p-6 sm:p-8 space-y-6">
-                            <div className="space-y-4">
-                                <textarea value={currentQ.question} onChange={(e) => updateQuestion(currentQuestionIndex, 'question', (e.target as any).value)} placeholder="Type your question here..." className="w-full text-xl sm:text-2xl font-bold border-2 border-white/60 rounded-2xl p-6 bg-white/40 text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-indigo-500/10 focus:bg-white/60 focus:outline-none transition-all resize-none shadow-inner" rows={3} />
+                        <div className="p-8 sm:p-12 space-y-10">
+                            <div className="space-y-6">
+                                <textarea value={currentQ.question} onChange={(e) => updateQuestion(currentQuestionIndex, 'question', (e.target as any).value)} placeholder="Type your core prompt here..." className="w-full text-2xl sm:text-4xl font-black border-none rounded-3xl p-8 bg-slate-50 text-slate-900 placeholder-slate-200 focus:ring-0 focus:bg-white transition-all resize-none shadow-inner leading-tight min-h-[160px]" rows={3} />
+                                
                                 {currentQ.image ? (
-                                    <div className="relative rounded-2xl overflow-hidden group max-w-md bg-white/30 border-2 border-white/60 shadow-lg">
-                                        <img src={currentQ.image} alt="Question" className="w-full h-auto max-h-64 object-contain" />
-                                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                                            <button onClick={() => setShowImageModal(true)} className="bg-white text-slate-900 px-4 py-2 rounded-xl font-bold text-sm hover:scale-105 transition-transform shadow-lg">Change</button>
-                                            <button onClick={() => updateQuestion(currentQuestionIndex, 'image', '')} className="bg-red-500 text-white p-2 rounded-xl hover:scale-105 transition-transform shadow-lg"><Trash2 size={18} /></button>
+                                    <div className="relative rounded-[2.5rem] overflow-hidden group max-w-lg mx-auto bg-slate-50 border border-slate-100 shadow-xl">
+                                        <img src={currentQ.image} alt="Question" className="w-full h-auto max-h-[400px] object-contain p-4" />
+                                        <div className="absolute inset-0 bg-black/60 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4 duration-300">
+                                            <button onClick={() => setShowImageModal(true)} className="bg-white text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-110 transition-transform shadow-2xl">Change Visual</button>
+                                            <button onClick={() => updateQuestion(currentQuestionIndex, 'image', '')} className="bg-rose-500 text-white p-3.5 rounded-2xl hover:bg-rose-600 hover:scale-110 transition-transform shadow-2xl"><Trash2 size={20} /></button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <button onClick={() => setShowImageModal(true)} className="flex items-center gap-2 text-indigo-600 font-bold hover:bg-white/60 px-6 py-3 rounded-2xl transition-all w-fit border-2 border-white shadow-sm">
-                                        <ImageIcon size={20} /> Add Visual Media
+                                    <button onClick={() => setShowImageModal(true)} className="flex items-center gap-3 text-indigo-600 font-black hover:bg-indigo-50 px-8 py-5 rounded-3xl transition-all w-fit border-2 border-dashed border-indigo-200 text-xs uppercase tracking-[0.2em] mx-auto group">
+                                        <ImageIcon size={20} className="group-hover:rotate-12 transition-transform" /> Add Visual Context
                                     </button>
                                 )}
                             </div>
-                            <div className="h-px bg-white/40 w-full" />
-                            <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Answer Configuration</h4>
+
+                            <div className="space-y-6 pt-4">
+                                <div className="flex items-center gap-4 mb-2">
+                                    <div className="h-px bg-slate-100 flex-1"></div>
+                                    <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] whitespace-nowrap">Logic Configuration</h4>
+                                    <div className="h-px bg-slate-100 flex-1"></div>
+                                </div>
+                                
                                 {currentQ.type === 'multiple-choice' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {currentQ.options.map((opt, i) => (
-                                            <div key={i} className="flex items-center gap-3">
-                                                <button onClick={() => updateQuestion(currentQuestionIndex, 'correctAnswer', i)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border ${currentQ.correctAnswer === i ? 'bg-green-500 text-white border-green-400 shadow-lg scale-110' : 'bg-white/40 text-slate-400 hover:bg-white/60 border-white/60'}`}>{i === 0 ? 'A' : i === 1 ? 'B' : i === 2 ? 'C' : 'D'}</button>
-                                                <input type="text" value={opt} onChange={(e) => updateOption(currentQuestionIndex, i, (e.target as any).value)} placeholder={`Option ${i + 1}`} className={`flex-1 px-4 py-3 rounded-xl border-2 font-bold transition-all focus:outline-none bg-white/40 text-slate-900 ${currentQ.correctAnswer === i ? 'border-green-400 bg-white/60 shadow-md' : 'border-white/60 focus:border-indigo-400/50 focus:bg-white/60'}`} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                {currentQ.type === 'true-false' && (<div className="flex gap-4">{['True', 'False'].map((opt, i) => (<button key={i} onClick={() => updateQuestion(currentQuestionIndex, 'correctAnswer', i)} className={`flex-1 py-8 rounded-[2rem] font-black text-2xl transition-all border-2 backdrop-blur-md ${currentQ.correctAnswer === i ? 'bg-green-500 border-green-400 text-white shadow-xl transform scale-105' : 'bg-white/30 border-white/60 text-slate-400 hover:bg-white/60'}`}>{opt}</button>))}</div>)}
-                                {(currentQ.type === 'text-input' || currentQ.type === 'fill-in-the-blank') && (<div className="bg-white/20 p-6 rounded-[2rem] border border-white/40"><input type="text" value={currentQ.correctAnswer as string} onChange={(e) => updateQuestion(currentQuestionIndex, 'correctAnswer', (e.target as any).value)} className="w-full px-6 py-4 rounded-xl border-2 border-green-200/50 bg-white/40 text-slate-900 focus:border-green-400 focus:bg-white/60 focus:outline-none font-bold text-xl shadow-inner" placeholder="Enter correct answer..." /></div>)}
-                                {currentQ.type === 'ordering' && (
-                                    <div className="space-y-2">
-                                        {currentQ.options.map((opt, i) => (
-                                            <div key={i} className="flex items-center gap-3 bg-white/20 p-3 rounded-xl border border-white/40">
-                                                <div className="flex flex-col gap-1">
-                                                    <button onClick={() => moveOrderingOption(currentQuestionIndex, i, 'up')} disabled={i === 0} className="text-slate-400 hover:text-slate-600 disabled:opacity-30"><ArrowUp size={16} /></button>
-                                                    <button onClick={() => moveOrderingOption(currentQuestionIndex, i, 'down')} disabled={i === currentQ.options.length - 1} className="text-slate-400 hover:text-slate-600 disabled:opacity-30"><ArrowDown size={16} /></button>
+                                            <div key={i} className="flex items-center gap-4 group">
+                                                {/* Thickened A, B, C, D buttons */}
+                                                <button 
+                                                    onClick={() => updateQuestion(currentQuestionIndex, 'correctAnswer', i)} 
+                                                    className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border-4 font-black text-lg flex-shrink-0 ${
+                                                        currentQ.correctAnswer === i 
+                                                        ? 'bg-emerald-500 text-white border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] scale-110' 
+                                                        : 'bg-white text-slate-300 border-slate-100 hover:border-indigo-200 group-hover:scale-105'
+                                                    }`}
+                                                >
+                                                    {String.fromCharCode(65 + i)}
+                                                </button>
+                                                <div className="relative flex-1">
+                                                    <input 
+                                                        type="text" 
+                                                        value={opt} 
+                                                        onChange={(e) => updateOption(currentQuestionIndex, i, (e.target as any).value)} 
+                                                        placeholder={`Define Option ${i + 1}`} 
+                                                        className={`w-full px-6 py-4 rounded-[1.5rem] border-2 font-bold transition-all focus:outline-none bg-slate-50 text-slate-800 ${currentQ.correctAnswer === i ? 'border-emerald-200 bg-emerald-50 shadow-sm' : 'border-slate-50 focus:border-indigo-100 focus:bg-white'}`} 
+                                                    />
                                                 </div>
-                                                <span className="font-black text-slate-300 w-6">{i + 1}</span>
-                                                <input type="text" value={opt} onChange={(e) => updateOption(currentQuestionIndex, i, (e.target as any).value)} className="flex-1 px-4 py-2 rounded-lg border-2 border-white/40 bg-white/40 text-slate-900 font-bold focus:border-indigo-400 focus:bg-white/60 focus:outline-none" placeholder={`Item ${i + 1}`} />
                                             </div>
                                         ))}
                                     </div>
                                 )}
+
+                                {currentQ.type === 'true-false' && (
+                                    <div className="flex gap-6">
+                                        {['True', 'False'].map((opt, i) => (
+                                            <button 
+                                                key={i} 
+                                                onClick={() => updateQuestion(currentQuestionIndex, 'correctAnswer', i)} 
+                                                className={`flex-1 py-12 rounded-[2.5rem] font-black text-3xl transition-all border-4 shadow-sm group relative overflow-hidden ${
+                                                    currentQ.correctAnswer === i 
+                                                    ? 'bg-emerald-50 border-emerald-400 text-emerald-700 shadow-xl scale-[1.03]' 
+                                                    : 'bg-slate-50 border-slate-100 text-slate-300 hover:border-slate-200 hover:bg-white'
+                                                }`}
+                                            >
+                                                {opt}
+                                                {currentQ.correctAnswer === i && <div className="absolute top-4 right-4 text-emerald-400"><Check size={24} strokeWidth={4} /></div>}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {(currentQ.type === 'text-input' || currentQ.type === 'fill-in-the-blank') && (
+                                    <div className="bg-slate-50 p-8 rounded-[3rem] border border-slate-100 shadow-inner">
+                                        <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest block mb-4 ml-1">Validation Target</label>
+                                        <input 
+                                            type="text" 
+                                            value={currentQ.correctAnswer as string} 
+                                            onChange={(e) => updateQuestion(currentQuestionIndex, 'correctAnswer', (e.target as any).value)} 
+                                            className="w-full px-8 py-5 rounded-2xl border-2 border-emerald-100 bg-white text-slate-900 focus:border-emerald-400 focus:outline-none font-black text-2xl shadow-xl placeholder:text-slate-200" 
+                                            placeholder="Ex: Alexander the Great" 
+                                        />
+                                    </div>
+                                )}
+
+                                {currentQ.type === 'ordering' && (
+                                    <div className="space-y-3">
+                                        {currentQ.options.map((opt, i) => (
+                                            <div key={i} className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 group">
+                                                <div className="flex flex-col gap-1 flex-shrink-0">
+                                                    <button onClick={() => moveOrderingOption(currentQuestionIndex, i, 'up')} disabled={i === 0} className="text-slate-300 hover:text-indigo-500 disabled:opacity-20"><ArrowUp size={20} strokeWidth={3}/></button>
+                                                    <button onClick={() => moveOrderingOption(currentQuestionIndex, i, 'down')} disabled={i === currentQ.options.length - 1} className="text-slate-300 hover:text-indigo-500 disabled:opacity-20"><ArrowDown size={20} strokeWidth={3}/></button>
+                                                </div>
+                                                <span className="font-black text-indigo-200 text-xl w-8 text-center">{i + 1}</span>
+                                                <input type="text" value={opt} onChange={(e) => updateOption(currentQuestionIndex, i, (e.target as any).value)} className="flex-1 px-6 py-3 rounded-xl border-2 border-transparent bg-white text-slate-800 font-bold focus:border-indigo-200 focus:outline-none transition-all shadow-sm" placeholder={`Item in sequence ${i + 1}`} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
                                 {currentQ.type === 'matching' && (
                                     <div className="space-y-4">
-                                        <p className="text-xs text-slate-500 font-bold ml-1 uppercase">Define Pairings (A ➔ B)</p>
                                         {Array.from({ length: 4 }).map((_, i) => (
-                                            <div key={i} className="flex items-center gap-2">
-                                                <input type="text" value={currentQ.options[i * 2] || ''} onChange={(e) => updateOption(currentQuestionIndex, i * 2, (e.target as any).value)} className="flex-1 px-4 py-2 rounded-xl border-2 border-white/60 bg-white/40 text-slate-900 font-bold focus:border-indigo-400 focus:bg-white/60 focus:outline-none" placeholder={`Left ${i + 1}`} />
-                                                <ArrowRight size={16} className="text-indigo-300" />
-                                                <input type="text" value={currentQ.options[i * 2 + 1] || ''} onChange={(e) => updateOption(currentQuestionIndex, i * 2 + 1, (e.target as any).value)} className="flex-1 px-4 py-2 rounded-xl border-2 border-white/60 bg-white/40 text-slate-900 font-bold focus:border-indigo-400 focus:bg-white/60 focus:outline-none" placeholder={`Right ${i + 1}`} />
+                                            <div key={i} className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-xs">{i + 1}</div>
+                                                <input type="text" value={currentQ.options[i * 2] || ''} onChange={(e) => updateOption(currentQuestionIndex, i * 2, (e.target as any).value)} className="flex-1 px-6 py-3 rounded-xl border-2 border-transparent bg-white text-slate-800 font-bold focus:border-indigo-100 focus:outline-none shadow-sm" placeholder={`Label A`} />
+                                                <ArrowRight size={20} className="text-indigo-300" strokeWidth={3} />
+                                                <input type="text" value={currentQ.options[i * 2 + 1] || ''} onChange={(e) => updateOption(currentQuestionIndex, i * 2 + 1, (e.target as any).value)} className="flex-1 px-6 py-3 rounded-xl border-2 border-transparent bg-white text-slate-800 font-bold focus:border-indigo-100 focus:outline-none shadow-sm" placeholder={`Target B`} />
                                             </div>
                                         ))}
                                     </div>
                                 )}
+
                                 {currentQ.type === 'slider' && (
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div><label className="text-xs font-bold text-slate-400 uppercase ml-1">Min Value</label><input type="number" value={currentQ.options[0]} onChange={(e) => updateOption(currentQuestionIndex, 0, (e.target as any).value)} className="w-full px-4 py-3 rounded-xl border-2 border-white/60 bg-white/40 text-slate-900 font-bold focus:border-indigo-400 focus:bg-white/60 focus:outline-none" /></div>
-                                        <div><label className="text-xs font-bold text-slate-400 uppercase ml-1">Max Value</label><input type="number" value={currentQ.options[1]} onChange={(e) => updateOption(currentQuestionIndex, 1, (e.target as any).value)} className="w-full px-4 py-3 rounded-xl border-2 border-white/60 bg-white/40 text-slate-900 font-bold focus:border-indigo-400 focus:bg-white/60 focus:outline-none" /></div>
-                                        <div><label className="text-xs font-bold text-slate-400 uppercase ml-1">Step Size</label><input type="number" value={currentQ.options[2]} onChange={(e) => updateOption(currentQuestionIndex, 2, (e.target as any).value)} className="w-full px-4 py-3 rounded-xl border-2 border-white/60 bg-white/40 text-slate-900 font-bold focus:border-indigo-400 focus:bg-white/60 focus:outline-none" /></div>
-                                        <div><label className="text-xs font-bold text-slate-400 uppercase ml-1">Unit Label</label><input type="text" value={currentQ.options[3]} onChange={(e) => updateOption(currentQuestionIndex, 3, (e.target as any).value)} className="w-full px-4 py-3 rounded-xl border-2 border-white/60 bg-white/40 text-slate-900 font-bold focus:border-indigo-400 focus:bg-white/60 focus:outline-none" /></div>
-                                        <div className="col-span-2 mt-2"><label className="text-xs font-bold text-green-600 uppercase ml-1">Target Value</label><input type="number" value={currentQ.correctAnswer as number} onChange={(e) => updateQuestion(currentQuestionIndex, 'correctAnswer', Number((e.target as any).value))} className="w-full px-4 py-4 rounded-xl border-2 border-green-200 bg-white/60 text-slate-900 font-black text-center focus:border-green-400 focus:bg-white focus:outline-none shadow-md" /></div>
+                                    <div className="bg-slate-50 p-8 rounded-[3rem] border border-slate-100 shadow-inner grid grid-cols-2 gap-8">
+                                        <div className="space-y-4">
+                                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Minimum</label><input type="number" value={currentQ.options[0]} onChange={(e) => updateOption(currentQuestionIndex, 0, (e.target as any).value)} className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-white text-slate-900 font-black focus:border-indigo-400 focus:outline-none" /></div>
+                                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Maximum</label><input type="number" value={currentQ.options[1]} onChange={(e) => updateOption(currentQuestionIndex, 1, (e.target as any).value)} className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-white text-slate-900 font-black focus:border-indigo-400 focus:outline-none" /></div>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Increment</label><input type="number" value={currentQ.options[2]} onChange={(e) => updateOption(currentQuestionIndex, 2, (e.target as any).value)} className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-white text-slate-900 font-black focus:border-indigo-400 focus:outline-none" /></div>
+                                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit Label</label><input type="text" value={currentQ.options[3]} onChange={(e) => updateOption(currentQuestionIndex, 3, (e.target as any).value)} className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-white text-slate-900 font-black focus:border-indigo-400 focus:outline-none" /></div>
+                                        </div>
+                                        <div className="col-span-2 pt-6">
+                                            <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest text-center block mb-4">Target Accurate Value</label>
+                                            <input type="number" value={currentQ.correctAnswer as number} onChange={(e) => updateQuestion(currentQuestionIndex, 'correctAnswer', Number((e.target as any).value))} className="w-full px-6 py-6 rounded-[2rem] border-4 border-emerald-200 bg-white text-slate-900 font-black text-4xl text-center focus:border-emerald-500 focus:outline-none shadow-2xl" />
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                            <div className="h-px bg-white/40 w-full" />
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Explanation (Optional)</label>
+
+                            <div className="pt-6 border-t border-slate-100">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 ml-1">Explanation & Knowledge (Optional)</label>
                                 <textarea 
                                     value={currentQ.explanation || ''} 
                                     onChange={(e) => updateQuestion(currentQuestionIndex, 'explanation', (e.target as any).value)} 
-                                    placeholder="Brief explanation for learners..." 
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-white/60 bg-white/40 text-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white/60 transition-all resize-none h-24 text-sm font-medium"
+                                    placeholder="Explain the logic behind this task to your learners..." 
+                                    className="w-full px-8 py-6 rounded-[2rem] border-2 border-slate-100 bg-slate-50 text-slate-700 focus:outline-none focus:border-indigo-300 focus:bg-white transition-all resize-none h-32 text-base font-bold shadow-inner"
                                 />
                             </div>
                         </div>

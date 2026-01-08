@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Quiz, User } from '../types';
-import { ArrowLeft, Search, Globe, Trash2, User as UserIcon, Star, Filter, TrendingUp, Clock, ArrowDown, Eye, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Search, Globe, Trash2, User as UserIcon, Star, Filter, TrendingUp, Clock, ArrowDown, Eye, CheckCircle2, PlusCircle } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { QuizDetailsModal } from './QuizDetailsModal';
 import { THEMES } from '../constants';
@@ -82,10 +82,14 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
           }
 
           let username = 'Unknown User';
+          let avatarUrl = undefined;
           try {
              if (q.user_id) {
-                 const { data: profile } = await supabase.from('profiles').select('username').eq('user_id', q.user_id).single();
-                 if (profile) username = profile.username;
+                 const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('user_id', q.user_id).single();
+                 if (profile) {
+                     username = profile.username;
+                     avatarUrl = profile.avatar_url;
+                 }
              }
           } catch(e) {}
           
@@ -111,6 +115,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
             backgroundMusic: q.background_music,
             visibility: q.visibility || (q.is_public ? 'public' : 'private'),
             creatorUsername: username,
+            creatorAvatarUrl: avatarUrl,
             stats: {
                 views: q.views || 0,
                 plays: 0,
@@ -155,16 +160,19 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
             .filter((id: any) => id && typeof id === 'string')
         ));
         
-        let profileMap: Record<string, string> = {};
+        let profileMap: Record<string, { username: string, avatarUrl?: string }> = {};
         if (userIds.length > 0) {
             try {
                 const { data: profiles } = await supabase
                     .from('profiles')
-                    .select('user_id, username')
+                    .select('user_id, username, avatar_url')
                     .in('user_id', userIds);
                 
                 profiles?.forEach((p: any) => {
-                    profileMap[p.user_id] = p.username;
+                    profileMap[p.user_id] = { 
+                        username: p.username, 
+                        avatarUrl: p.avatar_url 
+                    };
                 });
             } catch (err) {}
         }
@@ -187,25 +195,29 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
             } catch (err) {}
         }
 
-        let mappedQuizzes: Quiz[] = (quizzesData || []).map((q: any) => ({
-            id: q.id,
-            userId: q.user_id,
-            title: q.title || 'Untitled',
-            questions: Array.isArray(q.questions) ? q.questions : [],
-            createdAt: q.created_at,
-            theme: q.theme,
-            customTheme: q.custom_theme,
-            shuffleQuestions: q.shuffle_questions,
-            backgroundMusic: q.background_music,
-            visibility: q.visibility || 'public',
-            creatorUsername: profileMap[q.user_id] || 'Unknown User',
-            stats: {
-                views: q.views || 0,
-                plays: 0, 
-                avgRating: ratingsMap[q.id]?.avg || 0,
-                totalRatings: ratingsMap[q.id]?.count || 0
-            }
-        }));
+        let mappedQuizzes: Quiz[] = (quizzesData || []).map((q: any) => {
+            const userProfile = profileMap[q.user_id];
+            return {
+                id: q.id,
+                userId: q.user_id,
+                title: q.title || 'Untitled',
+                questions: Array.isArray(q.questions) ? q.questions : [],
+                createdAt: q.created_at,
+                theme: q.theme,
+                customTheme: q.custom_theme,
+                shuffleQuestions: q.shuffle_questions,
+                backgroundMusic: q.background_music,
+                visibility: q.visibility || 'public',
+                creatorUsername: userProfile?.username || 'Unknown User',
+                creatorAvatarUrl: userProfile?.avatarUrl,
+                stats: {
+                    views: q.views || 0,
+                    plays: 0, 
+                    avgRating: ratingsMap[q.id]?.avg || 0,
+                    totalRatings: ratingsMap[q.id]?.count || 0
+                }
+            };
+        });
 
         if (sortBy === 'top-rated') {
             mappedQuizzes.sort((a, b) => (b.stats?.avgRating || 0) - (a.stats?.avgRating || 0));
@@ -247,7 +259,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
 
   return (
     <div 
-        className="min-h-screen" 
+        className="min-h-screen bg-[#f1f5f9]" 
         onTouchStart={handleTouchStart} 
         onTouchMove={handleTouchMove} 
         onTouchEnd={handleTouchEnd}
@@ -281,89 +293,102 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
           </button>
           <div className="flex items-center gap-2">
             <Globe className="text-indigo-600" size={24} />
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Community Library</h1>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">Community Library</h1>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input 
                     type="text" 
-                    placeholder="Search library..." 
+                    placeholder="Search titles..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery((e.target as any).value)}
-                    className="pl-10 pr-4 py-2 bg-white/40 border border-white/60 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-400 font-bold text-sm transition-all"
+                    className="pl-12 pr-6 py-2.5 bg-white/60 border border-white/80 rounded-2xl focus:outline-none focus:bg-white focus:border-indigo-400 font-bold text-sm transition-all shadow-sm w-64"
                 />
             </div>
-            <button onClick={() => setSortBy(sortBy === 'newest' ? 'trending' : sortBy === 'trending' ? 'top-rated' : 'newest')} className="p-3 bg-white/40 border border-white/60 rounded-xl text-slate-600 hover:text-indigo-600 click-scale">
+            <button onClick={() => setSortBy(sortBy === 'newest' ? 'trending' : sortBy === 'trending' ? 'top-rated' : 'newest')} className="p-3.5 bg-white border border-slate-100 rounded-2xl text-slate-600 hover:text-indigo-600 click-scale shadow-sm">
                {sortBy === 'newest' ? <Clock size={20} /> : sortBy === 'trending' ? <TrendingUp size={20} /> : <Star size={20} />}
             </button>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-4 sm:p-8">
-          <div className="mb-6 flex items-center gap-3 stagger-in">
+      <div className="max-w-7xl mx-auto p-6 sm:p-10">
+          <div className="mb-10 flex items-center gap-3 stagger-in">
               <CheckCircle2 size={16} className="text-emerald-500" />
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Verified Public Repositories</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.25em]">Authenticated Quiviex Global Repositories</p>
           </div>
 
           {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                   {[...Array(6)].map((_, i) => (
-                      <div key={i} className="glass rounded-[2.5rem] h-64 animate-pulse"></div>
+                      <div key={i} className="glass rounded-[3rem] h-72 animate-pulse"></div>
                   ))}
               </div>
           ) : filteredQuizzes.length === 0 ? (
-              <div className="text-center py-24 glass rounded-[3rem] border-2 border-dashed border-white/50">
-                  <Search size={64} className="mx-auto text-slate-200 mb-6" />
-                  <h3 className="text-2xl font-black text-slate-800">No results found</h3>
-                  <p className="text-slate-500 font-bold">Try adjusting your search criteria.</p>
+              <div className="text-center py-32 px-10 glass rounded-[4rem] border-2 border-dashed border-white/50 max-w-2xl mx-auto shadow-2xl animate-in zoom-in duration-500">
+                  <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                      <Globe size={48} className="text-slate-200" />
+                  </div>
+                  <h3 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">No Quizzes Found</h3>
+                  <p className="text-slate-500 font-bold text-lg mb-10 leading-relaxed">The library is empty. Be the first to create a public masterpiece and share it with the world!</p>
+                  <button 
+                    onClick={onBack}
+                    className="inline-flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest hover:bg-black transition-all shadow-2xl active:scale-95"
+                  >
+                      <PlusCircle size={20} /> Make One Now
+                  </button>
               </div>
           ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 stagger-in">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 stagger-in pb-20">
                   {filteredQuizzes.map((quiz, idx) => (
                       <div 
                         key={quiz.id} 
                         onClick={() => handleOpenQuiz(quiz)}
-                        className="group glass rounded-[2.5rem] p-6 hover:shadow-2xl transition-all duration-500 flex flex-col relative animate-in zoom-in-95 fade-in duration-500"
+                        className="group bg-white rounded-[3rem] p-7 hover:shadow-2xl transition-all duration-500 flex flex-col relative animate-in zoom-in-95 fade-in border border-slate-100/50"
                         style={{ animationDelay: `${(idx % 10) * 100}ms` }}
                       >
-                          <div className={`h-40 rounded-3xl bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-6 p-6 flex flex-col justify-between overflow-hidden relative shadow-lg`}>
-                                <div className="flex justify-between items-start">
-                                    <div className="bg-black/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-white/10">
+                          <div className={`h-44 rounded-[2rem] bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-8 p-7 flex flex-col justify-between overflow-hidden relative shadow-lg`}>
+                                <div className="flex justify-between items-start z-10">
+                                    <div className="bg-black/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/10">
                                         {quiz.questions.length} Items
                                     </div>
                                     {isSudo && (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleAdminDelete(quiz.id); }}
-                                            className="p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors shadow-lg"
+                                            className="p-2.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-colors shadow-lg"
                                         >
-                                            <Trash2 size={14} />
+                                            <Trash2 size={16} />
                                         </button>
                                     )}
                                 </div>
-                                <h3 className="text-xl font-black text-white drop-shadow-md line-clamp-2 leading-tight">
+                                <h3 className="text-2xl font-black text-white drop-shadow-md line-clamp-2 leading-tight relative z-10">
                                     {quiz.title}
                                 </h3>
+                                <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-4 -translate-y-4"><Globe size={160} /></div>
                           </div>
                           
-                          <div className="flex items-center gap-3 mb-6">
-                              <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shadow-inner">
-                                  <UserIcon size={14} />
+                          <div className="flex items-center gap-4 mb-8 px-2">
+                              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden bg-indigo-50 border border-indigo-100">
+                                  {quiz.creatorAvatarUrl ? (
+                                      <img src={quiz.creatorAvatarUrl} alt={quiz.creatorUsername} className="w-full h-full object-cover" />
+                                  ) : (
+                                      <UserIcon size={20} className="text-indigo-500" />
+                                  )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Creator</p>
-                                  <p className="text-sm font-bold text-slate-700 truncate">@{quiz.creatorUsername}</p>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Architect</p>
+                                  <p className="text-base font-black text-slate-800 truncate tracking-tight">@{quiz.creatorUsername}</p>
                               </div>
                           </div>
 
-                          <div className="mt-auto grid grid-cols-2 gap-4 border-t border-white/40 pt-6">
-                              <div className="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase tracking-widest">
-                                  <Eye size={16} /> {quiz.stats?.views || 0}
+                          <div className="mt-auto grid grid-cols-2 gap-4 border-t border-slate-50 pt-8 px-2">
+                              <div className="flex items-center gap-2.5 text-slate-400 font-black text-xs uppercase tracking-widest">
+                                  <Eye size={18} /> {quiz.stats?.views || 0}
                               </div>
-                              <div className="flex items-center gap-1 justify-end text-yellow-500 font-black text-sm">
-                                  <Star size={16} className="fill-current" /> {(quiz.stats?.avgRating || 0).toFixed(1)}
+                              <div className="flex items-center gap-1.5 justify-end text-yellow-500 font-black text-sm">
+                                  <Star size={18} className="fill-current" /> {(quiz.stats?.avgRating || 0).toFixed(1)}
                               </div>
                           </div>
                       </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Quiz, Question } from '../types';
 import { generateFocusSession } from '../services/genAI';
@@ -82,7 +81,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ user, quizzes, onBack, onS
         const result = await generateFocusSession({ 
             mistakes, 
             recentTopics: topics 
-        });
+        }, user.preferences);
         
         // Transform AI questions to ensure they match app structure
         const validQuestions: Question[] = result.questions.map((q: any) => ({
@@ -100,7 +99,6 @@ export const FocusMode: React.FC<FocusModeProps> = ({ user, quizzes, onBack, onS
             questions: validQuestions
         });
     } catch (err) {
-        // Fix: Access console via window to resolve "Cannot find name 'console'" error
         (window as any).console.error(err);
         setError("Failed to generate focus session. Please check your API settings and try again.");
     } finally {
@@ -135,7 +133,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ user, quizzes, onBack, onS
              </div>
              <div>
                 <h1 className="text-xl font-bold">Focus Mode</h1>
-                <p className="text-xs text-indigo-300">Powered by GPT-4o Mini</p>
+                <p className="text-xs text-indigo-300 uppercase font-black tracking-widest">Powered by LLM Core</p>
              </div>
           </div>
           <button 
@@ -192,7 +190,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ user, quizzes, onBack, onS
                         {isAnalyzing ? (
                             <>
                                 <Loader2 className="animate-spin" />
-                                Analyzing History...
+                                Processing Analytics...
                             </>
                         ) : (
                             <>
@@ -219,7 +217,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ user, quizzes, onBack, onS
                     </div>
                     
                     <h3 className="text-indigo-300 font-bold uppercase tracking-widest text-sm mb-3 flex items-center gap-2">
-                        <Sparkles size={16} /> AI Analysis
+                        <Sparkles size={16} /> Insight Analysis
                     </h3>
                     <p className="text-xl text-white leading-relaxed font-medium relative z-10">
                         "{analysisResult.analysis}"

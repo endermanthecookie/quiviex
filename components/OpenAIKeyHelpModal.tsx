@@ -63,7 +63,7 @@ export const OpenAIKeyHelpModal: React.FC<OpenAIKeyHelpModalProps> = ({ onClose 
                         <p className="text-slate-600 font-medium">Navigate to the <b>API Keys</b> section under your profile.</p>
                         <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="inline-block text-indigo-600 font-bold hover:underline mb-2">Go to API Keys Section <ExternalLink size={12} /></a>
                         <div className="flex items-center gap-2"><span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Action</span><span>Click <b>"+ Create new secret key"</b></span></div>
-                        <div className="flex items-center gap-2"><span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Note</span><span>Give it a name like "Quiviex Pro"</span></div>
+                        <div className="flex items-center gap-2"><span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Note</span><span>Give it a name like "Quiviex AI"</span></div>
                     </div>
                 </div>
             </div>

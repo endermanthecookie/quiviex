@@ -1,19 +1,20 @@
-
 import React, { useState } from 'react';
 import { X, Upload, Link, Image as ImageIcon, Sparkles, Loader2, Monitor, Smartphone, Square, AlertCircle } from 'lucide-react';
 import { generateImageForQuestion } from '../services/genAI';
 import { compressImage } from '../services/imageUtils';
+import { UserPreferences } from '../types';
 
 interface ImageSelectionModalProps {
   onSelect: (imageUrl: string) => void;
   onClose: () => void;
   onAiUsed: () => void;
+  preferences?: UserPreferences;
 }
 
 type Tab = 'upload' | 'url' | 'generate';
 type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
 
-export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSelect, onClose, onAiUsed }) => {
+export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSelect, onClose, onAiUsed, preferences }) => {
   const [activeTab, setActiveTab] = useState<Tab>('upload');
   const [urlInput, setUrlInput] = useState('');
   
@@ -30,10 +31,8 @@ export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSele
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Fix: Cast e.target to any
     const file = (e.target as any).files?.[0];
     if (file) {
-      // Fix: Use window.FileReader
       const reader = new (window as any).FileReader();
       reader.onloadend = async () => {
         const rawBase64 = reader.result as string;
@@ -41,7 +40,6 @@ export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSele
             const compressed = await compressImage(rawBase64);
             onSelect(compressed);
         } catch (e) {
-            // Fix: Use window.console
             (window as any).console.error("Compression failed", e);
             onSelect(rawBase64);
         }
@@ -56,24 +54,19 @@ export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSele
     setIsGenerating(true);
 
     try {
-        // Use the centralized OpenAI service
-        const imageUrl = await generateImageForQuestion(genPrompt, 'dall-e-3');
+        const imageUrl = await generateImageForQuestion(genPrompt, preferences);
         
         if (imageUrl) {
-            // Compress generated image
             const compressed = await compressImage(imageUrl);
-            
             onSelect(compressed);
-            onAiUsed(); // Trigger stat
+            onAiUsed();
             onClose();
         } else {
-            // Fix: Use window.alert
-            (window as any).alert("No image generated. Please check your OpenAI API Key in Settings.");
+            (window as any).alert("Generation failed. Ensure you have a valid OpenAI key in settings.");
         }
     } catch (error) {
-        // Fix: Use window.console and window.alert
         (window as any).console.error("Generation failed", error);
-        (window as any).alert("Failed to generate image. Please try again.");
+        (window as any).alert("AI provider failed to generate image. Please try again.");
     } finally {
         setIsGenerating(false);
     }
@@ -96,7 +89,7 @@ export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSele
           {[
             { id: 'upload', icon: Upload, label: 'Upload' },
             { id: 'url', icon: Link, label: 'URL' },
-            { id: 'generate', icon: Sparkles, label: 'AI Gen' }
+            { id: 'generate', icon: Sparkles, label: 'DALL-E 3 AI' }
           ].map(tab => (
              <button
                 key={tab.id}
@@ -137,7 +130,6 @@ export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSele
               <input
                 type="text"
                 value={urlInput}
-                // Fix: Cast e.target to any
                 onChange={(e) => setUrlInput((e.target as any).value)}
                 placeholder="https://example.com/image.jpg"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-violet-500 bg-white text-black"
@@ -154,43 +146,15 @@ export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSele
 
           {activeTab === 'generate' && (
              <div className="space-y-4">
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 mb-2">
-                    <p className="text-amber-800 text-sm font-medium flex gap-2">
+                <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-2">
+                    <p className="text-indigo-800 text-sm font-medium flex gap-2">
                         <Sparkles size={16} className="mt-0.5" />
-                        AI will create a unique image for you!
+                        DALL-E 3 will generate a custom masterpiece for you.
                     </p>
                 </div>
                 
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Aspect Ratio</label>
-                    <div className="grid grid-cols-5 gap-2">
-                        {[
-                            { id: '1:1', icon: Square, label: 'Square' },
-                            { id: '4:3', icon: Monitor, label: 'Landscape' },
-                            { id: '16:9', icon: Monitor, label: 'Wide' },
-                            { id: '3:4', icon: Smartphone, label: 'Portrait' },
-                            { id: '9:16', icon: Smartphone, label: 'Tall' },
-                        ].map((ratio) => (
-                            <button
-                                key={ratio.id}
-                                onClick={() => setAspectRatio(ratio.id as AspectRatio)}
-                                className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
-                                    aspectRatio === ratio.id 
-                                    ? 'border-violet-600 bg-violet-50 text-violet-700' 
-                                    : 'border-gray-200 hover:border-violet-300 text-gray-500'
-                                }`}
-                                title={ratio.label}
-                            >
-                                <ratio.icon size={20} className={ratio.id.includes('9') ? 'scale-x-125' : ''} />
-                                <span className="text-[10px] font-bold mt-1">{ratio.id}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Image Prompt</label>
-                    {/* Fix: Cast e.target to any */}
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Visual Prompt</label>
                     <textarea
                         value={genPrompt}
                         onChange={(e) => setGenPrompt((e.target as any).value)}
@@ -202,17 +166,17 @@ export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSele
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating || !genPrompt.trim()}
-                    className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-xl font-bold disabled:opacity-70 flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-violet-200"
+                    className="w-full py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl font-bold disabled:opacity-70 flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-violet-200"
                 >
                     {isGenerating ? (
                         <>
                             <Loader2 className="animate-spin" size={20} />
-                            Generating...
+                            Generating Visual...
                         </>
                     ) : (
                         <>
                             <Sparkles size={20} />
-                            Generate Image
+                            Generate with OpenAI
                         </>
                     )}
                 </button>
