@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, CustomTheme } from '../types';
-import { ArrowLeft, Loader2, Palette, Sparkles, Check, Settings, Image as ImageIcon, Type, Key, ShieldCheck, Github, Upload, X, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, Loader2, Palette, Sparkles, Check, Settings, Image as ImageIcon, Type, Key, ShieldCheck, Github, Upload, X, User as UserIcon, Star, MessageSquare, Send } from 'lucide-react';
 import { THEMES, FONT_NAMES, AI_MODELS } from '../constants';
 import { ThemeEditorModal } from './ThemeEditorModal';
 import { GitHubTokenHelpModal } from './GitHubTokenHelpModal';
@@ -41,6 +41,12 @@ export const SettingsPage: React.FC<any> = ({
   
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const isFirstRender = useRef(true);
+
+  // Platform Rating State
+  const [platformRating, setPlatformRating] = useState<number>(0);
+  const [platformReview, setPlatformReview] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   // Avatar State
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || '');
@@ -104,17 +110,38 @@ export const SettingsPage: React.FC<any> = ({
     }
   };
 
+  const handleSubmitPlatformReview = async () => {
+      if (platformRating === 0 || !platformReview.trim()) return;
+      setIsSubmittingReview(true);
+      try {
+          const { error } = await supabase.from('platform_reviews').upsert({
+              user_id: user.id,
+              username: user.username,
+              rating: platformRating,
+              review: platformReview,
+              avatar_url: user.avatarUrl,
+              created_at: new Date().toISOString()
+          }, { onConflict: 'user_id' });
+
+          if (error) throw error;
+          setReviewSubmitted(true);
+          (window as any).setTimeout(() => setReviewSubmitted(false), 3000);
+      } catch (e: any) {
+          (window as any).alert("Failed to submit review: " + e.message);
+      } finally {
+          setIsSubmittingReview(false);
+      }
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // 1. Validation: Max 5MB
       if (file.size > 5 * 1024 * 1024) {
           alert("File is too large. Max 5MB allowed.");
           return;
       }
 
-      // 2. Validation: Type
       if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
           alert("Only JPG, PNG, and GIF are allowed.");
           return;
@@ -212,13 +239,61 @@ export const SettingsPage: React.FC<any> = ({
                 <div className="flex-1 w-full space-y-4">
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Profile Name</label>
-                        <input type="text" value={username} onChange={(e) => setUsername((e.target as any).value)} className="w-full px-5 py-4 bg-white/40 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-purple-500 font-bold transition-all" />
+                        <input type="text" value={username} onChange={(e) => setUsername((e.target as any).value)} className="w-full px-5 py-4 bg-white/40 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-purple-500 font-bold transition-all text-slate-900" />
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email System</label>
-                        <input type="email" value={email} onChange={(e) => setEmail((e.target as any).value)} className="w-full px-5 py-4 bg-white/40 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-purple-500 font-bold transition-all" />
+                        <input type="email" value={email} onChange={(e) => setEmail((e.target as any).value)} className="w-full px-5 py-4 bg-white/40 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-purple-500 font-bold transition-all text-slate-900" />
                     </div>
                 </div>
+            </div>
+        </section>
+
+        {/* Platform Rating Section */}
+        <section className="glass rounded-[2.5rem] p-8 border border-white">
+            <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2"><Star size={22} className="text-yellow-500 fill-yellow-500" /> Rate Quiviex</h2>
+            <p className="text-slate-500 font-medium text-sm mb-6 leading-relaxed">
+                Enjoying the platform? High ratings with text (8-10 stars) will be featured on our global landing page!
+            </p>
+            
+            <div className="flex flex-wrap justify-between gap-2 mb-8">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
+                    <button 
+                        key={star}
+                        onClick={() => setPlatformRating(star)}
+                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-black text-lg transition-all click-scale border-2 ${
+                            platformRating >= star 
+                            ? 'bg-yellow-400 text-white border-yellow-300 shadow-lg' 
+                            : 'bg-white text-slate-300 border-slate-100 hover:border-yellow-200'
+                        }`}
+                    >
+                        {star}
+                    </button>
+                ))}
+            </div>
+
+            <div className="space-y-4">
+                <div className="relative group">
+                    <MessageSquare size={18} className="absolute left-4 top-4 text-slate-400" />
+                    <textarea 
+                        value={platformReview}
+                        onChange={(e) => setPlatformReview((e.target as any).value)}
+                        placeholder="What do you think of Quiviex? (Your review may be featured)"
+                        className="w-full pl-12 pr-6 py-4 bg-white/40 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-yellow-400 font-bold transition-all text-slate-900 min-h-[120px] resize-none"
+                    />
+                </div>
+                <button 
+                    onClick={handleSubmitPlatformReview}
+                    disabled={isSubmittingReview || platformRating === 0 || !platformReview.trim()}
+                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all click-scale flex items-center justify-center gap-2 shadow-xl ${
+                        reviewSubmitted 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-slate-900 text-white hover:bg-black disabled:opacity-50'
+                    }`}
+                >
+                    {isSubmittingReview ? <Loader2 className="animate-spin" /> : reviewSubmitted ? <Check /> : <Send size={18} />}
+                    {reviewSubmitted ? 'SUBMITTED' : 'SUBMIT REVIEW'}
+                </button>
             </div>
         </section>
 
@@ -231,7 +306,7 @@ export const SettingsPage: React.FC<any> = ({
                         <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"><Github size={12}/> GitHub Models Token</label>
                         <button onClick={() => setShowGhHelp(true)} className="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-widest">Get Token</button>
                     </div>
-                    <input type="password" value={githubToken} onChange={(e) => setGithubToken((e.target as any).value)} placeholder="github_pat_..." className="w-full px-5 py-4 bg-white/40 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-mono transition-all" />
+                    <input type="password" value={githubToken} onChange={(e) => setGithubToken((e.target as any).value)} placeholder="github_pat_..." className="w-full px-5 py-4 bg-white/40 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-mono transition-all text-slate-900" />
                 </div>
 
                 <div>
@@ -239,20 +314,20 @@ export const SettingsPage: React.FC<any> = ({
                         <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"><Key size={12}/> OpenAI Secret Key</label>
                         <button onClick={() => setShowOaiHelp(true)} className="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-widest">Get Key</button>
                     </div>
-                    <input type="password" value={openaiKey} onChange={(e) => setOpenaiKey((e.target as any).value)} placeholder="sk-..." className="w-full px-5 py-4 bg-white/40 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-mono transition-all" />
+                    <input type="password" value={openaiKey} onChange={(e) => setOpenaiKey((e.target as any).value)} placeholder="sk-..." className="w-full px-5 py-4 bg-white/40 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-mono transition-all text-slate-900" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Text Provider</label>
-                        <select value={aiTextProvider} onChange={(e) => setAiTextProvider((e.target as any).value)} className="w-full px-4 py-3 bg-white/40 border-2 border-slate-100 rounded-xl font-bold">
+                        <select value={aiTextProvider} onChange={(e) => setAiTextProvider((e.target as any).value)} className="w-full px-4 py-3 bg-white/40 border-2 border-slate-100 rounded-xl font-bold text-slate-900">
                             <option value="github">GitHub Models</option>
                             <option value="openai">OpenAI API</option>
                         </select>
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Image Provider</label>
-                        <select value={aiImageProvider} onChange={(e) => setAiImageProvider((e.target as any).value)} className="w-full px-4 py-3 bg-white/40 border-2 border-slate-100 rounded-xl font-bold">
+                        <select value={aiImageProvider} onChange={(e) => setAiImageProvider((e.target as any).value)} className="w-full px-4 py-3 bg-white/40 border-2 border-slate-100 rounded-xl font-bold text-slate-900">
                             <option value="openai">OpenAI API</option>
                             <option value="github">N/A (GitHub Only Text)</option>
                         </select>
