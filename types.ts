@@ -17,12 +17,19 @@ export interface Achievement {
   title: string;
   description: string;
   icon: string;
-  condition: (stats: UserStats) => boolean;
+  req_type: keyof UserStats;
+  req_value: number;
+  category?: string;
 }
 
 export interface UserPreferences {
   textModel?: string;
   imageModel?: string;
+  githubToken?: string;
+  openaiKey?: string;
+  aiTextProvider?: 'github' | 'openai';
+  aiImageProvider?: 'github' | 'openai';
+  appFont?: string;
   appTheme?: string;
   customThemeData?: CustomTheme; 
 }
@@ -31,6 +38,7 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  avatarUrl?: string;
   password?: string;
   hasSeenTutorial?: boolean;
   stats: UserStats;
@@ -80,8 +88,9 @@ export interface Quiz {
   customTheme?: CustomTheme;
   shuffleQuestions?: boolean;
   backgroundMusic?: string; 
-  visibility?: QuizVisibility; // Replaces isPublic for better control
+  visibility?: QuizVisibility; 
   creatorUsername?: string;
+  creatorAvatarUrl?: string;
   stats?: {
     views: number;
     plays: number;

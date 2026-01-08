@@ -1,4 +1,4 @@
-import { ColorTheme, TutorialStep, Achievement, UserStats } from './types';
+import { ColorTheme, TutorialStep } from './types';
 
 export const COLORS: ColorTheme[] = [
   { bg: 'bg-red-500', hover: 'hover:bg-red-600', icon: '▲', text: 'text-red-500' },
@@ -10,16 +10,36 @@ export const COLORS: ColorTheme[] = [
 export const AI_MODELS = {
   text: [
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Fast)' },
-    { id: 'gpt-4o', name: 'GPT-4o (Smart)' }
+    { id: 'gpt-4o', name: 'GPT-4o (Smartest)' }
   ],
   image: [
-    { id: 'dall-e-2', name: 'DALL-E 2 (Fast)' },
-    { id: 'dall-e-3', name: 'DALL-E 3 (HQ)' }
+    { id: 'dall-e-3', name: 'DALL-E 3 (High Quality)' },
+    { id: 'black-forest-labs-flux-pro', name: 'Flux Pro (Photoreal)' }
   ],
   providers: [
     { id: 'github', name: 'GitHub Models' },
     { id: 'openai', name: 'OpenAI API' }
   ]
+};
+
+export const FONT_NAMES: Record<string, string> = {
+  'QuiviexCustom': 'Quiviex Default',
+  'Font1': 'Signature Script',
+  'Font2': 'Modern Sans',
+  'Font3': 'Geometric Heavy',
+  'Font4': 'Elegant Serif',
+  'Font5': 'Futuristic Mono',
+  'Font6': 'Soft Display',
+  'Font7': 'Branding Sans',
+  'Font8': 'Editorial Serif',
+  'Font9': 'Comic Friendly',
+  'Font10': 'High Contrast',
+  'Font11': 'System Grotesk',
+  'Font12': 'Retro Display',
+  'Font13': 'Minimalist',
+  'Font14': 'Tech Inline',
+  'Font15': 'Stencil Bold',
+  'Font16': 'Handwritten Note'
 };
 
 export const THEMES: Record<string, { label: string; gradient: string; text: string; accent: string }> = {
@@ -71,13 +91,13 @@ export const DEFAULT_MUSIC_TRACKS = [
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
-    title: "Welcome to Quiviex Pro! 🚀",
-    content: "Master the art of quiz creation with our powerful AI tools powered by OpenAI and GitHub Models.",
+    title: "Welcome to Quiviex! 🚀",
+    content: "Master the art of quiz creation with our powerful AI tools powered by GitHub Models or OpenAI.",
     highlight: null
   },
   {
     title: "Step 1: AI Power 🤖",
-    content: "Generate whole quizzes from just a topic or an image. Head to Settings to add your API keys.",
+    content: "Generate whole quizzes from just a topic or an image using state-of-the-art LLMs.",
     highlight: null,
     showTokenActions: true
   },
@@ -106,13 +126,4 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     content: "Once ready, click Save. You can keep it private or share it with the Quiviex Community!",
     highlight: "save"
   }
-];
-
-export const ACHIEVEMENTS: Achievement[] = [
-  { id: 'create_1', title: 'First Step', description: 'Create 1 Quiz', icon: '📝', condition: (s) => s.quizzesCreated >= 1 },
-  { id: 'create_5', title: 'Creator', description: 'Create 5 Quizzes', icon: '✏️', condition: (s) => s.quizzesCreated >= 5 },
-  { id: 'play_1', title: 'Player One', description: 'Play 1 Quiz', icon: '🎮', condition: (s) => s.quizzesPlayed >= 1 },
-  { id: 'perf_1', title: 'Brainiac', description: 'Get 1 Perfect Score', icon: '🧠', condition: (s) => s.perfectScores >= 1 },
-  { id: 'ai_quiz', title: 'Tech Savvy', description: 'Generate an AI Quiz', icon: '🤖', condition: (s) => s.aiQuizzesGenerated >= 1 },
-  { id: 'ai_img', title: 'Artist', description: 'Generate an AI Image', icon: '🎨', condition: (s) => s.aiImagesGenerated >= 1 },
 ];
