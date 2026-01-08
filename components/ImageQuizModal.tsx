@@ -2,8 +2,16 @@ import React, { useState } from 'react';
 import { X, Upload, Sparkles, Loader2, Image as ImageIcon, Sparkles as SparklesIcon } from 'lucide-react';
 import { generateQuizFromImage, generateImageForQuestion } from '../services/genAI';
 import { compressImage } from '../services/imageUtils';
+import { Question, User } from '../types';
 
-export const ImageQuizModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, user }) => {
+interface ImageQuizModalProps {
+  onGenerate: (questions: Question[], title: string) => void;
+  onClose: () => void;
+  onAiUsed: () => void;
+  user: User;
+}
+
+export const ImageQuizModal: React.FC<ImageQuizModalProps> = ({ onGenerate, onClose, onAiUsed, user }) => {
   const [image, setImage] = useState<string | null>(null);
   const [count, setCount] = useState(5);
   const [difficulty, setDifficulty] = useState('medium');

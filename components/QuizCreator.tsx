@@ -271,8 +271,8 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
         {showValidationModal && <ValidationModal errors={validationErrors} onClose={() => setShowValidationModal(false)} onExitWithoutSaving={onExit} />}
         {showSaveOptionsModal && <SaveOptionsModal onConfirm={handleFinalizeSave} onCancel={() => setShowSaveOptionsModal(false)} />}
         {showImageModal && <ImageSelectionModal onSelect={(url) => updateQuestion(currentQuestionIndex, 'image', url)} onClose={() => setShowImageModal(false)} onAiUsed={() => onStatUpdate('ai_img')} preferences={currentUser.preferences} />}
-        {showAIModal && <GitHubAIModal onGenerate={(qs, t) => { setQuestions(prev => [...prev, ...qs]); setQuizTitle(t); setCreationMode('editor'); }} onClose={() => setShowAIModal(false)} onAiUsed={() => onStatUpdate('ai_quiz')} user={currentUser} />}
-        {showImageQuizModal && <ImageQuizModal onGenerate={(qs, t) => { setQuestions(prev => [...prev, ...qs]); setQuizTitle(t); setCreationMode('editor'); }} onClose={() => setShowImageQuizModal(false)} onAiUsed={() => onStatUpdate('ai_quiz')} user={currentUser} />}
+        {showAIModal && <GitHubAIModal onGenerate={(qs: Question[], t: string) => { setQuestions(prev => [...prev, ...qs]); setQuizTitle(t); setCreationMode('editor'); }} onClose={() => setShowAIModal(false)} onAiUsed={() => onStatUpdate('ai_quiz')} user={currentUser} />}
+        {showImageQuizModal && <ImageQuizModal onGenerate={(qs: Question[], t: string) => { setQuestions(prev => [...prev, ...qs]); setQuizTitle(t); setCreationMode('editor'); }} onClose={() => setShowImageQuizModal(false)} onAiUsed={() => onStatUpdate('ai_quiz')} user={currentUser} />}
         {showMusicModal && <MusicSelectionModal currentMusic={bgMusic} onSelect={setBgMusic} onClose={() => setShowMusicModal(false)} />}
         {showThemeEditor && <ThemeEditorModal initialTheme={customTheme} onSave={(t) => { setCustomTheme(t); setShowThemeEditor(false); }} onClose={() => setShowThemeEditor(false)} onAiUsed={() => onStatUpdate('ai_img')} />}
         {showTokenHelpModal && <GitHubTokenHelpModal onClose={() => setShowTokenHelpModal(false)} />}

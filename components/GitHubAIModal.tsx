@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Loader2, BookOpen, BarChart, AlertCircle, PlusCircle, Info, Image as ImageIcon } from 'lucide-react';
-import { Question } from '../types';
+import { Question, User } from '../types';
 import { generateQuizWithAI } from '../services/githubAI';
 import { generateImageForQuestion } from '../services/genAI';
 import { compressImage } from '../services/imageUtils';
 
-export const GitHubAIModal: React.FC<any> = ({ onGenerate, onClose, onAiUsed, user }) => {
+interface GitHubAIModalProps {
+  onGenerate: (questions: Question[], title: string) => void;
+  onClose: () => void;
+  onAiUsed: () => void;
+  user: User;
+}
+
+export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClose, onAiUsed, user }) => {
   const [step, setStep] = useState<'config' | 'review'>('config');
   const [topic, setTopic] = useState('');
   const [count, setCount] = useState(10);
