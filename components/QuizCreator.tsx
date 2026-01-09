@@ -153,36 +153,47 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   };
 
   const addQuestion = () => {
-    setQuestions([...questions, JSON.parse(JSON.stringify(DEFAULT_QUESTION))]);
+    setQuestions(prev => [...prev, JSON.parse(JSON.stringify(DEFAULT_QUESTION))]);
     setCurrentQuestionIndex(questions.length);
   };
 
   const updateQuestion = (field: keyof Question, value: any) => {
-    const updated = [...questions];
-    updated[currentQuestionIndex] = { ...updated[currentQuestionIndex], [field]: value };
-    setQuestions(updated);
+    setQuestions(prev => {
+        const updated = [...prev];
+        updated[currentQuestionIndex] = { ...updated[currentQuestionIndex], [field]: value };
+        return updated;
+    });
   };
 
   const removeQuestion = (index: number) => {
-    const newQuestions = questions.filter((_, i) => i !== index);
-    if (newQuestions.length === 0) {
-        setQuestions([JSON.parse(JSON.stringify(DEFAULT_QUESTION))]);
-        setCurrentQuestionIndex(0);
-    } else {
-        setQuestions(newQuestions);
-        if (currentQuestionIndex >= newQuestions.length) setCurrentQuestionIndex(newQuestions.length - 1);
-    }
+    setQuestions(prev => {
+        const newQuestions = prev.filter((_, i) => i !== index);
+        if (newQuestions.length === 0) {
+            return [JSON.parse(JSON.stringify(DEFAULT_QUESTION))];
+        }
+        return newQuestions;
+    });
+    if (currentQuestionIndex >= (questions.length - 1)) setCurrentQuestionIndex(Math.max(0, questions.length - 2));
   };
 
   const handleTypeChange = (type: QuestionType) => {
-      const q = questions[currentQuestionIndex];
-      let options = [...q.options];
-      let correct = q.correctAnswer;
-      if (type === 'true-false') { options = ['True', 'False']; correct = 0; }
-      else if (type === 'slider') { options = ['0', '100', '1', 'Value']; correct = 50; }
-      else if (type === 'text-input' || type === 'fill-in-the-blank') { options = []; correct = ''; }
-      else { if (options.length < 4) options = ['', '', '', '']; if (typeof correct !== 'number') correct = 0; }
-      updateQuestion('type', type); updateQuestion('options', options); updateQuestion('correctAnswer', correct);
+      setQuestions(prev => {
+          const updated = [...prev];
+          const q = updated[currentQuestionIndex];
+          let options = [...q.options];
+          let correct = q.correctAnswer;
+          
+          if (type === 'true-false') { options = ['True', 'False']; correct = 0; }
+          else if (type === 'slider') { options = ['0', '100', '1', 'Value']; correct = 50; }
+          else if (type === 'text-input' || type === 'fill-in-the-blank') { options = []; correct = ''; }
+          else { 
+              if (options.length < 4) options = ['', '', '', '']; 
+              if (typeof correct !== 'number') correct = 0; 
+          }
+          
+          updated[currentQuestionIndex] = { ...q, type, options, correctAnswer: correct };
+          return updated;
+      });
   };
 
   const currentQ = questions[currentQuestionIndex] || DEFAULT_QUESTION;
@@ -230,18 +241,18 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
             <div className="p-6 border-t border-white/5 bg-[#1a1f2e]"><button onClick={() => setShowAIModal(true)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl uppercase tracking-widest text-xs"><Sparkles size={16} className="text-yellow-400" /> AI Generator</button></div>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#f1f5f9]">
             <header className="bg-white px-10 py-6 flex items-center justify-between border-b border-slate-100 z-10">
                 <button onClick={onExit} className="p-3 hover:bg-slate-100 rounded-full transition-colors text-slate-400"><ArrowLeft size={28} /></button>
                 <input type="text" value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} placeholder="Quiz Title" className="text-2xl font-black bg-transparent text-slate-900 border-none focus:ring-0 placeholder-slate-200 text-center tracking-tight flex-1 mx-4" />
                 <button onClick={handleInitiateSave} disabled={isProcessingModeration} className="bg-slate-950 hover:bg-black text-white font-black px-10 py-4 rounded-full shadow-xl transition-all active:scale-95 disabled:opacity-50 uppercase text-xs tracking-[0.2em]">{isProcessingModeration ? <Loader2 className="animate-spin" size={18} /> : 'Save Quiz'}</button>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-12 bg-[#f1f5f9] flex justify-center">
+            <div className="flex-1 overflow-y-auto p-12 flex flex-col items-center">
                 <div className="w-full max-w-5xl animate-in fade-in duration-500">
-                    <div className="bg-white/60 backdrop-blur-xl border border-white p-2 rounded-full mb-8 shadow-xl flex items-center justify-between max-w-3xl mx-auto">
+                    <div className="bg-white border-2 border-slate-100 p-2 rounded-full mb-8 shadow-xl flex items-center justify-between max-w-3xl mx-auto">
                         {TYPE_CONFIG.map(t => (
-                            <button key={t.id} onClick={() => handleTypeChange(t.id as QuestionType)} className={`flex items-center gap-2 px-6 py-3 rounded-full transition-all click-scale ${currentQ.type === t.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}><t.icon size={16} /><span className="text-[10px] font-black uppercase tracking-widest">{t.label}</span></button>
+                            <button key={t.id} onClick={() => handleTypeChange(t.id as QuestionType)} className={`flex items-center gap-2 px-6 py-3 rounded-full transition-all click-scale ${currentQ.type === t.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-600/80 hover:bg-slate-50 hover:text-slate-900'}`}><t.icon size={16} /><span className="text-[10px] font-black uppercase tracking-widest">{t.label}</span></button>
                         ))}
                     </div>
 

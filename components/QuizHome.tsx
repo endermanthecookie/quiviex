@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap } from 'lucide-react';
+import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap, Clock, History } from 'lucide-react';
 import { Quiz, User as UserType, QXNotification } from '../types';
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
@@ -55,7 +54,8 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
   onViewAdmin,
   onHostSession,
   onViewLeaderboard,
-  onJoinGame
+  onJoinGame,
+  onViewHistory
 }) => {
   const [activeTab, setActiveTab] = useState<'my' | 'saved'>('my');
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +63,8 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
 
   const displayedQuizzes = (activeTab === 'my' ? quizzes : savedQuizzes)
     .filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const latestResult = user.history && user.history.length > 0 ? user.history[user.history.length - 1] : null;
 
   const isSudo = user.email === 'sudo@quiviex.com';
 
@@ -124,49 +126,78 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-16 stagger-in">
-          <button onClick={onCreateNew} className="lg:col-span-3 bg-gradient-to-br from-purple-500 to-indigo-600 p-8 sm:p-10 rounded-[3.5rem] text-white flex flex-col justify-between group click-scale shadow-2xl min-h-[320px] relative overflow-hidden transition-all duration-500 hover:shadow-purple-200">
-             <div className="flex items-start justify-between z-10">
-                <PlusCircle size={36} className="text-white/80" />
-                <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border border-white/10">Creator</span>
-             </div>
-             <div className="text-left z-10 max-w-lg mt-auto">
-                <h3 className="text-4xl sm:text-5xl font-black tracking-tight leading-none mb-3 transform transition-transform group-hover:translate-x-2">Create New Quiz</h3>
-                <p className="text-lg opacity-80 font-bold">Build a quiz with AI tools</p>
-             </div>
-             <div className="absolute -top-10 -right-10 p-8 opacity-20 transform translate-x-4 -translate-y-4 group-hover:scale-125 group-hover:rotate-45 transition-all duration-1000"><PlusCircle size={300} /></div>
-          </button>
-
-          <button onClick={onJoinGame} className="lg:col-span-1 bg-white p-8 rounded-[3.5rem] border border-slate-200 hover:border-indigo-400 flex flex-col justify-between group click-scale transition-all shadow-sm hover:shadow-lg min-h-[320px]">
-             <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-6 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
-                <Zap size={32} />
-             </div>
-             <div className="text-left">
-                <h3 className="text-2xl font-black tracking-tight text-slate-800 leading-tight mb-2">Join Game</h3>
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Enter a PIN</p>
-             </div>
-          </button>
-          
-          <div className="lg:col-span-2 grid grid-rows-2 gap-6 h-full">
-             <div className="grid grid-cols-2 gap-6 h-full">
-                <button onClick={onViewCommunity} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 hover:border-purple-300 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-sm hover:shadow-lg">
-                   <Globe size={32} className="text-indigo-500 mb-3 group-hover:rotate-12 transition-transform" />
-                   <h3 className="text-lg font-black tracking-tight text-slate-800 leading-tight">Explore</h3>
-                </button>
-
-                <button onClick={onViewLeaderboard} className="bg-indigo-600 p-6 rounded-[2.5rem] border border-indigo-400 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-2xl hover:shadow-indigo-200">
-                   <Crown size={32} className="text-yellow-400 mb-3 group-hover:scale-110 transition-transform" />
-                   <h3 className="text-lg font-black tracking-tight text-white leading-tight">Leaderboard</h3>
-                </button>
-             </div>
-
-             <button onClick={onViewAchievements} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 hover:border-yellow-300 flex flex-row items-center justify-between group click-scale transition-all shadow-sm hover:shadow-lg">
-                <div className="text-left">
-                    <h3 className="text-2xl font-black tracking-tight text-slate-800">Trophies</h3>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Your Milestones</p>
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16 stagger-in">
+          {/* Main Action Block */}
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+             <button onClick={onCreateNew} className="bg-gradient-to-br from-purple-500 to-indigo-600 p-8 sm:p-10 rounded-[3.5rem] text-white flex flex-col justify-between group click-scale shadow-2xl min-h-[360px] relative overflow-hidden transition-all duration-500 hover:shadow-purple-200">
+                <div className="flex items-start justify-between z-10">
+                   <PlusCircle size={36} className="text-white/80" />
+                   <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border border-white/10">Creator</span>
                 </div>
-                <Trophy size={36} className="text-yellow-500 group-hover:scale-110 transition-transform group-hover:rotate-12" />
+                <div className="text-left z-10 max-w-lg mt-auto">
+                   <h3 className="text-4xl sm:text-5xl font-black tracking-tight leading-none mb-3 transform transition-transform group-hover:translate-x-2">Create New Quiz</h3>
+                   <p className="text-lg opacity-80 font-bold">Build a quiz with AI tools</p>
+                </div>
+                <div className="absolute -top-10 -right-10 p-8 opacity-20 transform translate-x-4 -translate-y-4 group-hover:scale-125 group-hover:rotate-45 transition-all duration-1000"><PlusCircle size={300} /></div>
              </button>
+
+             <div className="grid grid-rows-2 gap-8">
+                <div className="grid grid-cols-2 gap-8">
+                   <button onClick={onViewCommunity} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 hover:border-purple-300 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-sm hover:shadow-lg">
+                      <Globe size={32} className="text-indigo-500 mb-3 group-hover:rotate-12 transition-transform" />
+                      <h3 className="text-lg font-black tracking-tight text-slate-800 leading-tight">Explore</h3>
+                   </button>
+
+                   <button onClick={onViewLeaderboard} className="bg-indigo-600 p-6 rounded-[2.5rem] border border-indigo-400 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-2xl hover:shadow-indigo-200">
+                      <Crown size={32} className="text-yellow-400 mb-3 group-hover:scale-110 transition-transform" />
+                      <h3 className="text-lg font-black tracking-tight text-white leading-tight">Leaderboard</h3>
+                   </button>
+                </div>
+
+                <button onClick={onViewAchievements} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 hover:border-yellow-300 flex flex-row items-center justify-between group click-scale transition-all shadow-sm hover:shadow-lg">
+                   <div className="text-left">
+                       <h3 className="text-2xl font-black tracking-tight text-slate-800">Trophies</h3>
+                       <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Your Milestones</p>
+                   </div>
+                   <Trophy size={36} className="text-yellow-500 group-hover:scale-110 transition-transform group-hover:rotate-12" />
+                </button>
+             </div>
+          </div>
+
+          <div className="lg:col-span-4 flex flex-col gap-8">
+             <button onClick={onJoinGame} className="bg-white p-8 rounded-[3.5rem] border border-slate-200 hover:border-indigo-400 flex flex-col justify-between group click-scale transition-all shadow-sm hover:shadow-lg min-h-[160px]">
+                <div className="flex items-center gap-4">
+                   <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                      <Zap size={28} />
+                   </div>
+                   <div className="text-left">
+                      <h3 className="text-2xl font-black tracking-tight text-slate-800 leading-tight">Join Game</h3>
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">ENTER A PIN</p>
+                   </div>
+                </div>
+             </button>
+
+             <div className="flex-1 bg-white/40 border border-slate-200 rounded-[3.5rem] p-10 flex flex-col justify-between relative overflow-hidden group min-h-[220px]">
+                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:rotate-12 transition-transform duration-1000"><History size={180} /></div>
+                <div className="relative z-10">
+                   <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-4">Recent Activity</h4>
+                   {latestResult ? (
+                     <div className="space-y-4">
+                        <p className="text-2xl font-black text-slate-800 leading-tight line-clamp-2">{latestResult.quizTitle}</p>
+                        <div className="flex items-center gap-3">
+                           <div className="px-4 py-1.5 bg-emerald-100 text-emerald-600 rounded-full font-black text-xs">{Math.round((latestResult.score / latestResult.totalQuestions) * 100)}% Accuracy</div>
+                           <span className="text-slate-400 font-bold text-xs">+{latestResult.points || 0} pts</span>
+                        </div>
+                     </div>
+                   ) : (
+                     <div className="space-y-4">
+                        <p className="text-2xl font-black text-slate-800 leading-tight">Welcome, User.</p>
+                        <p className="text-sm font-bold text-slate-400 leading-relaxed">No history recorded yet. Play a quiz to populate this feed.</p>
+                     </div>
+                   )}
+                </div>
+                <button onClick={onViewHistory} className="relative z-10 w-full mt-6 py-4 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all click-scale">Open Activity Log</button>
+             </div>
           </div>
         </section>
 

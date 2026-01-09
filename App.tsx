@@ -190,6 +190,32 @@ export default function App() {
     persistUser({ ...user, stats: updatedStats });
   };
 
+  const handleHostSession = async (quiz: Quiz) => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+        const pin = Math.floor(100000 + Math.random() * 900000).toString();
+        const { data: room, error } = await supabase.from('rooms').insert({
+            pin,
+            host_id: user.id,
+            quiz_id: quiz.id,
+            status: 'waiting'
+        }).select().single();
+
+        if (error) throw error;
+        
+        setActiveRoom({
+            id: room.id, pin: room.pin, hostId: room.host_id, quizId: room.quiz_id,
+            status: room.status as any, currentQuestionIndex: room.current_question_index, createdAt: room.created_at
+        });
+        setView('multiplayer_lobby');
+    } catch (e: any) {
+        alert("Host error: " + e.message);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const persistUser = async (updatedUser: User) => {
     setUser(updatedUser);
     try {
@@ -212,14 +238,14 @@ export default function App() {
       }
       
       switch(view) {
-          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={() => {}} onClearNotifications={() => {}} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={() => {}} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={() => {}} onViewLeaderboard={() => setView('leaderboard')} onJoinGame={() => setView('join_pin')} />;
+          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={() => {}} onClearNotifications={() => {}} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={() => {}} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={handleHostSession} onViewLeaderboard={() => setView('leaderboard')} onJoinGame={() => setView('join_pin')} />;
           case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user!} onSave={(q) => { setView('home'); }} onExit={() => setView('home')} startWithTutorial={!user!.hasSeenTutorial} onOpenSettings={() => setView('settings')} onStatUpdate={handleStatUpdate} onRefreshProfile={() => fetchProfile(user!.id, user!.email)} />;
           case 'auth': return <Auth onLogin={() => {}} onBackToLanding={() => setView('landing')} onJoinGame={() => setView('join_pin')} />;
           case 'onboarding': return user ? <UsernameSetup email={user.email} onComplete={(u) => { persistUser({...user, username: u}); setView('home'); }} onCancel={() => supabase.auth.signOut()} /> : null;
           case 'multiplayer_lobby': return <MultiplayerLobby room={activeRoom!} user={user} onBack={() => setView('home')} onStart={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
           case 'join_pin': return <JoinPinPage onBack={() => user ? setView('home') : setView('landing')} onJoin={(room) => { setActiveRoom(room); setView('multiplayer_lobby'); }} />;
           case 'leaderboard': return <LeaderboardPage user={user!} onBack={() => setView('home')} />;
-          case 'take': return activeQuiz ? <QuizTaker quiz={activeQuiz} room={activeRoom || undefined} user={user || undefined} onComplete={(answers, score, points) => { setView('results'); }} onExit={() => setView('home')} /> : null;
+          case 'take': return activeQuiz ? <QuizTaker quiz={activeQuiz} room={activeRoom || undefined} user={user || undefined} onComplete={(answers, score, points) => { setActiveResults({answers, score, points}); setView('results'); }} onExit={() => setView('home')} /> : null;
           case 'results': return activeQuiz && activeResults ? <QuizResults quiz={activeQuiz} userAnswers={activeResults.answers} score={activeResults.score} points={activeResults.points} onPlayAgain={() => setView('take')} onHome={() => setView('home')} /> : null;
           case 'achievements': return <AchievementsPage user={user!} definitions={achievementsDefinitions} onBack={() => setView('home')} />;
           case 'history': return <HistoryPage user={user!} onBack={() => setView('home')} />;

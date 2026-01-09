@@ -52,7 +52,7 @@ export const GitHubTokenHelpModal: React.FC<GitHubTokenHelpModalProps> = ({ onCl
                     <h3 className="font-bold text-lg text-slate-900">Generate Token</h3>
                     <div className="bg-white p-4 rounded-xl border border-slate-200 mt-2 shadow-sm space-y-3 text-sm">
                         <div className="flex items-center gap-2"><span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs font-bold uppercase">Name</span><span>Give it a name (e.g., "Quiviex")</span></div>
-                        <div className="p-3 bg-yellow-50 border border-yellow-100 rounded-lg"><span className="font-bold text-yellow-800 block mb-1">⚠️ Required Permission:</span><span>Scroll down to <b>"Account permissions"</b>. You MUST select the <b>"Models"</b> permission (Read & Write).</span></div>
+                        <div className="p-4 bg-amber-100 border-2 border-amber-200 rounded-xl"><span className="font-black text-amber-900 block mb-1">⚠️ Required Permission:</span><span className="text-amber-800 font-bold">Scroll down to "Account permissions". You MUST select the "Models" permission (Read & Write).</span></div>
                         <div className="flex items-center gap-2"><span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold uppercase">Final</span><span>Click "Generate token" at the bottom</span></div>
                     </div>
                 </div>

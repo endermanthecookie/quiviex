@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User, QuizResult } from '../types';
 import { ArrowLeft, Calendar, History, Trophy, Clock, X, Info } from 'lucide-react';
@@ -44,7 +43,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user, onBack }) => {
                                 </div>
                                 <div className="text-center group">
                                     <div className="text-5xl font-black group-hover:scale-110 transition-transform">{selectedResult.score}/{selectedResult.totalQuestions}</div>
-                                    <div className="text-xs uppercase tracking-widest opacity-70 font-bold mt-2">Core Units</div>
+                                    <div className="text-xs uppercase tracking-widest opacity-70 font-bold mt-2">Correct</div>
                                 </div>
                             </div>
                         </div>
@@ -53,17 +52,17 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user, onBack }) => {
                     <div className="p-8">
                         <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                             <Info size={20} className="text-slate-400" />
-                            Performance Audit
+                            Quiz Summary
                         </h3>
-                        <div className="bg-yellow-50 text-yellow-800 p-6 rounded-2xl text-sm mb-8 border border-yellow-100 font-medium leading-relaxed">
-                            Complete session telemetry is archived. Your core synchronization for this module reached terminal state with high fidelity.
+                        <div className="bg-indigo-50 text-indigo-800 p-6 rounded-2xl text-sm mb-8 border border-indigo-100 font-medium leading-relaxed italic">
+                            "You have successfully finished this module. Your score has been logged to your global profile. Keep up the great work!"
                         </div>
                         
                          <button 
                             onClick={() => setSelectedResult(null)}
                             className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl transition-all click-scale shadow-lg"
                         >
-                            Close Archive
+                            Close Details
                         </button>
                     </div>
                 </div>
@@ -81,7 +80,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user, onBack }) => {
           </button>
           <div className="flex items-center gap-3">
             <History className="text-blue-500" size={28} />
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Transmission History</h1>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Recent Activity</h1>
           </div>
         </div>
       </div>
@@ -91,7 +90,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user, onBack }) => {
           <div className="text-center py-32 text-slate-400 animate-in zoom-in duration-700">
             <History size={64} className="mx-auto mb-6 opacity-20" />
             <h3 className="text-xl font-black mb-2 uppercase tracking-widest">No Logged Data</h3>
-            <p className="font-medium">Complete modules to populate your history.</p>
+            <p className="font-medium">Complete quizzes to populate your history.</p>
           </div>
         ) : (
           <div className="space-y-4 stagger-in">

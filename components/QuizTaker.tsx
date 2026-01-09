@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Quiz, Question, Room, User } from '../types';
 import { Logo } from './Logo';
@@ -178,9 +177,9 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 stagger-in">
                     {currentQuestion.options.map((opt, i) => (
-                        <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className="glass p-8 rounded-[2.5rem] text-xl font-black text-left flex items-center gap-6 group click-scale border border-white/5 hover:bg-white/10 transition-all">
-                            <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-2xl font-black italic text-white/20 group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all">{i+1}</div>
-                            <span className="flex-1">{opt}</span>
+                        <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className="glass p-8 rounded-[2.5rem] text-xl font-black text-left flex items-center gap-6 group click-scale border border-white/10 hover:bg-white/20 transition-all">
+                            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-2xl font-black italic text-white/30 group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all">{i+1}</div>
+                            <span className="flex-1 drop-shadow-sm">{opt}</span>
                         </button>
                     ))}
                 </div>
@@ -195,18 +194,18 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                         onChange={(e) => setTempInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && tempInput.trim() && submitAnswer(tempInput)}
                         placeholder="Type answer..."
-                        className="w-full bg-white/5 border-4 border-white/10 rounded-[2.5rem] p-10 text-3xl font-black text-center focus:outline-none focus:border-indigo-500 transition-all mb-8"
+                        className="w-full bg-black/40 backdrop-blur-xl border-4 border-white/10 rounded-[2.5rem] p-10 text-3xl font-black text-center focus:outline-none focus:border-indigo-500 transition-all mb-8 shadow-2xl"
                         autoFocus
                       />
-                      <button onClick={() => submitAnswer(tempInput)} disabled={!tempInput.trim()} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale">Submit</button>
+                      <button onClick={() => submitAnswer(tempInput)} disabled={!tempInput.trim()} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale shadow-xl">Submit</button>
                   </div>
               );
           case 'ordering':
               return (
                   <div className="max-w-xl mx-auto w-full space-y-4 stagger-in">
                       {tempOrder.map((originalIdx, displayIdx) => (
-                          <div key={originalIdx} className="glass p-6 rounded-3xl border border-white/5 flex items-center gap-6">
-                              <span className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-black text-indigo-400">{displayIdx + 1}</span>
+                          <div key={originalIdx} className="glass p-6 rounded-3xl border border-white/10 flex items-center gap-6">
+                              <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-black text-indigo-400">{displayIdx + 1}</span>
                               <span className="flex-1 font-bold text-lg">{currentQuestion.options[originalIdx]}</span>
                               <div className="flex flex-col gap-1">
                                   <button onClick={() => moveOrder(displayIdx, 'up')} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white"><ChevronUp size={20} /></button>
@@ -214,16 +213,16 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                               </div>
                           </div>
                       ))}
-                      <button onClick={() => submitAnswer(tempOrder)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale mt-8">Confirm Order</button>
+                      <button onClick={() => submitAnswer(tempOrder)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale mt-8 shadow-xl">Confirm Order</button>
                   </div>
               );
           case 'slider':
               const min = parseInt(currentQuestion.options[0]);
               const max = parseInt(currentQuestion.options[1]);
               return (
-                  <div className="max-w-2xl mx-auto w-full stagger-in bg-white/5 p-12 rounded-[3.5rem] border border-white/10">
+                  <div className="max-w-2xl mx-auto w-full stagger-in bg-black/40 backdrop-blur-xl p-12 rounded-[3.5rem] border border-white/10 shadow-2xl">
                       <div className="text-center mb-12">
-                          <div className="text-7xl font-black text-indigo-400 mb-2">{tempSlider}</div>
+                          <div className="text-7xl font-black text-indigo-400 mb-2 drop-shadow-[0_0_20px_rgba(129,140,248,0.5)]">{tempSlider}</div>
                       </div>
                       <input 
                         type="range" 
@@ -233,7 +232,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                         onChange={(e) => setTempSlider(parseInt(e.target.value))}
                         className="w-full h-4 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-500 mb-12"
                       />
-                      <button onClick={() => submitAnswer(tempSlider)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale">Submit Value</button>
+                      <button onClick={() => submitAnswer(tempSlider)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale shadow-xl">Submit Value</button>
                   </div>
               );
           default:
@@ -243,23 +242,30 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden font-['Plus_Jakarta_Sans']">
+      {/* MASSIVE BACKGROUND COUNTDOWN */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+         <div className={`text-[40rem] sm:text-[65rem] font-black leading-none tabular-nums transition-all duration-300 ${timeLeft <= 5 ? 'text-rose-500/20 animate-pulse scale-110' : 'text-white/[0.03]'}`}>
+            {timeLeft}
+         </div>
+      </div>
+
       {showExplanation && (
-          <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
+          <div className="absolute inset-0 z-[100] bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
               <div className="max-w-2xl w-full text-center stagger-in">
-                  <div className={`mb-6 text-7xl font-black tracking-tighter ${isCorrectFeedback ? 'text-emerald-400' : 'text-rose-500'}`}>
+                  <div className={`mb-6 text-7xl font-black tracking-tighter drop-shadow-2xl ${isCorrectFeedback ? 'text-emerald-400' : 'text-rose-500'}`}>
                       {isCorrectFeedback ? 'CORRECT!' : 'INCORRECT'}
                   </div>
                   
                   {currentQuestion.explanation && (
-                      <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-8 text-lg font-medium text-slate-300 leading-relaxed italic">
+                      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-8 text-lg font-medium text-slate-300 leading-relaxed italic shadow-xl">
                           "{currentQuestion.explanation}"
                       </div>
                   )}
 
                   {room && roomLeaderboard.length > 0 && (
-                      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-10">
+                      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-10 shadow-2xl">
                           <h4 className="text-indigo-400 font-black uppercase text-[10px] tracking-widest mb-6 flex items-center justify-center gap-2">
-                             <Trophy size={14} /> Leaderboard
+                             <Trophy size={14} /> Standings
                           </h4>
                           <div className="space-y-3">
                              {roomLeaderboard.slice(0, 5).map((p, i) => {
@@ -279,51 +285,58 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                       </div>
                   )}
 
-                  <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-6 rounded-3xl text-2xl click-scale uppercase shadow-xl">
+                  <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-colors">
                     Next Question
                   </button>
               </div>
           </div>
       )}
 
-      <div className={`flex flex-col h-full ${startCountdown > 0 ? 'opacity-0 blur-xl' : 'opacity-100 blur-0'} transition-all duration-1000`}>
-        <header className="glass px-8 py-5 flex items-center justify-between border-b border-white/5 z-40 bg-slate-950/50 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-                <Logo variant="small" className="shadow-lg" />
-                <div className="text-sm font-black tracking-widest uppercase text-slate-500">QUESTION <span className="text-white">{currentQuestionIndex+1}</span></div>
+      <div className={`flex flex-col h-full relative z-10 ${startCountdown > 0 ? 'opacity-0 blur-xl' : 'opacity-100 blur-0'} transition-all duration-1000`}>
+        <header className="px-8 py-6 flex items-center justify-between z-40 bg-transparent border-b border-white/5">
+            <div className="flex items-center gap-4">
+                <Logo variant="small" className="shadow-2xl" />
+                <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-full">
+                    <span className="text-xs font-black tracking-widest uppercase text-slate-400">Step <span className="text-white">{currentQuestionIndex+1} / {shuffledQuestions.length}</span></span>
+                </div>
             </div>
             <div className="flex items-center gap-6">
                 <div className="text-right">
                     <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Score</div>
-                    <div className="text-lg font-black text-indigo-400 tracking-tight">{sessionPoints}</div>
+                    <div className="text-2xl font-black text-indigo-400 tracking-tight">{sessionPoints}</div>
                 </div>
             </div>
         </header>
 
-        <div className="absolute top-0 left-0 w-full h-1 z-30">
+        <div className="absolute top-0 left-0 w-full h-1.5 z-30">
             <div className={`h-full absolute left-0 transition-all duration-1000 ease-linear ${timeLeft <= 5 ? 'bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,1)]' : 'bg-indigo-500'}`} style={{ width: `${timePercentage}%` }} />
         </div>
 
-        <main className="flex-1 flex flex-col justify-center px-6 py-12 relative z-40 overflow-y-auto">
-            <div className="max-w-4xl mx-auto w-full text-center py-10">
-                <div className={`text-6xl font-black mb-12 tabular-nums ${timeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-slate-700'}`}>
-                  {timeLeft}
+        <main className="flex-1 flex flex-col justify-center px-6 py-12 relative overflow-y-auto">
+            <div className="max-w-4xl mx-auto w-full text-center">
+                <div className="mb-10 inline-block bg-black/40 backdrop-blur-xl p-10 sm:p-16 rounded-[4rem] border border-white/10 shadow-2xl animate-in slide-in-from-bottom-10 duration-700 w-full">
+                    <h2 className="text-3xl sm:text-5xl font-black leading-tight tracking-tighter text-white">
+                      {currentQuestion.question}
+                    </h2>
+                    {currentQuestion.image && (
+                        <div className="mt-8 rounded-3xl overflow-hidden border border-white/10 shadow-2xl max-w-md mx-auto aspect-video">
+                            <img src={currentQuestion.image} alt="" className="w-full h-full object-cover" />
+                        </div>
+                    )}
                 </div>
                 
-                <h2 className="text-4xl sm:text-5xl font-black mb-16 leading-tight tracking-tighter animate-in slide-in-from-bottom-8 duration-700">
-                  {currentQuestion.question}
-                </h2>
-                
-                {renderInputs()}
+                <div className="relative z-20">
+                    {renderInputs()}
+                </div>
             </div>
         </main>
       </div>
 
       {startCountdown > 0 && (
           <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center text-center">
-              <Logo variant="large" className="mb-12 shadow-[0_0_80px_rgba(168,85,247,0.3)] animate-bounce" />
-              <p className="text-indigo-400 font-black uppercase tracking-[0.5em] text-xs mb-6">Preparing Game</p>
-              <div className="text-[12rem] font-black tracking-tighter leading-none animate-in zoom-in duration-500 text-white" key={startCountdown}>
+              <Logo variant="large" className="mb-12 shadow-[0_0_100px_rgba(168,85,247,0.4)] animate-bounce" />
+              <p className="text-indigo-400 font-black uppercase tracking-[0.6em] text-sm mb-6">Game Initializing</p>
+              <div className="text-[15rem] font-black tracking-tighter leading-none animate-in zoom-in duration-500 text-white drop-shadow-[0_0_60px_rgba(255,255,255,0.2)]" key={startCountdown}>
                   {startCountdown}
               </div>
           </div>

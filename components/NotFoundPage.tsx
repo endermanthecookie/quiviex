@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Home, AlertCircle, Zap, Search, ArrowLeft } from 'lucide-react';
+import { Home, AlertCircle, Zap } from 'lucide-react';
 import { Logo } from './Logo';
 
 interface NotFoundPageProps {
@@ -10,7 +9,6 @@ interface NotFoundPageProps {
 export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onGoHome }) => {
   return (
     <div className="min-h-screen bg-[#05010d] text-white flex flex-col items-center justify-center p-6 relative overflow-hidden font-['Plus_Jakarta_Sans']">
-      {/* Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px] animate-pulse"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px] animate-pulse delay-1000"></div>
       
@@ -30,18 +28,12 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onGoHome }) => {
             </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg animate-in slide-in-from-bottom-8 duration-1000 delay-300">
+        <div className="w-full max-w-sm animate-in slide-in-from-bottom-8 duration-1000 delay-300">
             <button 
                 onClick={onGoHome}
-                className="bg-white text-slate-950 px-10 py-6 rounded-[2rem] font-black text-base uppercase tracking-widest shadow-[0_20px_60px_rgba(255,255,255,0.1)] hover:bg-slate-100 transition-all flex items-center justify-center gap-3 click-scale group"
+                className="w-full bg-white text-slate-950 px-10 py-6 rounded-[2rem] font-black text-base uppercase tracking-widest shadow-[0_20px_60px_rgba(255,255,255,0.1)] hover:bg-slate-100 transition-all flex items-center justify-center gap-3 click-scale group"
             >
-                <Home size={20} className="group-hover:-translate-y-1 transition-transform" /> Back Home
-            </button>
-            <button 
-                onClick={onGoHome} // In a real app this might open search or community
-                className="bg-indigo-600 text-white px-10 py-6 rounded-[2rem] font-black text-base uppercase tracking-widest shadow-[0_20px_60px_rgba(99,102,241,0.2)] hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 click-scale"
-            >
-                <Search size={20} /> Browse Quizzes
+                <Home size={20} className="group-hover:-translate-y-1 transition-transform" /> Return Home
             </button>
         </div>
 
@@ -50,7 +42,6 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onGoHome }) => {
         </div>
       </div>
 
-      {/* Decorative floating elements */}
       <div className="absolute top-1/4 left-10 opacity-20 animate-bounce delay-700">
           <AlertCircle size={48} className="text-indigo-400" />
       </div>

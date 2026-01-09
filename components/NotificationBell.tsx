@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, MessageSquare, Trophy, Info, Settings, Trash2, CheckCircle, BellOff, X } from 'lucide-react';
+import { Bell, MessageSquare, Trophy, Info, Settings, Trash2, BellOff, X } from 'lucide-react';
 import { QXNotification } from '../types';
 
 interface NotificationBellProps {
@@ -33,10 +32,21 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ notification
     }
   };
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsOpen(!isOpen);
+  };
+
+  const handleClose = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsOpen(false);
+  };
+
   return (
     <div className="relative" ref={bellRef}>
       <button 
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className={`p-3 rounded-2xl transition-all click-scale relative ${isOpen ? 'bg-indigo-50 text-indigo-600' : 'bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 shadow-sm'}`}
       >
         <Bell size={20} />
@@ -54,18 +64,26 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ notification
               <h3 className="text-lg font-black tracking-tight">Notifications</h3>
               <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-0.5">Recent Activity</p>
             </div>
-            {notifications.length > 0 && (
+            <div className="flex items-center gap-2">
+                {notifications.length > 0 && (
+                    <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if(window.confirm("Clear all notifications?")) onClearAll();
+                    }} 
+                    className="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-colors" 
+                    title="Clear All"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                )}
                 <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if(confirm("Clear all notifications?")) onClearAll();
-                  }} 
-                  className="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-colors" 
-                  title="Clear All"
+                    onClick={handleClose}
+                    className="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-colors"
                 >
-                    <Trash2 size={16} />
+                    <X size={16} />
                 </button>
-            )}
+            </div>
           </div>
 
           <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
@@ -82,7 +100,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ notification
                 {notifications.map((n) => (
                   <div 
                     key={n.id} 
-                    onClick={() => onMarkRead(n.id)}
+                    onClick={() => { onMarkRead(n.id); setIsOpen(false); }}
                     className={`p-5 flex gap-4 transition-colors cursor-pointer hover:bg-slate-50 relative ${!n.isRead ? 'bg-indigo-50/30' : ''}`}
                   >
                     {!n.isRead && <div className="absolute top-1/2 left-2 w-1.5 h-1.5 bg-indigo-500 rounded-full -translate-y-1/2"></div>}
@@ -104,10 +122,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ notification
           
           <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
              <button 
-                onClick={() => setIsOpen(false)}
+                onClick={handleClose}
                 className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
              >
-               Close
+               Dismiss List
              </button>
           </div>
         </div>
