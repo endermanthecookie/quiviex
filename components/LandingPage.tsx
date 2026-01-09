@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Sparkles, Shield, Zap, Globe, Github, Database, Brain, Rocket, PlayCircle, ChevronLeft, ChevronRight, X, Layers, Cpu, Users, BarChart3, Star, Mail, Loader2, User as UserIcon, Lock, Code } from 'lucide-react';
 import { Logo } from './Logo';
@@ -117,12 +116,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
             with AI and join a global community of curious minds.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-8 mb-48 animate-in fade-in duration-1000 delay-500">
-            <button onClick={onGetStarted} className="w-full sm:w-auto bg-white text-slate-950 px-16 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(255,255,255,0.15)] hover:bg-purple-50 transition-all flex items-center justify-center gap-4 group click-scale">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-48 animate-in fade-in duration-1000 delay-500">
+            <button onClick={onGetStarted} className="w-full sm:w-auto bg-white text-slate-950 px-12 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(255,255,255,0.15)] hover:bg-purple-50 transition-all flex items-center justify-center gap-4 group click-scale">
               Start Creating <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
             </button>
-            <button onClick={onJoinGame} className="w-full sm:w-auto bg-indigo-600 text-white px-16 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(99,102,241,0.2)] hover:bg-indigo-700 transition-all flex items-center justify-center gap-4 click-scale">
-              <Zap size={24} className="text-yellow-400" /> Join with PIN
+            <button onClick={onExplore} className="w-full sm:w-auto bg-white/10 text-white border border-white/20 px-12 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest hover:bg-white/20 transition-all flex items-center justify-center gap-4 click-scale">
+              <Globe size={24} className="text-indigo-400" /> Browse Gallery
+            </button>
+            <button onClick={onJoinGame} className="w-full sm:w-auto bg-indigo-600 text-white px-12 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(99,102,241,0.2)] hover:bg-indigo-700 transition-all flex items-center justify-center gap-4 click-scale">
+              <Zap size={24} className="text-yellow-400" /> Join Game
             </button>
           </div>
 

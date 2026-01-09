@@ -61,6 +61,11 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
     } catch (e) { console.error(e); }
   };
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/community/${quiz.id}`);
+    alert("Copy Link Success!");
+  };
+
   return (
     <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
       <div className="bg-white rounded-[3.5rem] shadow-2xl max-w-4xl w-full flex flex-col h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20">
@@ -130,7 +135,12 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
                                 <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">Sign in to initialize synchronization</p>
                             </div>
                         )}
-                        <button className="w-20 bg-white border-2 border-slate-100 text-slate-500 hover:text-indigo-600 rounded-3xl flex items-center justify-center transition-all click-scale" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/community?id=${quiz.id}`); alert("Copied."); }}><Share2 size={24} /></button>
+                        <button 
+                          className="px-10 bg-white border-2 border-slate-100 text-slate-500 hover:text-indigo-600 rounded-3xl flex items-center justify-center gap-3 transition-all click-scale font-black text-xs uppercase tracking-widest" 
+                          onClick={handleCopyLink}
+                        >
+                          <Share2 size={20} /> Copy Link
+                        </button>
                     </div>
                 </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Quiz, User, Question } from '../types';
-import { ArrowLeft, Globe, Eye, Heart, Sparkles, Search } from 'lucide-react';
+import { ArrowLeft, Globe, Eye, Heart, Sparkles, Search, Loader2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { QuizDetailsModal } from './QuizDetailsModal';
 import { THEMES } from '../constants';
@@ -14,60 +14,7 @@ interface CommunityPageProps {
 
 type SortOption = 'newest' | 'trending';
 
-const TEAM_AVATAR = "data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%239d33f5'/%3E%3Cstop offset='100%25' style='stop-color:%235c4cf4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='0' y='0' width='100' height='100' rx='28' fill='url(%23g)'/%3E%3Cpath d='M 52 14 L 68 14 L 48 48 L 66 48 L 32 86 L 44 54 L 30 54 Z' fill='white'/%3E%3C/svg%3E";
-
-const generateTeamQuiz = (id: number, title: string, questions: Question[], theme: string = 'classic'): Quiz => ({
-    id: id,
-    userId: 'quiviex-team',
-    title,
-    questions,
-    createdAt: new Date(Date.now() - id * 86400000).toISOString(),
-    theme,
-    creatorUsername: 'Quiviex Team',
-    creatorAvatarUrl: TEAM_AVATAR,
-    stats: { views: 5000 + id * 123, plays: 1200 + id * 45, avgRating: 4.8, totalRatings: 85, likes: 230 + id }
-});
-
-const DEFAULT_QUESTIONS: Question[] = [
-    { question: "Which language is the backbone of the web?", image: "", type: "multiple-choice", options: ["Python", "JavaScript", "Java", "C++"], correctAnswer: 1, timeLimit: 15 },
-    { question: "Is the internet the same as the World Wide Web?", image: "", type: "true-false", options: ["True", "False"], correctAnswer: 1, timeLimit: 10, explanation: "The internet is the network; the web is a service built on it." },
-    { question: "What does HTML stand for?", image: "", type: "text-input", options: [], correctAnswer: "HyperText Markup Language", timeLimit: 30 }
-];
-
-const SEED_QUIZZES: Quiz[] = [
-    generateTeamQuiz(2001, "Cosmic Frontiers: Mars & Beyond", DEFAULT_QUESTIONS, 'cyberpunk'),
-    generateTeamQuiz(2002, "Renaissance Art Mastery", DEFAULT_QUESTIONS, 'winter'),
-    generateTeamQuiz(2003, "Python for Young Minds", DEFAULT_QUESTIONS, 'nature'),
-    generateTeamQuiz(2004, "Ancient Roman Architecture", DEFAULT_QUESTIONS),
-    generateTeamQuiz(2005, "The Science of High-Tech Cooking", DEFAULT_QUESTIONS, 'ocean'),
-    generateTeamQuiz(2006, "Retro Gaming: 8-Bit Revolution", DEFAULT_QUESTIONS, 'cyberpunk'),
-    generateTeamQuiz(2007, "Oceanic Mysteries & Biology", DEFAULT_QUESTIONS, 'ocean'),
-    generateTeamQuiz(2008, "Global Cuisine Deep Dive", DEFAULT_QUESTIONS, 'nature'),
-    generateTeamQuiz(2009, "Quantum Physics: The Basics", DEFAULT_QUESTIONS, 'winter'),
-    generateTeamQuiz(2010, "Great Explorers of History", DEFAULT_QUESTIONS),
-    generateTeamQuiz(2011, "Modern Skyscrapers Engineering", DEFAULT_QUESTIONS, 'winter'),
-    generateTeamQuiz(2012, "Cybersecurity Essentials", DEFAULT_QUESTIONS, 'cyberpunk'),
-    generateTeamQuiz(2013, "Mythology of the Stars", DEFAULT_QUESTIONS, 'ocean'),
-    generateTeamQuiz(2014, "Jurassic World: Paleontology", DEFAULT_QUESTIONS, 'nature'),
-    generateTeamQuiz(2015, "Classical Music Masterpieces", DEFAULT_QUESTIONS),
-    generateTeamQuiz(2016, "Botany: Rare Plant Life", DEFAULT_QUESTIONS, 'nature'),
-    generateTeamQuiz(2017, "Evolution of Human Communication", DEFAULT_QUESTIONS, 'cyberpunk'),
-    generateTeamQuiz(2018, "Chess Grandmaster Tactics", DEFAULT_QUESTIONS, 'winter'),
-    generateTeamQuiz(2019, "The French Revolution Legacy", DEFAULT_QUESTIONS),
-    generateTeamQuiz(2020, "Physics in Super-Hero Cinema", DEFAULT_QUESTIONS, 'cyberpunk'),
-    generateTeamQuiz(2021, "Infrastructure & Megacity Design", DEFAULT_QUESTIONS, 'winter'),
-    generateTeamQuiz(2022, "Human Anatomy: The Nervous System", DEFAULT_QUESTIONS, 'nature'),
-    generateTeamQuiz(2023, "Blockchain and Future Finance", DEFAULT_QUESTIONS, 'cyberpunk'),
-    generateTeamQuiz(2024, "African Safari: Ecology", DEFAULT_QUESTIONS, 'nature'),
-    generateTeamQuiz(2025, "Robotics & AI Ethics", DEFAULT_QUESTIONS, 'cyberpunk'),
-    generateTeamQuiz(2026, "The Modern Olympic Games", DEFAULT_QUESTIONS),
-    generateTeamQuiz(2027, "Solar System: Planet Wonders", DEFAULT_QUESTIONS, 'ocean'),
-    generateTeamQuiz(2028, "The Silk Road Expeditions", DEFAULT_QUESTIONS, 'nature'),
-    generateTeamQuiz(2029, "Artificial Intelligence Principles", DEFAULT_QUESTIONS, 'cyberpunk'),
-    generateTeamQuiz(2030, "Marine Conservation Heroes", DEFAULT_QUESTIONS, 'ocean'),
-];
-
-export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPlayQuiz }) => {
+export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPlayQuiz, initialQuizId }) => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,6 +25,34 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
     fetchCommunityQuizzes();
   }, [sortBy]);
 
+  useEffect(() => {
+      if (initialQuizId) {
+          handleDeepLink(initialQuizId);
+      }
+  }, [initialQuizId]);
+
+  const handleDeepLink = async (id: number) => {
+      const existing = quizzes.find(q => q.id === id);
+      if (existing) {
+          setSelectedQuiz(existing);
+          return;
+      }
+
+      try {
+          const { data: q } = await supabase.from('quizzes').select('*').eq('id', id).single();
+          if (q) {
+              const mapped: Quiz = {
+                  id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
+                  theme: q.theme, creatorUsername: q.username_at_creation || 'Community Architect', creatorAvatarUrl: q.avatar_url_at_creation,
+                  stats: { views: q.views || 0, likes: 0, avgRating: 4.5, totalRatings: 10, plays: q.plays || 0 }
+              };
+              setSelectedQuiz(mapped);
+          }
+      } catch (e) {
+          console.error("Deep link error:", e);
+      }
+  };
+
   const fetchCommunityQuizzes = async () => {
     setIsLoading(true);
     try {
@@ -85,18 +60,18 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
         if (sortBy === 'newest') query = query.order('created_at', { ascending: false });
         else if (sortBy === 'trending') query = query.order('views', { ascending: false }); 
         
-        const { data: dbQuizzes } = await query.limit(20);
-        const mappedDb: Quiz[] = (dbQuizzes || []).map((q: any) => ({
+        const { data: dbQuizzes, error } = await query.limit(40);
+        if (error) throw error;
+
+        const mapped: Quiz[] = (dbQuizzes || []).map((q: any) => ({
             id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
-            theme: q.theme, creatorUsername: q.username_at_creation || 'Community Architect', creatorAvatarUrl: q.avatar_url_at_creation,
+            theme: q.theme, creatorUsername: q.username_at_creation || 'Quiviex Team', creatorAvatarUrl: q.avatar_url_at_creation,
             stats: { views: q.views || 0, likes: 0, avgRating: 4.5, totalRatings: 10, plays: q.plays || 0 }
         }));
 
-        const combined = [...mappedDb, ...SEED_QUIZZES];
-        const unique = Array.from(new Map(combined.map(q => [q.id, q])).values());
-        setQuizzes(unique);
+        setQuizzes(mapped);
     } catch (error) {
-        setQuizzes(SEED_QUIZZES);
+        console.error("Fetch Error:", error);
     } finally {
         setIsLoading(false);
     }
@@ -124,16 +99,16 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                 <input type="text" placeholder="Search modules..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-11 pr-4 py-3 bg-white/60 border border-white/80 rounded-2xl focus:outline-none focus:bg-white font-bold text-sm w-64 shadow-sm transition-all" />
             </div>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortOption)} className="bg-white border border-slate-100 rounded-2xl px-5 py-3 font-black text-[10px] uppercase tracking-widest text-slate-600 focus:outline-none shadow-sm cursor-pointer">
-                <option value="newest">Latest</option>
-                <option value="trending">Popular</option>
+                <option value="newest">Latest Arrivals</option>
+                <option value="trending">Popular Content</option>
             </select>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto p-6 sm:p-10">
           {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 animate-pulse">
-                  {[...Array(6)].map((_, i) => <div key={i} className="glass rounded-[3rem] h-64"></div>)}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                  {[...Array(6)].map((_, i) => <div key={i} className="bg-white rounded-[3rem] h-64 animate-pulse border border-slate-100"></div>)}
               </div>
           ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 stagger-in">
@@ -142,8 +117,8 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                           <div className={`h-48 rounded-[2.5rem] bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-8 p-8 flex flex-col justify-between overflow-hidden shadow-xl group-hover:scale-[1.02] transition-transform`}>
                                 <div className="flex justify-between items-start">
                                     <div className="flex gap-1">
-                                        {quiz.userId === 'quiviex-team' && <span className="bg-yellow-400 text-black text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg">Verified</span>}
-                                        <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">{quiz.questions.length} UNITS</span>
+                                        {quiz.userId === '00000000-0000-0000-0000-000000000000' && <span className="bg-yellow-400 text-black text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg border border-white/20">Verified</span>}
+                                        <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-white/10">{quiz.questions.length} UNITS</span>
                                     </div>
                                 </div>
                                 <h3 className="text-2xl font-black text-white line-clamp-2 leading-tight drop-shadow-md">{quiz.title}</h3>
@@ -151,7 +126,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                           <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                   <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-100">
-                                      {quiz.creatorAvatarUrl ? <img src={quiz.creatorAvatarUrl} className="w-full h-full object-cover" /> : <div className="font-black text-slate-300">Q</div>}
+                                      {quiz.creatorAvatarUrl ? <img src={quiz.creatorAvatarUrl} className="w-full h-full object-cover" alt="" /> : <div className="font-black text-slate-300">Q</div>}
                                   </div>
                                   <div>
                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Architect</p>
@@ -165,6 +140,14 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                           </div>
                       </div>
                   ))}
+              </div>
+          )}
+          
+          {!isLoading && filteredQuizzes.length === 0 && (
+              <div className="col-span-full py-40 text-center">
+                  <Globe size={80} className="mx-auto text-slate-200 mb-6 animate-pulse" />
+                  <h3 className="text-2xl font-black text-slate-400 uppercase tracking-widest">No Matches Found</h3>
+                  <p className="text-slate-300 font-bold mt-2">Adjust your search parameters.</p>
               </div>
           )}
       </div>

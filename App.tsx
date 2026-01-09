@@ -13,6 +13,7 @@ import { CommunityPage } from './components/CommunityPage';
 import { MultiplayerLobby } from './components/MultiplayerLobby';
 import { JoinPinPage } from './components/JoinPinPage';
 import { LeaderboardPage } from './components/LeaderboardPage';
+import { PublicProfilePage } from './components/PublicProfilePage';
 import { Auth } from './components/Auth';
 import { LandingPage } from './components/LandingPage';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -25,7 +26,7 @@ import { LegalModal } from './components/LegalModal';
 import { exportQuizToQZX, exportAllQuizzesToZip } from './services/exportService';
 import { supabase, checkSupabaseConnection } from './services/supabase';
 
-type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin' | 'onboarding' | 'not_found';
+type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin' | 'onboarding' | 'not_found' | 'profile_view';
 
 const DEFAULT_STATS: UserStats = {
   quizzesCreated: 0,
@@ -47,6 +48,8 @@ export default function App() {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeResults, setActiveResults] = useState<{answers: any[], score: number, points?: number} | null>(null);
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
+  const [initialCommunityQuizId, setInitialCommunityQuizId] = useState<number | null>(null);
+  const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
   const [achievementsDefinitions, setAchievementsDefinitions] = useState<Achievement[]>([]);
@@ -68,6 +71,24 @@ export default function App() {
       const path = segments[0] || '';
       
       if (path === '' || path === 'index.html') return;
+
+      if (path === 'community') {
+          const quizId = segments[1];
+          if (quizId && !isNaN(Number(quizId))) {
+              setInitialCommunityQuizId(Number(quizId));
+          }
+          setView('community');
+          return;
+      }
+
+      if (path === 'profiles') {
+          const profileId = segments[1];
+          if (profileId) {
+              setTargetProfileId(profileId);
+              setView('profile_view');
+              return;
+          }
+      }
 
       const validStates = ['home', 'community', 'leaderboard', 'achievements', 'history', 'settings', 'focus', 'admin'];
       if (validStates.includes(path)) {
@@ -148,8 +169,8 @@ export default function App() {
         setNotifications([]);
         setIsLoading(false);
         const segments = window.location.pathname.split('/').filter(Boolean);
-        if (segments[0] !== 'login' && segments[0] !== 'code' && segments[0] !== 'auth') {
-          const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found'];
+        if (segments[0] !== 'login' && segments[0] !== 'code' && segments[0] !== 'auth' && segments[0] !== 'community' && segments[0] !== 'profiles') {
+          const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view'];
           if (!publicViews.includes(view)) setView('landing');
         }
       }
@@ -232,7 +253,7 @@ export default function App() {
       if (dbError) return <div className="p-20 text-center text-red-500 font-bold">{dbError}</div>;
       if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse text-2xl tracking-tighter">Quiviex...</div>;
       
-      const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found'];
+      const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view'];
       if (!user && !publicViews.includes(view)) {
           return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onJoinGame={() => setView('join_pin')} onShowLegal={(type) => setActiveLegalModal(type)} />;
       }
@@ -245,13 +266,14 @@ export default function App() {
           case 'multiplayer_lobby': return <MultiplayerLobby room={activeRoom!} user={user} onBack={() => setView('home')} onStart={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
           case 'join_pin': return <JoinPinPage onBack={() => user ? setView('home') : setView('landing')} onJoin={(room) => { setActiveRoom(room); setView('multiplayer_lobby'); }} />;
           case 'leaderboard': return <LeaderboardPage user={user!} onBack={() => setView('home')} />;
+          case 'profile_view': return <PublicProfilePage userId={targetProfileId!} onBack={() => user ? setView('home') : setView('landing')} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
           case 'take': return activeQuiz ? <QuizTaker quiz={activeQuiz} room={activeRoom || undefined} user={user || undefined} onComplete={(answers, score, points) => { setActiveResults({answers, score, points}); setView('results'); }} onExit={() => setView('home')} /> : null;
           case 'results': return activeQuiz && activeResults ? <QuizResults quiz={activeQuiz} userAnswers={activeResults.answers} score={activeResults.score} points={activeResults.points} onPlayAgain={() => setView('take')} onHome={() => setView('home')} /> : null;
           case 'achievements': return <AchievementsPage user={user!} definitions={achievementsDefinitions} onBack={() => setView('home')} />;
           case 'history': return <HistoryPage user={user!} onBack={() => setView('home')} />;
           case 'focus': return <FocusMode user={user!} quizzes={quizzes} onBack={() => setView('home')} onStartQuiz={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
           case 'settings': return <SettingsPage user={user!} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user!, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} onDeleteAccount={() => {}} />;
-          case 'community': return <CommunityPage user={user} onBack={() => user ? setView('home') : setView('landing')} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
+          case 'community': return <CommunityPage user={user} onBack={() => user ? setView('home') : setView('landing')} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} initialQuizId={initialCommunityQuizId} />;
           case 'admin': return <AdminDashboard onBack={() => setView('home')} />;
           case 'landing': return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onJoinGame={() => setView('join_pin')} onShowLegal={(type) => setActiveLegalModal(type)} />;
           case 'not_found': return <NotFoundPage onGoHome={() => setView(user ? 'home' : 'landing')} />;

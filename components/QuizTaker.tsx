@@ -16,6 +16,22 @@ interface ShuffledQuestion extends Question {
     originalIndex: number;
 }
 
+const getLevenshteinDistance = (a: string, b: string): number => {
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+};
+
 export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComplete, onExit }) => {
   const [shuffledQuestions, setShuffledQuestions] = useState<ShuffledQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -24,6 +40,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const [timerActive, setTimerActive] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [isCorrectFeedback, setIsCorrectFeedback] = useState<boolean | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [sessionPoints, setSessionPoints] = useState(0);
   const [streak, setStreak] = useState(0);
   const [startCountdown, setStartCountdown] = useState(3);
@@ -53,7 +70,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       startTimeRef.current = Date.now();
       setTempInput('');
       setTempSlider(q.type === 'slider' ? parseInt(q.options[0]) || 0 : 50);
-      setTempOrder(q.type === 'ordering' ? [0, 1, 2, 3] : []);
+      setTempOrder(q.type === 'ordering' ? Array.from({length: q.options.length}, (_, i) => i) : []);
   };
 
   useEffect(() => {
@@ -77,11 +94,11 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
     return () => window.clearInterval(timer);
   }, [timeLeft, timerActive, showExplanation]);
 
-  const calculatePoints = (isCorrect: boolean, timeTakenSeconds: number, timeLimit: number, proximity: number = 1) => {
-      if (!isCorrect && proximity === 1) return 0;
-      const basePoints = proximity < 1 ? 200 * proximity : 500;
-      const timeBonus = Math.max(0, (timeLimit - timeTakenSeconds) / timeLimit) * 500;
-      return Math.floor((basePoints + timeBonus) * (isCorrect ? 1 : 0.2));
+  const calculatePoints = (isCorrect: boolean, timeTakenSeconds: number, timeLimit: number, multiplier: number = 1) => {
+      if (!isCorrect && multiplier === 0) return 0;
+      const basePoints = 500 * multiplier;
+      const timeBonus = multiplier > 0 ? (Math.max(0, (timeLimit - timeTakenSeconds) / timeLimit) * 500 * multiplier) : 0;
+      return Math.floor(basePoints + timeBonus);
   };
 
   const submitAnswer = async (answer: any) => {
@@ -89,24 +106,48 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
     const timeTaken = (Date.now() - startTimeRef.current) / 1000;
     
     let isCorrect = false;
-    let proximity = 1;
+    let multiplier = 0;
+    let currentFeedback = null;
 
     if (answer !== -1) {
         if (currentQuestion.type === 'slider') {
             const target = currentQuestion.correctAnswer as number;
             const diff = Math.abs(target - answer);
             const range = Math.abs(parseInt(currentQuestion.options[1]) - parseInt(currentQuestion.options[0]));
-            proximity = Math.max(0, 1 - (diff / (range * 0.5)));
+            const proximity = Math.max(0, 1 - (diff / (range * 0.5)));
             isCorrect = diff <= (range * 0.05);
+            multiplier = isCorrect ? 1 : (proximity * 0.3);
+        } else if (currentQuestion.type === 'text-input' || currentQuestion.type === 'fill-in-the-blank') {
+            const userText = String(answer).toLowerCase().trim();
+            const correctText = String(currentQuestion.correctAnswer).toLowerCase().trim();
+            const distance = getLevenshteinDistance(userText, correctText);
+            
+            if (distance === 0) {
+                isCorrect = true;
+                multiplier = 1;
+            } else if (distance === 1) {
+                isCorrect = true; // Still counts as correct
+                multiplier = 0.8;
+                currentFeedback = "Close enough! (Typo detected)";
+            } else if (distance === 2) {
+                isCorrect = true; // Still counts as correct
+                multiplier = 0.5;
+                currentFeedback = "Almost! A few mistakes detected.";
+            } else {
+                isCorrect = false;
+                multiplier = 0;
+            }
         } else {
             isCorrect = checkAnswerIsCorrect(currentQuestion, answer);
+            multiplier = isCorrect ? 1 : 0;
         }
     }
     
-    const pointsGained = calculatePoints(isCorrect, timeTaken, currentQuestion.timeLimit, proximity);
+    const pointsGained = calculatePoints(isCorrect, timeTaken, currentQuestion.timeLimit, multiplier);
     setSessionPoints(prev => prev + pointsGained);
     setStreak(prev => isCorrect ? prev + 1 : 0);
     setIsCorrectFeedback(isCorrect);
+    setFeedbackMessage(currentFeedback);
     
     const newAnswers = [...userAnswersRef.current];
     newAnswers[currentQuestionIndex] = answer;
@@ -128,6 +169,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const nextQuestion = () => {
       setShowExplanation(false);
       setIsCorrectFeedback(null);
+      setFeedbackMessage(null);
       if (currentQuestionIndex < shuffledQuestions.length - 1) {
         const nextIndex = currentQuestionIndex + 1;
         setCurrentQuestionIndex(nextIndex);
@@ -146,7 +188,9 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const checkAnswerIsCorrect = (q: any, a: any) => {
     if (a === -1) return false;
     if (q.type === 'text-input' || q.type === 'fill-in-the-blank') {
-        return typeof a === 'string' && a.toLowerCase().trim() === (q.correctAnswer as string).toLowerCase().trim();
+        const userText = String(a).toLowerCase().trim();
+        const correctText = String(q.correctAnswer).toLowerCase().trim();
+        return getLevenshteinDistance(userText, correctText) <= 2;
     }
     if (q.type === 'ordering') {
         return Array.isArray(a) && a.every((val, i) => val === i);
@@ -242,7 +286,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden font-['Plus_Jakarta_Sans']">
-      {/* MASSIVE BACKGROUND COUNTDOWN */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
          <div className={`text-[40rem] sm:text-[65rem] font-black leading-none tabular-nums transition-all duration-300 ${timeLeft <= 5 ? 'text-rose-500/20 animate-pulse scale-110' : 'text-white/[0.03]'}`}>
             {timeLeft}
@@ -252,9 +295,15 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       {showExplanation && (
           <div className="absolute inset-0 z-[100] bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
               <div className="max-w-2xl w-full text-center stagger-in">
-                  <div className={`mb-6 text-7xl font-black tracking-tighter drop-shadow-2xl ${isCorrectFeedback ? 'text-emerald-400' : 'text-rose-500'}`}>
+                  <div className={`mb-2 text-7xl font-black tracking-tighter drop-shadow-2xl ${isCorrectFeedback ? 'text-emerald-400' : 'text-rose-500'}`}>
                       {isCorrectFeedback ? 'CORRECT!' : 'INCORRECT'}
                   </div>
+                  
+                  {feedbackMessage && (
+                      <div className="text-indigo-400 font-black uppercase text-sm mb-6 animate-bounce">
+                          {feedbackMessage}
+                      </div>
+                  )}
                   
                   {currentQuestion.explanation && (
                       <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-8 text-lg font-medium text-slate-300 leading-relaxed italic shadow-xl">
