@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon } from 'lucide-react';
+import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2 } from 'lucide-react';
 import { Quiz, Question, QuestionType, User, CustomTheme, QuizVisibility } from '../types';
 import { COLORS, TUTORIAL_STEPS, THEMES, BANNED_WORDS } from '../constants';
 import { TutorialWidget } from './TutorialWidget';
@@ -24,6 +25,7 @@ interface QuizCreatorProps {
   onTutorialComplete?: () => void;
   onStatUpdate: (type: 'create' | 'ai_img' | 'ai_quiz') => void;
   onOpenSettings: () => void;
+  onRefreshProfile?: () => void;
 }
 
 const DEFAULT_QUESTION: Question = {
@@ -36,7 +38,7 @@ const DEFAULT_QUESTION: Question = {
   explanation: ''
 };
 
-export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUser, onSave, onExit, startWithTutorial, onTutorialComplete, onStatUpdate, onOpenSettings }) => {
+export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUser, onSave, onExit, startWithTutorial, onTutorialComplete, onStatUpdate, onOpenSettings, onRefreshProfile }) => {
   const [creationMode, setCreationMode] = useState<'selection' | 'editor'>(
     initialQuiz || startWithTutorial ? 'editor' : 'selection'
   );
@@ -68,6 +70,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   const [showSaveOptionsModal, setShowSaveOptionsModal] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [showModerationAlert, setShowModerationAlert] = useState<{detected: string[], warningsRemaining: number, isSudo: boolean} | null>(null);
+  const [isProcessingModeration, setIsProcessingModeration] = useState(false);
 
   const [isPreviewing, setIsPreviewing] = useState(false);
 
@@ -95,10 +98,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       return BANNED_WORDS.filter(word => {
           if (!word) return false;
           try {
-              // Robustly escape all regex special characters in the banned word
               const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-              
-              // Only use word boundaries if the word is purely alphanumeric
               const isAlphaNumeric = /^[a-z0-9]+$/i.test(word);
               const regex = isAlphaNumeric 
                   ? new RegExp(`\\b${escapedWord}\\b`, 'i') 
@@ -106,7 +106,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
               
               return regex.test(normalized);
           } catch (e) {
-              // Fallback to simple containment if regex fails for some reason
               return normalized.includes(word.toLowerCase());
           }
       });
@@ -123,28 +122,42 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       });
 
       if (detected.size > 0) {
+          setIsProcessingModeration(true);
           const detectedList = Array.from(detected);
           const isSudo = currentUser.email === 'sudo@quiviex.com';
           
-          // 1. Fetch current warning count from database
-          const { data: profile } = await supabase.from('profiles').select('warnings').eq('user_id', currentUser.id).single();
-          const currentWarnings = (profile?.warnings || 0) + 1;
+          // Re-fetch fresh count to prevent stale '2 warnings left' loop
+          const { data: profile, error: fetchErr } = await supabase.from('profiles').select('warnings').eq('user_id', currentUser.id).single();
+          if (fetchErr) {
+              setIsProcessingModeration(false);
+              alert("Infrastructure Verification Fault. Try again.");
+              return false;
+          }
 
-          // 2. Handle Final Ban logic - SUDO IS EXEMPT FROM BAN
-          if (currentWarnings >= 3 && !isSudo) {
+          const currentWarningsInDB = profile?.warnings || 0;
+          const nextWarnings = currentWarningsInDB + 1;
+
+          if (nextWarnings >= 3 && !isSudo) {
               await triggerNuclearBan();
               return false;
           }
 
-          // 3. Update DB strike count
-          await supabase.from('profiles').update({ warnings: currentWarnings }).eq('user_id', currentUser.id);
+          const { error: updateErr } = await supabase.from('profiles').update({ warnings: nextWarnings }).eq('user_id', currentUser.id);
+          if (updateErr) {
+              setIsProcessingModeration(false);
+              alert("Strike registry update failed: " + updateErr.message);
+              return false;
+          }
           
-          // 4. Trigger popup and block save (return false)
+          // Refresh the global user object in App.tsx so future checks are accurate
+          if (onRefreshProfile) onRefreshProfile();
+          
           setShowModerationAlert({
               detected: detectedList,
-              warningsRemaining: isSudo ? 999999 : 3 - currentWarnings,
+              warningsRemaining: isSudo ? 999999 : 3 - nextWarnings,
               isSudo: isSudo
           });
+          setIsProcessingModeration(false);
           return false;
       }
       return true;
@@ -177,7 +190,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       return;
     }
 
-    // This now correctly blocks Sudo if bad words are present
     const isModerated = await performModerationCheck();
     if (!isModerated) return;
 
@@ -240,7 +252,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
 
   return (
     <div className="flex h-screen bg-slate-50 relative overflow-hidden">
-        {/* MODERATION WARNING POP-UP */}
         {showModerationAlert && (
             <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-4">
                 <div className="bg-white rounded-[3.5rem] shadow-2xl max-w-xl w-full p-12 text-center animate-in zoom-in duration-500 border border-white/20">
@@ -272,7 +283,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                         <p className="text-rose-600 font-black text-2xl mb-1 uppercase tracking-widest">
                             {showModerationAlert.isSudo ? 'SUDO OVERRIDE' : 'STRIKE ISSUED'}
                         </p>
-                        <p className="text-rose-500 font-bold text-lg">
+                        <p className="text-rose-50 font-bold text-sm bg-rose-600 inline-block px-4 py-1 rounded-full mb-1">
                             {showModerationAlert.isSudo ? 'Architect Warnings Remaining: ∞' : `Warnings Remaining: ${showModerationAlert.warningsRemaining}`}
                         </p>
                         <p className="text-xs text-rose-400 font-black uppercase tracking-widest mt-4 opacity-60">
@@ -376,8 +387,8 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                     <button onClick={() => setIsPreviewing(true)} className="hidden sm:flex items-center gap-2 text-slate-600 font-black hover:bg-white px-5 py-3 rounded-2xl transition-all shadow-sm border border-slate-200 uppercase text-xs tracking-widest">
                         <Eye size={18} /> Preview
                     </button>
-                    <button onClick={handleInitiateSave} className="bg-slate-900 hover:bg-black text-white font-black px-8 py-3.5 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center gap-2 uppercase text-sm tracking-widest">
-                        Save Quiz
+                    <button onClick={handleInitiateSave} disabled={isProcessingModeration} className="bg-slate-900 hover:bg-black text-white font-black px-8 py-3.5 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center gap-2 uppercase text-sm tracking-widest disabled:opacity-50">
+                        {isProcessingModeration ? <Loader2 className="animate-spin" size={18} /> : 'Save Quiz'}
                     </button>
                 </div>
             </div>

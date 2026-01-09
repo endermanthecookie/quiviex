@@ -45,7 +45,7 @@ export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
             });
         }
     } catch (e) {
-        setError("Network fault while searching for room.");
+        setError("Connection error while searching for game.");
     } finally {
         setIsLoading(false);
     }
@@ -54,9 +54,6 @@ export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
   const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value.replace(/\D/g, '').substring(0, 6);
       setPin(val);
-      if (val.length === 6) {
-          // Auto-submit logic would go here if desired
-      }
   };
 
   return (
@@ -64,8 +61,8 @@ export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
       <div className="max-w-md w-full animate-in zoom-in-95 duration-500">
         <div className="flex flex-col items-center text-center mb-12">
             <Logo variant="medium" className="mb-8 shadow-[0_0_50px_rgba(168,85,247,0.3)]" />
-            <h1 className="text-4xl font-black tracking-tighter mb-2">Multiplex Connect</h1>
-            <p className="text-indigo-400 font-bold text-sm uppercase tracking-widest">Enter the 6-digit access code</p>
+            <h1 className="text-4xl font-black tracking-tighter mb-2">Join a Game</h1>
+            <p className="text-indigo-400 font-bold text-sm uppercase tracking-widest">Enter the 6-digit game PIN</p>
         </div>
 
         {error && (
@@ -97,14 +94,14 @@ export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
                     className="w-full bg-white text-slate-950 py-6 rounded-3xl font-black text-xl uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-2xl flex items-center justify-center gap-4 click-scale disabled:opacity-50"
                 >
                     {isLoading ? <Loader2 className="animate-spin" /> : <Zap size={24} className="text-indigo-600" />}
-                    Link Grid
+                    Enter Lobby
                 </button>
                 <button 
                     type="button"
                     onClick={onBack}
                     className="w-full py-4 text-slate-500 hover:text-white font-bold transition-colors flex items-center justify-center gap-2"
                 >
-                    <ArrowLeft size={18} /> Return
+                    <ArrowLeft size={18} /> Cancel
                 </button>
             </div>
         </form>

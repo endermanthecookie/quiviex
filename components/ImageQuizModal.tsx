@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { X, Upload, Sparkles, Loader2, Image as ImageIcon, Sparkles as SparklesIcon } from 'lucide-react';
-import { generateQuizFromImage, generateImageForQuestion } from '../services/genAI';
+import { generateQuizFromImage, generateImageForQuestion } from '../services/aiService';
 import { compressImage } from '../services/imageUtils';
 import { Question, User } from '../types';
 

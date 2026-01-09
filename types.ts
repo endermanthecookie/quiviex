@@ -69,7 +69,6 @@ export interface UserPreferences {
   openaiKey?: string;
   aiTextProvider?: 'github' | 'openai';
   aiImageProvider?: 'github' | 'openai';
-  appFont?: string;
   appTheme?: string;
   customThemeData?: CustomTheme; 
 }
@@ -86,6 +85,8 @@ export interface User {
   history: QuizResult[];
   preferences?: UserPreferences;
   savedQuizIds: number[]; 
+  // warnings count for moderation strikes to fix App.tsx type error
+  warnings: number;
 }
 
 export interface Room {

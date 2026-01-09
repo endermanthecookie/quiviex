@@ -114,7 +114,6 @@ export default function App() {
           fetchProfile(session.user.id, session.user.email || '');
           fetchNotifications(session.user.id);
           setupRealtime(session.user.id);
-          // Only redirect to home if they were in a landing/auth view
           if (['landing', 'auth'].includes(view)) setView('home');
         } else {
           setIsLoading(false);
@@ -132,7 +131,6 @@ export default function App() {
         setUser(null);
         setNotifications([]);
         setIsLoading(false);
-        // CRITICAL BUG FIX: Include 'auth' in the list of allowed views when NOT logged in
         const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin'];
         if (!publicViews.includes(view)) {
             setView('landing');
@@ -140,7 +138,7 @@ export default function App() {
       }
     });
     return () => subscription.unsubscribe();
-  }, [view]); // Dependency on view ensures we re-check permissions when navigation occurs
+  }, [view]);
 
   const setupRealtime = (userId: string) => {
       const channel = supabase
@@ -164,11 +162,19 @@ export default function App() {
       if (data) {
         setUser({
           id: data.user_id, username: data.username || email.split('@')[0], email: email, avatarUrl: data.avatar_url,
-          stats: data.stats || DEFAULT_STATS, achievements: data.achievements || [], history: data.history || [], preferences: data.preferences, savedQuizIds: data.saved_quiz_ids || [] 
+          stats: data.stats || DEFAULT_STATS, achievements: data.achievements || [], history: data.history || [], 
+          preferences: data.preferences, savedQuizIds: data.saved_quiz_ids || [],
+          hasSeenTutorial: data.has_seen_tutorial,
+          warnings: data.warnings || 0
         });
         fetchQuizzes(userId);
       }
     } catch (error) { console.error(error); } finally { setIsLoading(false); }
+  };
+
+  const refreshProfile = async () => {
+      if (!user) return;
+      await fetchProfile(user.id, user.email);
   };
 
   const handleStatUpdate = (type: keyof UserStats, increment: number = 1) => {
@@ -183,9 +189,54 @@ export default function App() {
     try {
       await supabase.from('profiles').update({
         username: updatedUser.username, stats: updatedUser.stats, history: updatedUser.history,
-        preferences: updatedUser.preferences, saved_quiz_ids: updatedUser.savedQuizIds, avatar_url: updatedUser.avatarUrl, updated_at: new Date().toISOString()
+        preferences: updatedUser.preferences, saved_quiz_ids: updatedUser.savedQuizIds, 
+        avatar_url: updatedUser.avatarUrl, has_seen_tutorial: updatedUser.hasSeenTutorial, 
+        updated_at: new Date().toISOString()
       }).eq('user_id', updatedUser.id);
     } catch (error) { console.error(error); }
+  };
+
+  const handleSaveQuiz = async (quiz: Quiz) => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const quizPayload = {
+        user_id: user.id,
+        title: quiz.title,
+        questions: quiz.questions,
+        theme: quiz.theme,
+        custom_theme: quiz.customTheme,
+        shuffle_questions: quiz.shuffleQuestions,
+        background_music: quiz.backgroundMusic,
+        visibility: quiz.visibility || 'private'
+      };
+
+      if (activeQuiz && activeQuiz.id === quiz.id) {
+        const { error } = await supabase.from('quizzes').update(quizPayload).eq('id', quiz.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('quizzes').insert(quizPayload);
+        if (error) throw error;
+      }
+      
+      await fetchQuizzes(user.id);
+      setView('home');
+    } catch (e: any) {
+      alert("Save failed: " + e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteQuiz = async (id: number) => {
+    if (!confirm("Delete this module permanently?")) return;
+    try {
+      const { error } = await supabase.from('quizzes').delete().eq('id', id);
+      if (error) throw error;
+      setQuizzes(prev => prev.filter(q => q.id !== id));
+    } catch (e: any) {
+      alert("Delete failed: " + e.message);
+    }
   };
 
   const handleMarkNotificationRead = async (id: string) => {
@@ -228,7 +279,6 @@ export default function App() {
 
   const cleanupRoom = async () => {
       if (activeRoom) {
-          // Effectively delete the PIN so it can't be reused and doesn't clutter
           await supabase.from('rooms').delete().eq('id', activeRoom.id);
           setActiveRoom(null);
       }
@@ -244,7 +294,8 @@ export default function App() {
       }
       
       switch(view) {
-          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={handleMarkNotificationRead} onClearNotifications={handleClearNotifications} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={(id) => {}} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={handleStartHost} onViewLeaderboard={() => setView('leaderboard')} />;
+          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={handleMarkNotificationRead} onClearNotifications={handleClearNotifications} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={handleDeleteQuiz} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={handleStartHost} onViewLeaderboard={() => setView('leaderboard')} />;
+          case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user!} onSave={handleSaveQuiz} onExit={() => setView('home')} startWithTutorial={!user!.hasSeenTutorial} onTutorialComplete={() => persistUser({...user!, hasSeenTutorial: true})} onStatUpdate={(type) => { if(type === 'create') handleStatUpdate('quizzesCreated'); if(type === 'ai_img') handleStatUpdate('aiImagesGenerated'); if(type === 'ai_quiz') handleStatUpdate('aiQuizzesGenerated'); }} onOpenSettings={() => setView('settings')} onRefreshProfile={refreshProfile} />;
           case 'auth': return <Auth onLogin={() => {}} onBackToLanding={() => setView('landing')} onJoinGame={() => setView('join_pin')} />;
           case 'multiplayer_lobby': return <MultiplayerLobby room={activeRoom!} user={user} onBack={() => { cleanupRoom(); setView('home'); }} onStart={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
           case 'join_pin': return <JoinPinPage onBack={() => user ? setView('home') : setView('landing')} onJoin={(room) => { setActiveRoom(room); setView('multiplayer_lobby'); }} />;

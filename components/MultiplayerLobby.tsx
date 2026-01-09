@@ -45,7 +45,6 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
           id: part.user_id, username: part.username, score: part.score, isHost: part.user_id === room.hostId, lastActive: part.last_active
       })) || []);
 
-      // Auto-join if user is logged in
       if (user && !hasJoined) handleJoin(user.username);
       
       setIsLoading(false);
@@ -55,7 +54,7 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       return supabase
         .channel(`room-participants-${room.id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'room_participants', filter: `room_id=eq.${room.id}` }, payload => {
-            fetchInitialData(); // Simpler than complex state diffing for a lobby
+            fetchInitialData();
         })
         .subscribe();
   };
@@ -103,8 +102,8 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
             <div className="flex items-center gap-4">
                 <button onClick={onBack} className="p-3 hover:bg-white/10 rounded-2xl transition-colors"><ArrowLeft size={24} /></button>
                 <div>
-                    <h1 className="text-3xl font-black tracking-tighter">Multiplayer Sync</h1>
-                    <p className="text-indigo-400 font-bold uppercase text-[10px] tracking-widest">Waiting for synchronization</p>
+                    <h1 className="text-3xl font-black tracking-tighter">Game Lobby</h1>
+                    <p className="text-indigo-400 font-bold uppercase text-[10px] tracking-widest">Waiting for players...</p>
                 </div>
             </div>
             <Logo variant="small" className="shadow-2xl" />
@@ -115,12 +114,12 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                 <div className="bg-white/[0.03] border border-white/10 rounded-[3.5rem] p-12 relative overflow-hidden shadow-2xl">
                     <div className="absolute top-0 right-0 p-8 opacity-5"><Users size={200} /></div>
                     <div className="relative z-10 text-center sm:text-left">
-                        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-4">Repository Ident</h2>
-                        <h3 className="text-4xl sm:text-5xl font-black text-white mb-10 tracking-tight leading-none">{quizData?.title || 'Loading...'}</h3>
+                        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-4">Quiz Name</h2>
+                        <h3 className="text-4xl sm:text-5xl font-black text-white mb-10 tracking-tight leading-none">{quizData?.title || 'Loading Quiz...'}</h3>
                         
                         <div className="flex flex-col sm:flex-row items-center gap-6">
                             <div className="bg-slate-900 border-2 border-indigo-500/30 p-8 rounded-[2.5rem] flex-1 text-center group">
-                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Room Entry PIN</p>
+                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Join PIN</p>
                                 <div className="text-7xl font-black tracking-[0.2em] text-white drop-shadow-[0_0_30px_rgba(99,102,241,0.4)] transition-all group-hover:scale-105">{room.pin}</div>
                             </div>
                             <button 
@@ -128,7 +127,7 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                                 className="h-full bg-white/5 hover:bg-white/10 border border-white/10 px-8 py-10 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 transition-all click-scale min-w-[160px]"
                             >
                                 {copied ? <Check className="text-emerald-400" /> : <Copy className="text-slate-400" />}
-                                <span className="text-xs font-black uppercase tracking-widest">{copied ? 'Copied' : 'Direct Link'}</span>
+                                <span className="text-xs font-black uppercase tracking-widest">{copied ? 'Copied' : 'Invite Link'}</span>
                             </button>
                         </div>
                     </div>
@@ -136,7 +135,7 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
 
                 <div className="bg-white/[0.02] border border-white/5 rounded-[3rem] p-10">
                     <h4 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-8 flex items-center gap-3">
-                        <Users size={18} className="text-indigo-400" /> Linked Participants <span className="text-indigo-600">({participants.length})</span>
+                        <Users size={18} className="text-indigo-400" /> Players in Lobby <span className="text-indigo-600">({participants.length})</span>
                     </h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 stagger-in">
                         {participants.map((p, i) => (
@@ -146,11 +145,11 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-black truncate">@{p.username}</p>
-                                    <p className="text-[10px] font-black text-slate-500 uppercase">{p.isHost ? 'Host' : 'Member'}</p>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase">{p.isHost ? 'Host' : 'Player'}</p>
                                 </div>
                             </div>
                         ))}
-                        {participants.length === 0 && <div className="col-span-full py-10 text-center text-slate-600 font-bold italic">Establishing connection grid...</div>}
+                        {participants.length === 0 && <div className="col-span-full py-10 text-center text-slate-600 font-bold italic">Waiting for players to join...</div>}
                     </div>
                 </div>
             </div>
@@ -158,10 +157,10 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
             <div className="space-y-6">
                 {!hasJoined ? (
                     <div className="bg-indigo-600 rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in duration-500">
-                        <h3 className="text-2xl font-black mb-6">Initialize Identity</h3>
+                        <h3 className="text-2xl font-black mb-6">Your Name</h3>
                         <input 
                             type="text" 
-                            placeholder="Enter Display Name..." 
+                            placeholder="Enter display name..." 
                             value={tempUsername}
                             onChange={(e) => setTempUsername((e.target as any).value)}
                             className="w-full bg-black/20 border-2 border-white/10 rounded-2xl p-5 mb-6 focus:outline-none focus:border-white font-bold text-lg"
@@ -170,27 +169,27 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                             onClick={() => handleJoin(tempUsername)}
                             className="w-full bg-white text-indigo-600 py-5 rounded-2xl font-black text-lg shadow-xl click-scale uppercase"
                         >
-                            Connect to Room
+                            Join Lobby
                         </button>
                     </div>
                 ) : (
                     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[2.5rem] p-10 text-center">
                         <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl"><Check size={32} /></div>
-                        <h3 className="text-2xl font-black mb-2">Grid Connected</h3>
-                        <p className="text-emerald-400 font-bold text-sm">Synchronization will begin when the host initializes the module.</p>
+                        <h3 className="text-2xl font-black mb-2">You're In!</h3>
+                        <p className="text-emerald-400 font-bold text-sm">Waiting for the host to start the quiz.</p>
                     </div>
                 )}
 
                 {isHost && (
                     <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl">
-                         <h3 className="text-slate-900 text-2xl font-black mb-2">Architect Console</h3>
-                         <p className="text-slate-500 font-bold text-sm mb-8">Begin the session for all connected participants. The room will be locked upon start.</p>
+                         <h3 className="text-slate-900 text-2xl font-black mb-2">Host Controls</h3>
+                         <p className="text-slate-500 font-bold text-sm mb-8">Click start to begin the quiz for everyone in the lobby.</p>
                          <button 
                             onClick={handleStartSession}
                             disabled={participants.length === 0}
                             className="w-full bg-slate-950 hover:bg-black text-white py-6 rounded-2xl font-black text-xl shadow-xl click-scale flex items-center justify-center gap-3 transition-all disabled:opacity-50"
                          >
-                            <Play fill="currentColor" /> Start Protocol
+                            <Play fill="currentColor" /> Start Quiz
                          </button>
                     </div>
                 )}

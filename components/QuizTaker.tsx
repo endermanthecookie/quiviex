@@ -31,11 +31,10 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const [roomLeaderboard, setRoomLeaderboard] = useState<any[]>([]);
   
   const startTimeRef = useRef<number>(0);
-  const bgMusicRef = useRef<any>(null);
 
   useEffect(() => {
     let q: ShuffledQuestion[] = quiz.questions.map((qs, idx) => ({ ...qs, originalIndex: idx }));
-    if (quiz.shuffleQuestions && !room) { // Shuffling handled by room logic in MP
+    if (quiz.shuffleQuestions && !room) {
         for (let i = q.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [q[i], q[j]] = [q[j], q[i]];
@@ -74,9 +73,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
   const calculatePoints = (isCorrect: boolean, timeTakenSeconds: number, timeLimit: number) => {
       if (!isCorrect) return 0;
-      // Bonus logic: < 1s = 500pts. 
       if (timeTakenSeconds <= 1) return 500;
-      // Decay from 500 to 100
       const remainingRatio = Math.max(0, (timeLimit - timeTakenSeconds) / (timeLimit - 1));
       return Math.floor(100 + (400 * remainingRatio));
   };
@@ -100,13 +97,11 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
     userAnswersRef.current = newAnswers;
 
     if (room) {
-        // Sync score to room participant list
         const { data: participants } = await supabase.from('room_participants').select('*').eq('room_id', room.id);
         const me = participants?.find(p => p.user_id === user?.id);
         if (me) {
             await supabase.from('room_participants').update({ score: me.score + pointsGained }).eq('id', me.id);
         }
-        // Fetch latest rankings for MP leaderboard overlay
         const { data: updated } = await supabase.from('room_participants').select('username, score').eq('room_id', room.id).order('score', { ascending: false });
         setRoomLeaderboard(updated || []);
     }
@@ -142,37 +137,47 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
   if (!currentQuestion) return null;
 
+  // Tied ranking helper
+  let currentRank = 0;
+  let lastScore = -1;
+
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden">
-      {/* Countdown & Feedback as before */}
       {showExplanation && (
           <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
               <div className="max-w-2xl w-full text-center stagger-in">
                   <div className={`mb-6 text-7xl font-black tracking-tighter ${isCorrectFeedback ? 'text-emerald-400' : 'text-rose-500'}`}>
-                      {isCorrectFeedback ? 'ACCURATE' : 'DEVIATION'}
+                      {isCorrectFeedback ? 'CORRECT!' : 'INCORRECT'}
                   </div>
                   
                   {room && roomLeaderboard.length > 0 && (
                       <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-10">
                           <h4 className="text-indigo-400 font-black uppercase text-xs tracking-widest mb-6 flex items-center justify-center gap-2">
-                             <Trophy size={16} /> Session Ranking
+                             <Trophy size={16} /> Game Rankings
                           </h4>
                           <div className="space-y-3">
-                             {roomLeaderboard.slice(0, 5).map((p, i) => (
-                                 <div key={i} className="flex items-center justify-between px-6 py-3 bg-white/5 rounded-xl border border-white/5">
-                                     <div className="flex items-center gap-4">
-                                         <span className="text-slate-500 font-black text-xs">#{i+1}</span>
-                                         <span className="font-bold">@{p.username}</span>
+                             {roomLeaderboard.slice(0, 5).map((p, i) => {
+                                 if (p.score !== lastScore) {
+                                     currentRank = i + 1;
+                                 }
+                                 lastScore = p.score;
+
+                                 return (
+                                     <div key={i} className={`flex items-center justify-between px-6 py-3 rounded-xl border transition-all ${p.username === user?.username ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-white/5 border-white/5'}`}>
+                                         <div className="flex items-center gap-4">
+                                             <span className={`text-xs font-black w-6 ${currentRank === 1 ? 'text-yellow-400' : 'text-slate-500'}`}>#{currentRank}</span>
+                                             <span className={`font-bold ${p.username === user?.username ? 'text-white' : 'text-slate-300'}`}>@{p.username}</span>
+                                         </div>
+                                         <span className="font-black text-indigo-400">{p.score}</span>
                                      </div>
-                                     <span className="font-black text-indigo-400">{p.score}</span>
-                                 </div>
-                             ))}
+                                 );
+                             })}
                           </div>
                       </div>
                   )}
 
                   <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-6 rounded-3xl text-2xl click-scale uppercase shadow-xl">
-                    Sync Next Module
+                    Next Question
                   </button>
               </div>
           </div>
@@ -182,17 +187,17 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
         <header className="glass px-8 py-5 flex items-center justify-between border-b border-white/5 z-40">
             <div className="flex items-center gap-3">
                 <Logo variant="small" className="shadow-lg" />
-                <div className="text-lg font-black tracking-tighter">PHASE <span className="text-indigo-400 italic">{currentQuestionIndex+1}</span></div>
+                <div className="text-lg font-black tracking-tighter">QUESTION <span className="text-indigo-400 italic">{currentQuestionIndex+1}</span></div>
             </div>
             <div className="flex items-center gap-6">
                 <div className="text-right">
-                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Fidelity</div>
+                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Points</div>
                     <div className="text-xl font-black text-indigo-400 tracking-tight">{sessionPoints} PTS</div>
                 </div>
                 {room && (
                     <div className="flex items-center gap-2 bg-indigo-500/10 px-4 py-2 rounded-xl border border-indigo-500/20">
                         <Users size={16} className="text-indigo-400" />
-                        <span className="text-xs font-black">MP ACTIVE</span>
+                        <span className="text-xs font-black">MULTIPLAYER</span>
                     </div>
                 )}
             </div>

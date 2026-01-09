@@ -78,11 +78,11 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
           if (!q) return;
 
           if (q.visibility === 'private' && q.user_id !== user?.id && !isSudo) {
-              (window as any).alert("Access Denied: Private Repository.");
+              (window as any).alert("Access Denied: This quiz is private.");
               return;
           }
 
-          let username = 'Unknown Architect';
+          let username = 'Unknown User';
           let avatarUrl = undefined;
           try {
              if (q.user_id) {
@@ -121,7 +121,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
             creatorAvatarUrl: avatarUrl,
             stats: {
                 views: q.views || 0,
-                plays: 0,
+                plays: 0, 
                 avgRating: avg,
                 totalRatings: count,
                 likes: likesCount || 0
@@ -132,7 +132,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
           (window as any).history.pushState(null, '', `/community/${id}`);
 
       } catch (e) {
-          (window as any).console.error("Deep link load fault:", e);
+          (window as any).console.error("Link load fault:", e);
       }
   };
 
@@ -212,7 +212,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
             return {
                 id: q.id,
                 userId: q.user_id,
-                title: q.title || 'Untitled Session',
+                title: q.title || 'Untitled Quiz',
                 questions: Array.isArray(q.questions) ? q.questions : [],
                 createdAt: q.created_at,
                 theme: q.theme,
@@ -220,7 +220,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                 shuffleQuestions: q.shuffle_questions,
                 backgroundMusic: q.background_music,
                 visibility: q.visibility || 'public',
-                creatorUsername: userProfile?.username || 'Unknown Architect',
+                creatorUsername: userProfile?.username || 'Unknown User',
                 creatorAvatarUrl: userProfile?.avatarUrl,
                 stats: {
                     views: q.views || 0,
@@ -238,7 +238,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
 
         setQuizzes(mappedQuizzes);
     } catch (error: any) {
-        (window as any).console.error("Infrastructure fetch fault:", error.message || error);
+        (window as any).console.error("Quiz fetch fault:", error.message || error);
     } finally {
         setIsLoading(false);
     }
@@ -247,11 +247,14 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
   const handleAdminDelete = async (id: number) => {
       try {
           const { error } = await supabase.from('quizzes').delete().eq('id', id);
-          if (error) throw error;
+          if (error) {
+              alert(`Admin Purge Failure: ${error.message}. (Database RLS may prevent this even for Sudo unless explicit admin policies are set)`);
+              throw error;
+          }
           setQuizzes(prev => prev.filter(q => q.id !== id));
+          alert("Module successfully decommissioned.");
       } catch (e: any) {
-          (window as any).console.error("Admin Decommission Sequence Fault:", e);
-          throw e; 
+          (window as any).console.error("Admin delete fault:", e);
       }
   };
 
@@ -307,7 +310,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
           </button>
           <div className="flex items-center gap-2">
             <Globe className="text-indigo-600" size={24} />
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">Global Repositories</h1>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">Public Quizzes</h1>
           </div>
         </div>
         
@@ -316,7 +319,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input 
                     type="text" 
-                    placeholder="Search titles..." 
+                    placeholder="Search quizzes..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery((e.target as any).value)}
                     className="pl-12 pr-6 py-2.5 bg-white/60 border border-white/80 rounded-2xl focus:outline-none focus:bg-white focus:border-indigo-400 font-bold text-sm transition-all shadow-sm w-64"
@@ -331,7 +334,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
       <div className="max-w-7xl mx-auto p-6 sm:p-10">
           <div className="mb-10 flex items-center gap-3 stagger-in">
               <CheckCircle2 size={16} className="text-emerald-500" />
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.25em]">Authenticated Quiviex Global Library</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.25em]">Browse quizzes created by the community</p>
           </div>
 
           {isLoading ? (
@@ -345,13 +348,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                   <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                       <Globe size={48} className="text-slate-200" />
                   </div>
-                  <h3 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Library Empty</h3>
-                  <p className="text-slate-500 font-bold text-lg mb-10 leading-relaxed">No synchronization targets found. Be the first to initialize a public repository!</p>
+                  <h3 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">No Quizzes Found</h3>
+                  <p className="text-slate-500 font-bold text-lg mb-10 leading-relaxed">No public quizzes match your search. Be the first to publish one!</p>
                   <button 
                     onClick={onBack}
                     className="inline-flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest hover:bg-black transition-all shadow-2xl active:scale-95"
                   >
-                      <PlusCircle size={20} /> Create Module
+                      <PlusCircle size={20} /> Create Quiz
                   </button>
               </div>
           ) : (
@@ -365,13 +368,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                           <div className={`h-44 rounded-[2rem] bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-8 p-7 flex flex-col justify-between overflow-hidden relative shadow-lg transition-all duration-500 group-hover:shadow-indigo-100`}>
                                 <div className="flex justify-between items-start z-10">
                                     <div className="bg-black/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/10">
-                                        {quiz.questions.length} Units
+                                        {quiz.questions.length} Questions
                                     </div>
                                     {isSudo && (
                                         <button 
                                             onClick={(e) => { 
                                                 e.stopPropagation(); 
-                                                if(confirm("Sudo: Decommission repository?")) handleAdminDelete(quiz.id); 
+                                                if(confirm("Admin: Delete this quiz?")) handleAdminDelete(quiz.id); 
                                             }}
                                             className="p-2.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all click-scale shadow-lg"
                                         >
@@ -394,7 +397,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                                   )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Architect</p>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Created By</p>
                                   <p className="text-base font-black text-slate-800 truncate tracking-tight">@{quiz.creatorUsername}</p>
                               </div>
                           </div>

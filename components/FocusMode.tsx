@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Quiz, Question } from '../types';
-import { generateFocusSession } from '../services/genAI';
+import { generateFocusSession } from '../services/aiService';
 import { Brain, ArrowLeft, Target, Sparkles, Loader2, AlertCircle, Play, CheckCircle } from 'lucide-react';
 
 interface FocusModeProps {
@@ -124,6 +124,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ user, quizzes, onBack, onS
                 <h2 className="text-4xl font-black mb-4 tracking-tight">
                     {wrongAnswerCount > 0 ? "Target Your Weaknesses" : "Enhance Your Profile"}
                 </h2>
+                <h3 className="text-xl font-bold mb-4 tracking-tight text-slate-300">Target Weaknesses</h3>
                 <p className="text-slate-400 text-lg max-w-lg mb-12 leading-relaxed">
                     {wrongAnswerCount > 0 
                         ? "AI has identified gaps in your performance. Establish a synchronization session to fix your mistakes."
