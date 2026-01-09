@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Quiz, QuizResult, User, UserStats, Achievement, Feedback, QXNotification, Room } from './types';
 import { QuizHome } from './components/QuizHome';
@@ -69,9 +68,7 @@ export default function App() {
       const segments = window.location.pathname.split('/').filter(Boolean);
       const path = segments[0] || '';
       
-      if (path === '' || path === 'index.html') {
-          return; // Stay on initial state, let Auth effect decide
-      }
+      if (path === '' || path === 'index.html') return;
 
       const validStates = ['home', 'community', 'leaderboard', 'achievements', 'history', 'settings', 'focus', 'admin'];
       if (validStates.includes(path)) {
@@ -100,7 +97,6 @@ export default function App() {
               return;
           }
       }
-
       setView('not_found');
   };
 
@@ -116,7 +112,7 @@ export default function App() {
       const { data } = await supabase.from('quizzes').select('*').eq('user_id', userId).order('created_at', { ascending: false });
       if (data) setQuizzes(data.map((q: any) => ({
         id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
-        theme: q.theme, customTheme: q.custom_theme, shuffle_questions: q.shuffle_questions, backgroundMusic: q.background_music, visibility: q.visibility
+        theme: q.theme, customTheme: q.custom_theme, shuffleQuestions: q.shuffle_questions, backgroundMusic: q.background_music, visibility: q.visibility
       })));
     } catch (error) { console.error(error); }
   };
@@ -176,7 +172,6 @@ export default function App() {
         setUser(userData);
         fetchQuizzes(userId);
         
-        // Refined check: Only onboarding if username is truly generic or missing
         const isNewAccount = !data.username || data.username.startsWith('user_');
         if (isNewAccount) {
             setView('onboarding');
@@ -219,7 +214,7 @@ export default function App() {
       
       switch(view) {
           case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={() => {}} onClearNotifications={() => {}} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={() => {}} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={() => {}} onViewLeaderboard={() => setView('leaderboard')} onJoinGame={() => setView('join_pin')} />;
-          case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user!} onSave={(q) => { setView('home'); }} onExit={() => setView('home')} startWithTutorial={!user!.hasSeenTutorial} onOpenSettings={() => setView('settings')} onStatUpdate={handleStatUpdate} />;
+          case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user!} onSave={(q) => { setView('home'); }} onExit={() => setView('home')} startWithTutorial={!user!.hasSeenTutorial} onOpenSettings={() => setView('settings')} onStatUpdate={handleStatUpdate} onRefreshProfile={() => fetchProfile(user!.id, user!.email)} />;
           case 'auth': return <Auth onLogin={() => {}} onBackToLanding={() => setView('landing')} onJoinGame={() => setView('join_pin')} />;
           case 'onboarding': return user ? <UsernameSetup email={user.email} onComplete={(u) => { persistUser({...user, username: u}); setView('home'); }} onCancel={() => supabase.auth.signOut()} /> : null;
           case 'multiplayer_lobby': return <MultiplayerLobby room={activeRoom!} user={user} onBack={() => setView('home')} onStart={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;

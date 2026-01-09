@@ -1,11 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quiviex | Next-Gen Learning</title>
-    <!-- Brand Accurate Favicon (Refined 1:1) -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%239d33f5'/%3E%3Cstop offset='100%25' style='stop-color:%235c4cf4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='0' y='0' width='100' height='100' rx='28' fill='url(%23g)'/%3E%3Cpath d='M 72 30 L 74 36 L 80 38 L 74 40 L 72 46 L 70 40 L 64 38 L 70 36 Z' fill='%23fcd34d'/%3E%3Cpath d='M 28 62 L 30 68 L 36 70 L 30 72 L 28 78 L 26 72 L 20 70 L 26 68 Z' fill='%23fcd34d'/%3E%3Cpath d='M 52 14 L 68 14 L 48 48 L 66 48 L 32 86 L 44 54 L 30 54 Z' fill='white'/%3E%3C/svg%3E" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
@@ -20,61 +18,47 @@
       }
       :root { --accent-primary: #a855f7; --liquid-speed: 25s; }
       body { font-family: 'QuiviexCustom', 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; background-color: #f1f5f9; scroll-behavior: smooth; }
-      
       .custom-scrollbar::-webkit-scrollbar { width: 6px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
       .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.1); border-radius: 20px; transition: background 0.3s; }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.3); }
-
       .glass { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(35px) saturate(200%); -webkit-backdrop-filter: blur(35px) saturate(200%); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.05); }
-      
       .stagger-in > * { opacity: 0; animation: driftUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       @keyframes driftUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-      
-      .stagger-in > *:nth-child(1) { animation-delay: 50ms; }
-      .stagger-in > *:nth-child(2) { animation-delay: 100ms; }
-      .stagger-in > *:nth-child(3) { animation-delay: 150ms; }
-      .stagger-in > *:nth-child(4) { animation-delay: 200ms; }
-      .stagger-in > *:nth-child(5) { animation-delay: 250ms; }
-      .stagger-in > *:nth-child(n+6) { animation-delay: 300ms; }
-
       .click-scale { transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease; }
       .click-scale:active { transform: scale(0.95); }
       .hover-lift { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
       .hover-lift:hover { transform: translateY(-4px); }
-
       .perspective-1000 { perspective: 1000px; -webkit-perspective: 1000px; }
       .preserve-3d { transform-style: preserve-3d; -webkit-transform-style: preserve-3d; }
       .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
       .rotate-y-180 { transform: rotateY(180deg); -webkit-transform: rotateY(180deg); }
-
       .view-transition { animation: viewFade 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
       @keyframes viewFade { from { opacity: 0; transform: scale(1.02); filter: blur(10px); } to { opacity: 1; transform: scale(1); filter: blur(0); } }
-
-      .shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
-      @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.460.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7",
+    "@vercel/analytics/react": "https://esm.sh/@vercel/analytics@1.5.0/react",
+    "react-google-recaptcha": "https://esm.sh/react-google-recaptcha@3.1.0",
+    "opentype.js": "https://esm.sh/opentype.js@1.3.4",
+    "jszip": "https://esm.sh/jszip@3.10.1",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react-google-recaptcha": "https://esm.sh/react-google-recaptcha@^3.1.0",
-    "opentype.js": "https://esm.sh/opentype.js@^1.3.4",
-    "jszip": "https://esm.sh/jszip@^3.10.1",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.90.0",
+    "@vercel/analytics/": "https://esm.sh/@vercel/analytics@^1.6.1/",
     "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "@vercel/analytics/react": "https://esm.sh/@vercel/analytics@^1.5.0/react",
-    "@vercel/analytics/": "https://esm.sh/@vercel/analytics@^1.6.1/"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
-</head>
+  </head>
   <body class="text-slate-900 antialiased selection:bg-purple-500/30">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="index.tsx"></script>
   </body>
 </html>
