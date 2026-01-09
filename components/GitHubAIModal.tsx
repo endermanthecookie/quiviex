@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { X, Sparkles, Loader2, BookOpen, BarChart, AlertCircle, PlusCircle, Info, Image as ImageIcon } from 'lucide-react';
 import { Question, User } from '../types';
 import { generateQuizWithAI } from '../services/githubAI';
-import { generateImageForQuestion } from '../services/genAI';
+import { generateImageForQuestion } from '../services/aiService';
 import { compressImage } from '../services/imageUtils';
 
 interface GitHubAIModalProps {
@@ -33,7 +34,7 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
 
     setError(null);
     setIsGenerating(true);
-    setLoadingStatus(`Querying AI Service...`);
+    setLoadingStatus(`Querying AI...`);
 
     try {
       const result = await generateQuizWithAI(topic, difficulty, count, user.preferences, quizType);
@@ -58,7 +59,7 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
 
       if (autoImages) {
         setLoadingStatus(`Creating visuals (0/${finalQuestions.length})...`);
-        processedQuestions = await Promise.all(finalQuestions.map(async (q, _idx) => {
+        processedQuestions = await Promise.all(finalQuestions.map(async (q, idx) => {
             try {
                 const imageUrl = await generateImageForQuestion(q.question, user.preferences);
                 if (imageUrl) {
@@ -80,49 +81,49 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-[70] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 h-[85vh]">
-        <div className="bg-gradient-to-r from-slate-800 to-gray-900 p-4 flex justify-between items-center text-white flex-shrink-0">
-          <div className="flex items-center gap-2 font-bold text-lg">
-            <Sparkles size={20} className="text-yellow-400" />
-            AI Quiz Generator
+      <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 h-[85vh]">
+        <div className="bg-[#1a1f2e] p-6 flex justify-between items-center text-white flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <Sparkles size={24} className="text-yellow-400" />
+            <h2 className="text-xl font-black uppercase tracking-tight">AI Assistant</h2>
           </div>
-          <button onClick={onClose} className="hover:bg-white hover:bg-opacity-20 rounded p-1">
+          <button onClick={onClose} className="hover:bg-white/10 rounded-full p-2 transition-colors">
             <X size={20} />
           </button>
         </div>
 
         {step === 'config' ? (
-            <div className="p-6 space-y-5 bg-white overflow-y-auto flex-1">
-            {error && <div className="bg-red-50 text-red-700 p-3 rounded text-sm">{error}</div>}
+            <div className="p-10 space-y-8 bg-white overflow-y-auto flex-1">
+            {error && <div className="bg-rose-50 border border-rose-100 text-rose-600 p-5 rounded-2xl text-xs font-black uppercase tracking-widest">{error}</div>}
 
-            <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                    <BookOpen size={16} className="text-gray-600" /> Topic
-                </label>
-                <input
-                    type="text"
-                    value={topic}
-                    onChange={(e) => setTopic((e.target as any).value)}
-                    placeholder="e.g., Quantum Physics, Italian Cooking"
-                    className="w-full px-4 py-3 bg-white text-black border-2 border-gray-200 rounded-xl focus:outline-none focus:border-indigo-600"
-                />
+            <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-1">Topic Identity</label>
+                <div className="p-1 bg-slate-50 border-2 border-slate-100 rounded-3xl focus-within:border-indigo-500 transition-all">
+                    <input
+                        type="text"
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        placeholder="Quantum Physics, Cooking, etc..."
+                        className="w-full px-6 py-4 bg-transparent border-none focus:ring-0 font-bold text-lg text-slate-800 italic"
+                    />
+                </div>
             </div>
 
-            <div className="flex gap-4">
-                <div className="flex-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Count</label>
-                    <select value={count} onChange={(e) => setCount(Number((e.target as any).value))} className="w-full px-4 py-3 bg-white text-black border-2 border-gray-200 rounded-xl">
-                        <option value={5}>5 Questions</option>
-                        <option value={10}>10 Questions</option>
-                        <option value={15}>15 Questions</option>
-                    </select>
-                </div>
-                <div className="flex-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Difficulty</label>
-                    <select value={difficulty} onChange={(e) => setDifficulty((e.target as any).value)} className="w-full px-4 py-3 bg-white text-black border-2 border-gray-200 rounded-xl">
+            <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-1">Complexity</label>
+                    <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-3xl font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500">
                         <option value="easy">Easy</option>
                         <option value="medium">Medium</option>
                         <option value="hard">Hard</option>
+                    </select>
+                </div>
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-1">Module Count</label>
+                    <select value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-3xl font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500">
+                        <option value={5}>5 Units</option>
+                        <option value={10}>10 Units</option>
+                        <option value={15}>15 Units</option>
                     </select>
                 </div>
             </div>
@@ -130,38 +131,38 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
             <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-70"
+                className="w-full py-6 bg-slate-900 hover:bg-black text-white rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 transition-all shadow-xl disabled:opacity-50"
             >
-                {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles size={20} className="text-yellow-400" />}
-                {isGenerating ? loadingStatus : 'Generate Preview'}
+                {isGenerating ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} className="text-yellow-400" />}
+                {isGenerating ? loadingStatus : 'Generate Blueprint'}
             </button>
             </div>
         ) : (
             <div className="flex flex-col flex-1 min-h-0 bg-slate-50">
-                <div className="p-4 bg-white border-b border-slate-200 flex justify-between items-center flex-shrink-0">
-                    <h3 className="font-bold text-slate-800">Review Questions</h3>
-                    <button onClick={() => setStep('config')} className="text-sm font-bold text-blue-600 hover:underline">Change Settings</button>
+                <div className="p-6 bg-white border-b border-slate-100 flex justify-between items-center flex-shrink-0">
+                    <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest">Blueprint Review</h3>
+                    <button onClick={() => setStep('config')} className="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-widest">Change Configuration</button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                     {generatedData?.questions.map((q, idx) => (
-                        <div key={idx} className="p-4 rounded-xl border-2 bg-white border-slate-200">
-                             <p className="font-bold text-slate-800">{q.question}</p>
-                             <div className="mt-2 flex flex-wrap gap-2">
+                        <div key={idx} className="p-6 rounded-[2rem] border-2 bg-white border-slate-100 hover:border-indigo-100 transition-all">
+                             <p className="font-bold text-slate-800 mb-4">{q.question}</p>
+                             <div className="flex flex-wrap gap-2">
                                 {q.options.map((o, i) => (
-                                    <span key={i} className={`text-xs px-2 py-1 rounded border ${i === q.correctAnswer ? 'bg-green-100 border-green-200 text-green-800 font-bold' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>{o}</span>
+                                    <span key={i} className={`text-[10px] px-3 py-1.5 rounded-full font-black uppercase tracking-widest ${i === q.correctAnswer ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}>{o}</span>
                                 ))}
                              </div>
                         </div>
                     ))}
                 </div>
-                <div className="p-4 bg-white border-t border-slate-200 space-y-3">
-                    <div className="flex items-center justify-between text-sm font-medium text-slate-600 px-2">
-                        <span className="flex items-center gap-2"><ImageIcon size={16} /> Generate AI Illustrations (DALL-E)</span>
-                        <input type="checkbox" checked={autoImages} onChange={(e) => setAutoImages((e.target as any).checked)} className="accent-violet-600 h-5 w-5" />
+                <div className="p-8 bg-white border-t border-slate-100 space-y-6">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><ImageIcon size={14} /> Auto-Generate Visuals</span>
+                        <input type="checkbox" checked={autoImages} onChange={(e) => setAutoImages(e.target.checked)} className="accent-indigo-600 h-5 w-5 rounded-lg" />
                     </div>
-                    <button onClick={handleConfirmSelection} disabled={isGenerating} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-70">
-                        {isGenerating ? <Loader2 className="animate-spin" /> : <PlusCircle size={20} />}
-                        {isGenerating ? loadingStatus : `Add ${generatedData?.questions.length} Questions to Quiz`}
+                    <button onClick={handleConfirmSelection} disabled={isGenerating} className="w-full py-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 shadow-xl transition-all disabled:opacity-50">
+                        {isGenerating ? <Loader2 className="animate-spin" size={20} /> : <PlusCircle size={20} />}
+                        {isGenerating ? loadingStatus : `Commit ${generatedData?.questions.length} Units`}
                     </button>
                 </div>
             </div>

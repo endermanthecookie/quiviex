@@ -1,99 +1,86 @@
 
 import { Question, UserPreferences } from '../types';
-import { GoogleGenAI, Type } from "@google/genai";
 
 /**
- * AI Services implemented using standard @google/genai SDK.
+ * AI Services implemented using Standard REST APIs (GitHub / OpenAI).
+ * No Gemini SDK references.
  */
 
-export const generateFocusSession = async (inputData: { mistakes: any[], recentTopics: string[] }, prefs: UserPreferences | undefined) => {
-    // Create a new GoogleGenAI instance right before making an API call
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAuthHeaders = (prefs: UserPreferences | undefined, mode: 'text' | 'image') => {
+    const provider = mode === 'text' ? (prefs?.aiTextProvider || 'github') : (prefs?.aiImageProvider || 'openai');
+    const token = provider === 'github' ? (prefs?.githubToken || '') : (prefs?.openaiKey || '');
     
-    const prompt = `Analyze these quiz mistakes: ${JSON.stringify(inputData.mistakes)} from these topics: ${JSON.stringify(inputData.recentTopics)}.
-    Provide a short analytical encouraging message (one sentence) and 5 multiple-choice questions to address the weaknesses.`;
+    return {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+    };
+};
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    analysis: { type: Type.STRING },
-                    questions: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                question: { type: Type.STRING },
-                                options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                correctAnswer: { type: Type.INTEGER },
-                                explanation: { type: Type.STRING }
-                            },
-                            required: ["question", "options", "correctAnswer", "explanation"]
-                        }
-                    }
-                },
-                required: ["analysis", "questions"]
-            }
-        }
+const getEndpoint = (prefs: UserPreferences | undefined, mode: 'text' | 'image') => {
+    const provider = mode === 'text' ? (prefs?.aiTextProvider || 'github') : (prefs?.aiImageProvider || 'openai');
+    if (mode === 'text') {
+        return provider === 'github' 
+            ? "https://models.github.ai/inference/chat/completions"
+            : "https://api.openai.com/v1/chat/completions";
+    } else {
+        return "https://api.openai.com/v1/images/generations";
+    }
+};
+
+export const generateFocusSession = async (inputData: { mistakes: any[], recentTopics: string[] }, prefs: UserPreferences | undefined) => {
+    const headers = getAuthHeaders(prefs, 'text');
+    const endpoint = getEndpoint(prefs, 'text');
+    const model = prefs?.textModel || 'gpt-4o-mini';
+
+    const prompt = `Analyze these quiz mistakes: ${JSON.stringify(inputData.mistakes)} from these topics: ${JSON.stringify(inputData.recentTopics)}.
+    Provide a short analytical encouraging message (one sentence) and 5 multiple-choice questions to address the weaknesses.
+    Return STRICT JSON object: {"analysis": "string", "questions": [{"question": "str", "options": ["str", "str", "str", "str"], "correctAnswer": 0, "explanation": "str"}]}`;
+
+    const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+            messages: [{ role: "user", content: prompt }],
+            model: model,
+            response_format: { type: "json_object" }
+        })
     });
 
-    const text = response.text;
-    if (!text) throw new Error("AI provider returned empty response.");
-    return JSON.parse(text);
+    if (!response.ok) throw new Error("AI provider rejected the request. Check your API key in settings.");
+    const data = await response.json();
+    return JSON.parse(data.choices[0].message.content);
 };
 
 export const generateQuizFromImage = async (imageBase64: string, difficulty: string, count: number, prefs: UserPreferences | undefined): Promise<{ title: string, questions: Question[] }> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    // Extract base64 data from data URI if present
-    const base64Data = imageBase64.includes('base64,') ? imageBase64.split('base64,')[1] : imageBase64;
-    
-    const imagePart = {
-        inlineData: {
-            mimeType: 'image/png',
-            data: base64Data,
-        },
-    };
-    
+    const headers = getAuthHeaders(prefs, 'text');
+    const endpoint = getEndpoint(prefs, 'text');
+    const model = 'gpt-4o-mini'; // Always use vision-capable mini for speed
+
     const prompt = `Generate a ${difficulty} quiz with ${count} questions based on this image. 
     Return a JSON object with a 'title' and 'questions' array. 
     Each question should be multiple-choice with 4 'options', 'correctAnswer' index (0-3), and an 'explanation'.`;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: { parts: [imagePart, { text: prompt }] },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING },
-                    questions: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                question: { type: Type.STRING },
-                                options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                correctAnswer: { type: Type.INTEGER },
-                                explanation: { type: Type.STRING }
-                            },
-                            required: ["question", "options", "correctAnswer", "explanation"]
-                        }
-                    }
-                },
-                required: ["title", "questions"]
-            }
-        }
+    const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: prompt },
+                        { type: "image_url", image_url: { url: imageBase64 } }
+                    ]
+                }
+            ],
+            model,
+            response_format: { type: "json_object" }
+        })
     });
 
-    const text = response.text;
-    if (!text) throw new Error("Visual analysis failed.");
-    const result = JSON.parse(text);
+    if (!response.ok) throw new Error("Visual analysis failed. Ensure you have a valid token in AI Settings.");
+    const data = await response.json();
+    const result = JSON.parse(data.choices[0].message.content);
 
     return {
         title: result.title || "Image Quiz",
@@ -107,33 +94,27 @@ export const generateQuizFromImage = async (imageBase64: string, difficulty: str
 };
 
 export const generateImageForQuestion = async (text: string, prefs: UserPreferences | undefined): Promise<string | null> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const provider = prefs?.aiImageProvider || 'openai';
+    if (provider === 'github') return null; 
+
+    const headers = getAuthHeaders(prefs, 'image');
+    const endpoint = getEndpoint(prefs, 'image');
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: {
-                parts: [
-                    {
-                        text: `A clear educational illustration for: ${text}`,
-                    },
-                ],
-            },
-            config: {
-                imageConfig: {
-                    aspectRatio: "1:1"
-                }
-            },
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+                model: "dall-e-3",
+                prompt: `A clear educational illustration for: ${text}`,
+                n: 1,
+                size: "1024x1024"
+            })
         });
 
-        // Find the image part in the response
-        for (const part of response.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-                const base64EncodeString: string = part.inlineData.data;
-                return `data:image/png;base64,${base64EncodeString}`;
-            }
-        }
-        return null;
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.data[0].url;
     } catch (e) {
         return null;
     }
