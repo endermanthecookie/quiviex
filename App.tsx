@@ -17,15 +17,15 @@ import { LeaderboardPage } from './components/LeaderboardPage';
 import { Auth } from './components/Auth';
 import { LandingPage } from './components/LandingPage';
 import { AdminDashboard } from './components/AdminDashboard';
+import { UsernameSetup } from './components/UsernameSetup';
 import { THEMES } from './constants';
 import { NotificationToast } from './components/NotificationToast';
 import { FeedbackModal } from './components/FeedbackModal';
 import { LegalModal } from './components/LegalModal';
 import { exportQuizToQZX, exportAllQuizzesToZip } from './services/exportService';
 import { supabase, checkSupabaseConnection } from './services/supabase';
-import { AlertTriangle } from 'lucide-react';
 
-type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin';
+type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin' | 'onboarding';
 
 const DEFAULT_STATS: UserStats = {
   quizzesCreated: 0,
@@ -65,6 +65,20 @@ export default function App() {
 
   const handleUrlRouting = async () => {
       const path = window.location.pathname.replace('/', '');
+      
+      // Explicit /login route handler
+      if (path === 'login') {
+          setView('auth');
+          return;
+      }
+
+      // Fast Join Code screen at /code
+      if (path === 'code') {
+          setView('join_pin');
+          return;
+      }
+
+      // Multiplayer PIN routing (direct PIN links)
       if (path.length === 6 && /^\d+$/.test(path)) {
           const { data: room } = await supabase.from('rooms').select('*').eq('pin', path).eq('status', 'waiting').single();
           if (room) {
@@ -111,10 +125,9 @@ export default function App() {
     const handleAuth = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          fetchProfile(session.user.id, session.user.email || '');
+          await fetchProfile(session.user.id, session.user.email || '');
           fetchNotifications(session.user.id);
           setupRealtime(session.user.id);
-          if (['landing', 'auth'].includes(view)) setView('home');
         } else {
           setIsLoading(false);
         }
@@ -126,14 +139,16 @@ export default function App() {
         fetchProfile(session.user.id, session.user.email || '');
         fetchNotifications(session.user.id);
         setupRealtime(session.user.id);
-        if (['landing', 'auth'].includes(view)) setView('home');
       } else {
         setUser(null);
         setNotifications([]);
         setIsLoading(false);
-        const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin'];
-        if (!publicViews.includes(view)) {
-            setView('landing');
+        const path = window.location.pathname.replace('/', '');
+        if (path !== 'login' && path !== 'code') {
+          const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin'];
+          if (!publicViews.includes(view)) {
+              setView('landing');
+          }
         }
       }
     });
@@ -160,14 +175,23 @@ export default function App() {
       let { data, error } = await supabase.from('profiles').select('*').eq('user_id', userId).single();
       if (error) throw error;
       if (data) {
-        setUser({
-          id: data.user_id, username: data.username || email.split('@')[0], email: email, avatarUrl: data.avatar_url,
+        const userData: User = {
+          id: data.user_id, username: data.username || '', email: email, avatarUrl: data.avatar_url,
           stats: data.stats || DEFAULT_STATS, achievements: data.achievements || [], history: data.history || [], 
           preferences: data.preferences, savedQuizIds: data.saved_quiz_ids || [],
           hasSeenTutorial: data.has_seen_tutorial,
           warnings: data.warnings || 0
-        });
+        };
+        setUser(userData);
         fetchQuizzes(userId);
+        
+        // OAuth Onboarding: If user has a default auto-generated username or none, force onboarding popup
+        const isDefaultUsername = !data.username || data.username.startsWith('user_') || data.username === email.split('@')[0];
+        if (isDefaultUsername) {
+            setView('onboarding');
+        } else if (['landing', 'auth', 'onboarding'].includes(view)) {
+            setView('home');
+        }
       }
     } catch (error) { console.error(error); } finally { setIsLoading(false); }
   };
@@ -229,48 +253,21 @@ export default function App() {
   };
 
   const handleDeleteQuiz = async (id: number) => {
-    if (!confirm("Are you sure? This will permanently decommission this module and all its data (ratings, comments, results).")) return;
+    if (!confirm("Are you sure? This will permanently decommission this module and all its data.")) return;
     
     setIsLoading(true);
     try {
-      // Step 1: Purge related data to bypass foreign key constraints
-      // Note: In some DB setups these will fail if tables don't exist, we use .maybeSingle() logic or ignore errors
       await supabase.from('ratings').delete().eq('quiz_id', id);
       await supabase.from('comments').delete().eq('quiz_id', id);
       await supabase.from('likes').delete().eq('quiz_id', id);
-      
-      // Step 2: Delete the actual quiz
       const { error } = await supabase.from('quizzes').delete().eq('id', id);
-      
-      if (error) {
-        if (error.code === '23503') {
-           throw new Error("Deletion blocked: This quiz still has active results in student history. Please contact support to force delete.");
-        }
-        throw error;
-      }
-      
-      // Step 3: Update local state immediately
+      if (error) throw error;
       setQuizzes(prev => prev.filter(q => q.id !== id));
     } catch (e: any) {
-      alert("Purge Failure: " + (e.message || "Database synchronization error."));
+      alert("Purge Failure: " + (e.message || "Sync error."));
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleMarkNotificationRead = async (id: string) => {
-    try {
-      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
-      if (!error) setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-    } catch (e) { console.error(e); }
-  };
-
-  const handleClearNotifications = async () => {
-    if (!user) return;
-    try {
-      await supabase.from('notifications').delete().eq('user_id', user.id);
-      setNotifications([]);
-    } catch (e) { console.error(e); }
   };
 
   const generateUniquePin = async (): Promise<string> => {
@@ -313,9 +310,10 @@ export default function App() {
       }
       
       switch(view) {
-          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={handleMarkNotificationRead} onClearNotifications={handleClearNotifications} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={handleDeleteQuiz} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={handleStartHost} onViewLeaderboard={() => setView('leaderboard')} />;
+          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={(id) => {}} onClearNotifications={() => {}} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={handleDeleteQuiz} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={handleStartHost} onViewLeaderboard={() => setView('leaderboard')} onJoinGame={() => setView('join_pin')} />;
           case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user!} onSave={handleSaveQuiz} onExit={() => setView('home')} startWithTutorial={!user!.hasSeenTutorial} onTutorialComplete={() => persistUser({...user!, hasSeenTutorial: true})} onStatUpdate={(type) => { if(type === 'create') handleStatUpdate('quizzesCreated'); if(type === 'ai_img') handleStatUpdate('aiImagesGenerated'); if(type === 'ai_quiz') handleStatUpdate('aiQuizzesGenerated'); }} onOpenSettings={() => setView('settings')} onRefreshProfile={refreshProfile} />;
           case 'auth': return <Auth onLogin={() => {}} onBackToLanding={() => setView('landing')} onJoinGame={() => setView('join_pin')} />;
+          case 'onboarding': return user ? <UsernameSetup email={user.email} onComplete={(u) => { persistUser({...user, username: u}); setView('home'); }} onCancel={() => supabase.auth.signOut()} /> : null;
           case 'multiplayer_lobby': return <MultiplayerLobby room={activeRoom!} user={user} onBack={() => { cleanupRoom(); setView('home'); }} onStart={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
           case 'join_pin': return <JoinPinPage onBack={() => user ? setView('home') : setView('landing')} onJoin={(room) => { setActiveRoom(room); setView('multiplayer_lobby'); }} />;
           case 'leaderboard': return <LeaderboardPage user={user!} onBack={() => setView('home')} />;
@@ -328,7 +326,7 @@ export default function App() {
           case 'community': return <CommunityPage user={user} onBack={() => user ? setView('home') : setView('landing')} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
           case 'admin': return <AdminDashboard onBack={() => setView('home')} />;
           case 'landing': return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onJoinGame={() => setView('join_pin')} onShowLegal={(type) => setActiveLegalModal(type)} />;
-          default: return <div className="p-20 text-center font-bold">Quiviex Environment Initializing...</div>;
+          default: return <div className="p-20 text-center font-bold">Initializing...</div>;
       }
   };
 

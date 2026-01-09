@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Feedback } from '../types';
-import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash, Search, Info } from 'lucide-react';
+import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash, Search, Info, Mail, Ban, Unlock } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 interface AdminDashboardProps {
@@ -37,7 +37,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [processingId, setProcessingId] = useState<string | number | null>(null);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -46,16 +45,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const fetchData = async () => {
     setIsLoading(true);
     setMissingTables([]);
-    if (activeTab === 'feedback') {
-        await fetchFeedbacks();
-    } else if (activeTab === 'users') {
-        await fetchUsers();
-    } else if (activeTab === 'bans') {
-        await fetchBans();
-    } else if (activeTab === 'ratings') {
-        await fetchRatings();
+    try {
+        if (activeTab === 'feedback') {
+            await fetchFeedbacks();
+        } else if (activeTab === 'users') {
+            await fetchUsers();
+        } else if (activeTab === 'bans') {
+            await fetchBans();
+        } else if (activeTab === 'ratings') {
+            await fetchRatings();
+        }
+    } catch (e) {
+        console.error("Fetch data error:", e);
+    } finally {
+        setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const fetchRatings = async () => {
@@ -174,75 +178,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   };
 
   const handleResolveFeedback = async (id: string) => {
-      const fb = feedbacks.find(f => f.id === id);
       setProcessingId(id);
       try {
-          const { error } = await supabase
-            .from('feedback')
-            .update({ status: 'resolved' })
-            .eq('id', id);
-
+          const { error } = await supabase.from('feedback').update({ status: 'resolved' }).eq('id', id);
           if (error) throw error;
           setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, status: 'resolved' as const } : f));
-
-          if (fb?.userId) {
-              await supabase.from('notifications').insert({
-                  user_id: fb.userId,
-                  title: "Feedback Resolved",
-                  message: `Your report has been marked as resolved by an admin.`,
-                  type: 'info'
-              });
-          }
       } catch (error: any) {
-          alert(`Failed to resolve: ${error.message}. (Note: Ensure RLS 'God Mode' policies are run)`);
-      } finally {
-          setProcessingId(null);
-      }
-  };
-
-  const handleReplyFeedback = async (id: string) => {
-      const fb = feedbacks.find(f => f.id === id);
-      if (!replyContent.trim()) return;
-      setProcessingId(id);
-      try {
-          const { error } = await supabase.from('feedback').update({ admin_reply: replyContent }).eq('id', id);
-          if (error) throw error;
-          setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, adminReply: replyContent } : f));
-          
-          if (fb?.userId) {
-              await supabase.from('notifications').insert({
-                  user_id: fb.userId,
-                  title: "Admin Replied",
-                  message: `An admin has responded to your feedback.`,
-                  type: 'reply'
-              });
-          }
-
-          setReplyingTo(null);
-          setReplyContent('');
-      } catch (error: any) {
-          alert(`Failed to send reply: ${error.message}`);
+          alert(`Failed to resolve: ${error.message}`);
       } finally {
           setProcessingId(null);
       }
   };
 
   const handleDeleteFeedback = async (id: string) => {
-      if (!confirm("Are you sure you want to delete this feedback log?")) return;
+      if (!confirm("Are you sure?")) return;
       setProcessingId(id);
       try {
           const { error } = await supabase.from('feedback').delete().eq('id', id);
           if (error) throw error;
           setFeedbacks(prev => prev.filter(f => f.id !== id));
       } catch (error: any) {
-          alert(`Deletion Failure: ${error.message}.`);
+          alert(`Deletion Failure: ${error.message}`);
       } finally {
           setProcessingId(null);
       }
   };
 
   const handleDeleteRating = async (id: number) => {
-      if (!confirm("Remove this rating entry?")) return;
+      if (!confirm("Remove this score record?")) return;
       setProcessingId(id);
       try {
           const { error } = await supabase.from('ratings').delete().eq('id', id);
@@ -256,39 +219,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("SUDO PURGE: This will erase this profile row. The Auth user remains in Supabase Auth management.")) return;
+    if (!confirm("PURGE: This will erase this profile row.")) return;
     setProcessingId(userId);
     try {
         const { error } = await supabase.from('profiles').delete().eq('user_id', userId);
         if (error) throw error;
         setAllUsers(prev => prev.filter(u => u.id !== userId));
-        alert("Record purged successfully.");
     } catch (e: any) {
-        alert(`Purge Error: ${e.message}. Did you run the Sudo RLS script?`);
+        alert(`Purge Error: ${e.message}`);
     } finally {
         setProcessingId(null);
     }
   };
 
-  const handleResetStrikes = async (userId: string) => {
-      setProcessingId(userId);
-      try {
-          const { error } = await supabase.from('profiles').update({ warnings: 0 }).eq('user_id', userId);
-          if (error) throw error;
-          setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, warnings: 0 } : u));
-      } catch (e: any) {
-          alert("Failed to reset strikes: " + e.message);
-      } finally {
-          setProcessingId(null);
-      }
-  };
-
   const handleUnbanEmail = async (email: string) => {
+      if (!confirm(`Revoke ban for ${email}?`)) return;
       setProcessingId(email);
       try {
           const { error } = await supabase.from('banned_emails').delete().eq('email', email);
           if (error) throw error;
           setBannedEmails(prev => prev.filter(b => b.email !== email));
+          alert("Email has been authorized for reentry.");
       } catch (e: any) {
           alert("Unban failed: " + e.message);
       } finally {
@@ -346,13 +297,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                      <div className="bg-rose-500 p-3 rounded-2xl text-white shadow-lg"><Database size={24} /></div>
                      <div className="flex-1">
                          <h3 className="text-xl font-black text-rose-900 mb-2 uppercase tracking-tight">Database Schema Error</h3>
-                         <p className="text-rose-700 font-bold mb-4">The table <code className="bg-white/50 px-2 py-0.5 rounded">"{missingTables[0]}"</code> is missing.</p>
+                         <p className="text-rose-700 font-bold">The table <code className="bg-white/50 px-2 py-0.5 rounded">"{missingTables[0]}"</code> is missing. Ensure all SQL migrations are applied.</p>
                      </div>
                  </div>
              </div>
          )}
 
-         {activeTab === 'users' && !missingTables.includes('profiles') && (
+         {isLoading && (
+             <div className="flex flex-col items-center justify-center py-32 animate-pulse text-slate-400">
+                 <Loader2 size={64} className="animate-spin mb-4" />
+                 <p className="font-black uppercase tracking-widest text-xs">Accessing Infrastructure...</p>
+             </div>
+         )}
+
+         {!isLoading && activeTab === 'users' && (
              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
                 <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-200">
                     <div className="flex flex-col md:flex-row items-center gap-6">
@@ -408,12 +366,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                         </td>
                                         <td className="p-6 pr-10 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => handleResetStrikes(u.id)} className="p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all click-scale"><UserCheck size={18} /></button>
-                                                <button onClick={() => handleDeleteUser(u.id)} disabled={u.email === 'sudo@quiviex.com'} className="p-3 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-all click-scale"><UserMinus size={18} /></button>
+                                                <button title="Reset Strikes" onClick={() => supabase.from('profiles').update({ warnings: 0 }).eq('user_id', u.id).then(fetchData)} className="p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all click-scale"><UserCheck size={18} /></button>
+                                                <button title="Delete Profile" onClick={() => handleDeleteUser(u.id)} disabled={u.email === 'sudo@quiviex.com'} className="p-3 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-all click-scale"><UserMinus size={18} /></button>
                                             </div>
                                         </td>
                                     </tr>
                                 ))}
+                                {filteredUsers.length === 0 && !isLoading && (
+                                    <tr><td colSpan={5} className="p-20 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">No matching units found</td></tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -421,7 +382,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
              </div>
          )}
 
-         {activeTab === 'feedback' && !missingTables.includes('feedback') && (
+         {!isLoading && activeTab === 'feedback' && (
              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <h2 className="text-3xl font-black tracking-tight">Incoming Logs <span className="text-slate-400 ml-2">({feedbacks.length})</span></h2>
                  <div className="grid gap-6">
@@ -443,6 +404,99 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                              </div>
                          </div>
                      ))}
+                     {feedbacks.length === 0 && (
+                         <div className="p-32 bg-white rounded-[3rem] text-center border-2 border-dashed border-slate-200">
+                             <MessageSquare size={64} className="mx-auto text-slate-200 mb-6" />
+                             <p className="text-slate-400 font-black uppercase tracking-widest">Registry Empty</p>
+                         </div>
+                     )}
+                 </div>
+             </div>
+         )}
+
+         {!isLoading && activeTab === 'ratings' && (
+             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                 <h2 className="text-3xl font-black tracking-tight">Transmission Scores <span className="text-slate-400 ml-2">({ratings.length})</span></h2>
+                 <div className="bg-white rounded-[3rem] shadow-xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase text-[10px] font-black tracking-[0.3em]">
+                            <tr>
+                                <th className="p-6 pl-10">Target Module</th>
+                                <th className="p-6">Unit UUID</th>
+                                <th className="p-6">Rating</th>
+                                <th className="p-6 text-right pr-10">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {ratings.map(r => (
+                                <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="p-6 pl-10">
+                                        <div className="font-black text-slate-900">{r.quiz_title}</div>
+                                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">ID: {r.quiz_id}</div>
+                                    </td>
+                                    <td className="p-6">
+                                        <code className="text-xs bg-slate-100 px-2 py-1 rounded text-indigo-600 font-bold">{r.user_id.substring(0, 16)}...</code>
+                                    </td>
+                                    <td className="p-6">
+                                        <div className="flex gap-1">
+                                            {[1,2,3,4,5].map(i => (
+                                                <Star key={i} size={14} className={i <= r.rating ? "text-yellow-400 fill-yellow-400" : "text-slate-200"} />
+                                            ))}
+                                        </div>
+                                    </td>
+                                    <td className="p-6 pr-10 text-right">
+                                        <button onClick={() => handleDeleteRating(r.id)} className="p-3 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all click-scale"><Trash2 size={18} /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                            {ratings.length === 0 && (
+                                <tr><td colSpan={4} className="p-20 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">No telemetry scores logged</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                 </div>
+             </div>
+         )}
+
+         {!isLoading && activeTab === 'bans' && (
+             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                 <h2 className="text-3xl font-black tracking-tight text-rose-600">Blacklisted Entities <span className="text-slate-400 ml-2">({bannedEmails.length})</span></h2>
+                 <div className="bg-white rounded-[3rem] shadow-xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase text-[10px] font-black tracking-[0.3em]">
+                            <tr>
+                                <th className="p-6 pl-10">Restricted Email</th>
+                                <th className="p-6">Termination Reason</th>
+                                <th className="p-6">Date Decommissioned</th>
+                                <th className="p-6 text-right pr-10">Protocol</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {bannedEmails.map(b => (
+                                <tr key={b.email} className="hover:bg-rose-50/30 transition-colors">
+                                    <td className="p-6 pl-10">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-rose-100 rounded-lg text-rose-600"><Mail size={16} /></div>
+                                            <span className="font-black text-slate-800">{b.email}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-6">
+                                        <span className="text-sm font-bold text-rose-500 bg-rose-50 px-3 py-1 rounded-full border border-rose-100 italic">"{b.reason}"</span>
+                                    </td>
+                                    <td className="p-6 text-slate-400 text-xs font-bold">{new Date(b.created_at).toLocaleString()}</td>
+                                    <td className="p-6 pr-10 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button title="Copy Email" onClick={() => navigator.clipboard.writeText(b.email).then(() => alert("Copied"))} className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition-all"><Copy size={18} /></button>
+                                            <button title="Revoke Ban" onClick={() => handleUnbanEmail(b.email)} className="p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-500 hover:text-white transition-all click-scale"><Unlock size={18} /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {bannedEmails.length === 0 && (
+                                <tr><td colSpan={4} className="p-20 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">Infrastructure clean. No active blacklists.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
                  </div>
              </div>
          )}

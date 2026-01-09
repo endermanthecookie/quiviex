@@ -7,7 +7,7 @@ import { supabase } from '../services/supabase';
 interface LandingPageProps {
   onGetStarted: () => void;
   onExplore: () => void;
-  onJoinGame?: () => void; // New
+  onJoinGame?: () => void; 
   onShowLegal?: (type: 'terms' | 'guidelines' | 'privacy') => void;
 }
 
@@ -89,7 +89,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
           
           <div className="hidden lg:flex items-center gap-12">
             <button onClick={onExplore} className="text-[11px] font-black text-slate-400 hover:text-purple-400 transition-colors uppercase tracking-[0.3em]">Explore</button>
-            <button onClick={onJoinGame} className="text-[11px] font-black text-slate-400 hover:text-purple-400 transition-colors uppercase tracking-[0.3em] flex items-center gap-2"><Zap size={14} className="text-yellow-400" /> Join Game</button>
+            <button onClick={() => { if(onJoinGame) onJoinGame(); }} className="text-[11px] font-black text-slate-400 hover:text-purple-400 transition-colors uppercase tracking-[0.3em] flex items-center gap-2"><Zap size={14} className="text-yellow-400" /> Join Game</button>
             <button className="text-[11px] font-black text-slate-400 hover:text-purple-400 transition-colors uppercase tracking-[0.3em]">Features</button>
           </div>
 

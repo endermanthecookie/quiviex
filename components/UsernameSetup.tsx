@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-// Fix: Import User as UserIcon to resolve "Cannot find name 'UserIcon'" error
 import { User as UserIcon, ArrowRight, Loader2, AlertCircle, LogOut } from 'lucide-react';
 import { Logo } from './Logo';
 import { supabase } from '../services/supabase';
@@ -21,13 +20,13 @@ export const UsernameSetup: React.FC<UsernameSetupProps> = ({ email, onComplete,
     const trimmed = username.trim();
     if (!trimmed) return;
     
-    // Basic validation
+    // Validation
     if (trimmed.length < 3) {
         setError("Username must be at least 3 characters.");
         return;
     }
     if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
-        setError("Username can only contain letters, numbers, and underscores.");
+        setError("Letters, numbers, and underscores only.");
         return;
     }
 
@@ -35,7 +34,6 @@ export const UsernameSetup: React.FC<UsernameSetupProps> = ({ email, onComplete,
     setError('');
 
     try {
-        // Precise availability check
         const { data, error: queryError } = await supabase
             .from('profiles')
             .select('user_id')
@@ -45,67 +43,50 @@ export const UsernameSetup: React.FC<UsernameSetupProps> = ({ email, onComplete,
         if (queryError) throw queryError;
         
         if (data) {
-            setError("This username is already taken.");
+            setError("Username already taken.");
             setIsLoading(false);
             return;
         }
 
         onComplete(trimmed);
     } catch (e: any) {
-        (window as any).console.error(e);
-        setError(e.message || "Error checking username availability.");
+        console.error(e);
+        setError(e.message || "Error checking username.");
         setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[conic-gradient(at_top_right,_var(--tw-gradient-stops))] from-indigo-900 via-violet-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-fuchsia-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-pulse delay-700"></div>
-      </div>
-
-      <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 sm:p-10 max-w-md w-full animate-in fade-in zoom-in duration-300 relative z-10">
+    <div className="fixed inset-0 z-[100] bg-indigo-950/90 backdrop-blur-2xl flex items-center justify-center p-4 font-['Plus_Jakarta_Sans']">
+      <div className="bg-white rounded-[3.5rem] shadow-2xl border border-white/20 p-8 sm:p-12 max-w-md w-full animate-in zoom-in duration-300 relative">
         
-        <div className="text-center mb-8">
+        <div className="text-center mb-10">
           <div className="flex justify-center mb-6">
             <Logo variant="medium" />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 mb-2">Almost there!</h1>
-          <p className="text-slate-500 font-medium">
-            Choose a unique username to complete your profile.
+          <h1 className="text-3xl font-black text-slate-900 mb-2">Claim Username</h1>
+          <p className="text-slate-500 font-bold">
+            Create your unique identity on Quiviex.
           </p>
-        </div>
-
-        <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100 flex items-center gap-3">
-             <div className="bg-slate-200 p-2 rounded-full text-slate-500">
-                 <UserIcon size={18} />
-             </div>
-             <div className="flex-1 overflow-hidden">
-                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Connected Account</div>
-                 <div className="text-sm font-bold text-slate-700 truncate" title={email}>{email}</div>
-             </div>
+          <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-2">(Minimum 3 characters)</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Username</label>
-              <div className="relative group">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Unique Username</label>
+              <div className="relative">
                 <input
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername((e.target as any).value.replace(/\s/g, ''))}
-                  className={`w-full px-4 py-4 border-2 rounded-xl focus:outline-none transition-all font-bold text-lg bg-white text-black ${error ? 'border-red-300 focus:border-red-500 text-red-900' : 'border-slate-200 focus:border-violet-600'}`}
-                  placeholder="e.g. QuizMaster99"
+                  onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
+                  className={`w-full px-6 py-5 border-2 rounded-3xl focus:outline-none transition-all font-bold text-lg bg-slate-50 text-slate-900 ${error ? 'border-rose-200 focus:border-rose-400 text-rose-900' : 'border-slate-100 focus:border-indigo-500'}`}
+                  placeholder="e.g. Quiviex_Master"
                   maxLength={20}
                   autoFocus
                 />
-                <div className="absolute right-4 top-4 text-slate-300 pointer-events-none font-medium">
-                    {username.length}/20
-                </div>
               </div>
               {error && (
-                  <div className="flex items-center gap-2 text-red-500 text-sm font-bold mt-2 animate-in slide-in-from-top-1">
+                  <div className="flex items-center gap-2 text-rose-600 text-xs font-black uppercase tracking-tight mt-3 animate-in slide-in-from-top-1">
                       <AlertCircle size={14} /> {error}
                   </div>
               )}
@@ -113,20 +94,20 @@ export const UsernameSetup: React.FC<UsernameSetupProps> = ({ email, onComplete,
 
             <button
               type="submit"
-              disabled={isLoading || !username}
-              className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-violet-200 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              disabled={isLoading || username.length < 3}
+              className="w-full bg-indigo-600 text-white font-black py-6 rounded-3xl shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50 uppercase tracking-widest text-xs"
             >
-              {isLoading ? <Loader2 className="animate-spin" /> : <ArrowRight size={20} />}
-              Complete Signup
+              {isLoading ? <Loader2 className="animate-spin" /> : <ArrowRight size={18} />}
+              Finish Setup
             </button>
         </form>
 
         <div className="mt-8 text-center">
             <button 
                 onClick={onCancel}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold flex items-center justify-center gap-1 mx-auto transition-colors"
+                className="text-slate-400 hover:text-slate-600 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1 mx-auto transition-colors"
             >
-                <LogOut size={14} /> Cancel & Sign Out
+                <LogOut size={14} /> Log Out
             </button>
         </div>
 
