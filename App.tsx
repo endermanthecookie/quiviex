@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Quiz, QuizResult, User, UserStats, Achievement, Feedback } from './types';
+import { Quiz, QuizResult, User, UserStats, Achievement, Feedback, QXNotification, Room } from './types';
 import { QuizHome } from './components/QuizHome';
 import { QuizCreator } from './components/QuizCreator';
 import { QuizTaker } from './components/QuizTaker';
@@ -10,6 +11,9 @@ import { HistoryPage } from './components/HistoryPage';
 import { FocusMode } from './components/FocusMode';
 import { SettingsPage } from './components/SettingsPage';
 import { CommunityPage } from './components/CommunityPage';
+import { MultiplayerLobby } from './components/MultiplayerLobby';
+import { JoinPinPage } from './components/JoinPinPage';
+import { LeaderboardPage } from './components/LeaderboardPage';
 import { Auth } from './components/Auth';
 import { LandingPage } from './components/LandingPage';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -21,7 +25,7 @@ import { exportQuizToQZX, exportAllQuizzesToZip } from './services/exportService
 import { supabase, checkSupabaseConnection } from './services/supabase';
 import { AlertTriangle } from 'lucide-react';
 
-type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin';
+type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin';
 
 const DEFAULT_STATS: UserStats = {
   quizzesCreated: 0,
@@ -30,18 +34,19 @@ const DEFAULT_STATS: UserStats = {
   perfectScores: 0,
   studySessions: 0,
   aiQuizzesGenerated: 0,
-  aiImagesGenerated: 0
+  aiImagesGenerated: 0,
+  totalPoints: 0
 };
-
-const FONT_STORAGE_BASE = 'https://ulkabycvuxyrwtkbwhid.supabase.co/storage/v1/object/public/Fonts%20Quiviex';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [notifications, setNotifications] = useState<QXNotification[]>([]);
   const [view, setView] = useState<ViewState>('landing');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [savedQuizzes, setSavedQuizzes] = useState<Quiz[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [activeResults, setActiveResults] = useState<{answers: any[], score: number} | null>(null);
+  const [activeResults, setActiveResults] = useState<{answers: any[], score: number, points?: number} | null>(null);
+  const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
   const [achievementsDefinitions, setAchievementsDefinitions] = useState<Achievement[]>([]);
@@ -49,60 +54,28 @@ export default function App() {
   const [showNotification, setShowNotification] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [activeLegalModal, setActiveLegalModal] = useState<'terms' | 'guidelines' | 'privacy' | null>(null);
-  const [verifiedFonts, setVerifiedFonts] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const runFontAudit = async () => {
-      const available = new Set<string>();
-      const checkPromises = Array.from({ length: 16 }, (_, i) => {
-        const fontIndex = i + 1;
-        const fontName = `Font${fontIndex}`;
-        const fileName = `${fontIndex}.ttf`;
-        const fontUrl = `${FONT_STORAGE_BASE}/${fileName}`;
-        return fetch(fontUrl, { method: 'HEAD', cache: 'no-cache' })
-          .then(response => { if (response.ok) available.add(fontName); })
-          .catch(() => {});
-      });
-      await Promise.all(checkPromises);
-      setVerifiedFonts(available);
-    };
-    runFontAudit();
-  }, []);
 
   useEffect(() => {
     checkSupabaseConnection().then(res => {
         if (!res.connected) setDbError(res.error);
     });
     fetchAchievementDefinitions();
+    handleUrlRouting();
   }, []);
 
-  useEffect(() => {
-    const applyFont = async () => {
-        const body = document.body;
-        const fontId = user?.preferences?.appFont;
-        if (fontId && fontId.startsWith('Font')) {
-            const fontIndex = fontId.replace('Font', '');
-            const fontUrl = `${FONT_STORAGE_BASE}/${fontIndex}.ttf`;
-            if (!verifiedFonts.has(fontId) && verifiedFonts.size > 0) {
-                body.style.fontFamily = `'QuiviexCustom', 'Plus Jakarta Sans', sans-serif`;
-                return;
-            }
-            try {
-                const customFontFace = new FontFace(fontId, `url(${fontUrl})`);
-                const loadedFont = await customFontFace.load();
-                document.fonts.add(loadedFont);
-                body.style.fontFamily = `'${fontId}', 'QuiviexCustom', 'Plus Jakarta Sans', sans-serif`;
-            } catch (error) {
-                body.style.fontFamily = `'QuiviexCustom', 'Plus Jakarta Sans', sans-serif`;
-            }
-        } else if (fontId) {
-            body.style.fontFamily = `'${fontId}', 'QuiviexCustom', 'Plus Jakarta Sans', sans-serif`;
-        } else {
-            body.style.fontFamily = `'QuiviexCustom', 'Plus Jakarta Sans', sans-serif`;
-        }
-    };
-    applyFont();
-  }, [user?.preferences?.appFont, verifiedFonts]);
+  const handleUrlRouting = async () => {
+      const path = window.location.pathname.replace('/', '');
+      if (path.length === 6 && /^\d+$/.test(path)) {
+          const { data: room } = await supabase.from('rooms').select('*').eq('pin', path).eq('status', 'waiting').single();
+          if (room) {
+              setActiveRoom({
+                  id: room.id, pin: room.pin, hostId: room.host_id, quizId: room.quiz_id,
+                  status: room.status as any, currentQuestionIndex: room.current_question_index, createdAt: room.created_at
+              });
+              setView('multiplayer_lobby');
+          }
+      }
+  };
 
   const fetchAchievementDefinitions = async () => {
     try {
@@ -123,218 +96,169 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
+  const fetchNotifications = async (userId: string) => {
+      try {
+          const { data, error } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+          if (!error && data) {
+              setNotifications(data.map((n: any) => ({
+                  id: n.id, userId: n.user_id, title: n.title, message: n.message, type: n.type, isRead: n.is_read, createdAt: n.created_at
+              })));
+          }
+      } catch (e) { console.error(e); }
+  };
+
   useEffect(() => {
     const handleAuth = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           fetchProfile(session.user.id, session.user.email || '');
-          setView('home');
+          fetchNotifications(session.user.id);
+          setupRealtime(session.user.id);
+          // Only redirect to home if they were in a landing/auth view
+          if (['landing', 'auth'].includes(view)) setView('home');
         } else {
           setIsLoading(false);
         }
     };
     handleAuth();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         fetchProfile(session.user.id, session.user.email || '');
-        setView('home');
+        fetchNotifications(session.user.id);
+        setupRealtime(session.user.id);
+        if (['landing', 'auth'].includes(view)) setView('home');
       } else {
         setUser(null);
+        setNotifications([]);
         setIsLoading(false);
-        if (view !== 'landing' && view !== 'community') setView('landing');
+        // CRITICAL BUG FIX: Include 'auth' in the list of allowed views when NOT logged in
+        const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin'];
+        if (!publicViews.includes(view)) {
+            setView('landing');
+        }
       }
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [view]); // Dependency on view ensures we re-check permissions when navigation occurs
+
+  const setupRealtime = (userId: string) => {
+      const channel = supabase
+        .channel(`notifications-stream-${userId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, payload => {
+            const n = payload.new as any;
+            setNotifications(prev => [{
+                id: n.id, userId: n.user_id, title: n.title, message: n.message, type: n.type, isRead: n.is_read || false, createdAt: n.created_at
+            }, ...prev]);
+            setNotification({ title: n.title, message: n.message });
+            setShowNotification(true);
+        })
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
+  };
 
   const fetchProfile = async (userId: string, email: string) => {
     try {
       let { data, error } = await supabase.from('profiles').select('*').eq('user_id', userId).single();
       if (error) throw error;
       if (data) {
-        const achievementsList: string[] = Array.isArray(data.achievements) ? data.achievements.map((id: any) => id.toString()) : [];
         setUser({
           id: data.user_id, username: data.username || email.split('@')[0], email: email, avatarUrl: data.avatar_url,
-          stats: data.stats || DEFAULT_STATS, achievements: achievementsList, history: data.history || [], preferences: data.preferences, savedQuizIds: data.saved_quiz_ids || [] 
+          stats: data.stats || DEFAULT_STATS, achievements: data.achievements || [], history: data.history || [], preferences: data.preferences, savedQuizIds: data.saved_quiz_ids || [] 
         });
         fetchQuizzes(userId);
       }
     } catch (error) { console.error(error); } finally { setIsLoading(false); }
   };
 
-  const handleStatUpdate = (type: keyof UserStats) => {
+  const handleStatUpdate = (type: keyof UserStats, increment: number = 1) => {
     if (!user) return;
-    const newStats = { ...user.stats, [type]: (user.stats[type] || 0) + 1 };
+    const newStats = { ...user.stats, [type]: (user.stats[type] || 0) + increment };
     const updatedUser = { ...user, stats: newStats };
     persistUser(updatedUser);
-    checkAchievements(updatedUser);
-  };
-
-  const checkAchievements = async (currentUser: User) => {
-    if (achievementsDefinitions.length === 0) return;
-    const currentUnlocked = new Set(currentUser.achievements);
-    const newUnlocked: string[] = [];
-    let hasNew = false;
-    for (const definition of achievementsDefinitions) {
-        if (currentUnlocked.has(definition.id)) continue;
-        const userValue = currentUser.stats[definition.req_type] || 0;
-        if (userValue >= definition.req_value) {
-            newUnlocked.push(definition.id);
-            hasNew = true;
-            setNotification({ title: definition.title, message: definition.description });
-            setShowNotification(true);
-        }
-    }
-    if (hasNew) {
-        try {
-            const updatedAchievements = [...currentUser.achievements, ...newUnlocked];
-            setUser({ ...currentUser, achievements: updatedAchievements });
-            await supabase.from('profiles').update({ achievements: updatedAchievements }).eq('user_id', currentUser.id);
-        } catch (e) { console.error(e); }
-    }
   };
 
   const persistUser = async (updatedUser: User) => {
-    const oldUsername = user?.username;
     setUser(updatedUser);
     try {
       await supabase.from('profiles').update({
         username: updatedUser.username, stats: updatedUser.stats, history: updatedUser.history,
         preferences: updatedUser.preferences, saved_quiz_ids: updatedUser.savedQuizIds, avatar_url: updatedUser.avatarUrl, updated_at: new Date().toISOString()
       }).eq('user_id', updatedUser.id);
-
-      if (oldUsername !== updatedUser.username) {
-        await supabase.from('platform_reviews')
-          .update({ username: updatedUser.username, avatar_url: updatedUser.avatarUrl })
-          .eq('user_id', updatedUser.id);
-      }
     } catch (error) { console.error(error); }
   };
 
-  const handleSaveQuiz = async (quizData: Quiz) => {
-    if (!user) return;
+  const handleMarkNotificationRead = async (id: string) => {
     try {
-      const payload: any = {
-        user_id: user.id,
-        title: quizData.title,
-        questions: quizData.questions,
-        theme: quizData.theme,
-        custom_theme: quizData.customTheme,
-        shuffle_questions: quizData.shuffleQuestions,
-        background_music: quizData.backgroundMusic,
-        visibility: quizData.visibility || 'private'
-      };
-
-      let result;
-      if (!quizData.id || quizData.id > 1000000000) {
-         result = await supabase.from('quizzes').insert(payload).select().single();
-      } else {
-         result = await supabase.from('quizzes').update(payload).eq('id', quizData.id).select().single();
-      }
-
-      if (result.error) throw result.error;
-      
-      await fetchQuizzes(user.id);
-      setView('home');
-      setActiveQuiz(null);
-    } catch (err: any) {
-      console.error("Save error:", err);
-      alert("Save failed: " + (err.message || "Check your database connection."));
-    }
+      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+      if (!error) setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (e) { console.error(e); }
   };
 
-  const handleDeleteQuiz = async (id: number) => {
-      if (!user) return;
-      if (!window.confirm('PERMANENT DELETION: Are you sure you want to erase this quiz?')) return;
+  const handleClearNotifications = async () => {
+    if (!user) return;
+    try {
+      await supabase.from('notifications').delete().eq('user_id', user.id);
+      setNotifications([]);
+    } catch (e) { console.error(e); }
+  };
+
+  const generateUniquePin = async (): Promise<string> => {
+      const pin = Math.floor(100000 + Math.random() * 900000).toString();
+      const { data } = await supabase.from('rooms').select('pin').eq('pin', pin).maybeSingle();
+      if (data) return generateUniquePin();
+      return pin;
+  };
+
+  const handleStartHost = async (quiz: Quiz) => {
+      const pin = await generateUniquePin();
+      const { data: room, error } = await supabase.from('rooms').insert({
+          pin, host_id: user?.id, quiz_id: quiz.id, status: 'waiting'
+      }).select().single();
       
-      try {
-          const { error } = await supabase.from('quizzes').delete().eq('id', id);
-          if (error) {
-              if (error.code === '42501') throw new Error("Permission Denied: Run the SQL DELETE policy for the quizzes table.");
-              throw error;
-          }
-          fetchQuizzes(user.id);
-      } catch (err: any) {
-          console.error("Deletion fault:", err);
-          alert("Deletion failed: " + err.message);
+      if (!error && room) {
+          setActiveQuiz(quiz);
+          setActiveRoom({
+              id: room.id, pin: room.pin, hostId: room.host_id, quizId: room.quiz_id,
+              status: room.status as any, currentQuestionIndex: room.current_question_index, createdAt: room.created_at
+          });
+          setView('multiplayer_lobby');
       }
   };
 
-  const handleDeleteAccount = async () => {
-    if (!user) return;
-    
-    if (user.email === 'sudo@quiviex.com') {
-        alert("CRITICAL SYSTEM ALERT: The System Architect (Sudo) account is part of the core infrastructure and cannot be decommissioned.");
-        return;
-    }
-
-    if (!window.confirm("PERMANENT DATA ERASURE: This will delete your profile, history, and all quizzes EXCEPT for those set to 'Public'. This action is irreversible. Proceed?")) return;
-
-    try {
-        await supabase.from('quizzes').delete().eq('user_id', user.id).neq('visibility', 'public');
-        await supabase.from('quizzes').update({ user_id: null }).eq('user_id', user.id).eq('visibility', 'public');
-        await supabase.from('profiles').delete().eq('user_id', user.id);
-        await supabase.from('platform_reviews').delete().eq('user_id', user.id);
-        
-        await supabase.auth.signOut();
-        setUser(null);
-        setView('landing');
-    } catch (e: any) {
-        alert("Erasure sequence partial failure: " + e.message);
-    }
-  };
-
-  const handleFeedbackSubmit = async (feedback: Feedback) => {
-      if (!user) return;
-      
-      // Fix: Ensure we provide the ID to resolve the not-null constraint error
-      // Use crypto.randomUUID() if the provided feedback object lacks a valid ID
-      const { error } = await supabase.from('feedback').insert({
-          id: feedback.id || crypto.randomUUID(), 
-          user_id: user.id, 
-          username: user.username, 
-          type: feedback.type, 
-          content: feedback.content, 
-          status: 'new'
-      });
-      
-      if (error) {
-          console.error("Feedback Insert Fault:", error);
-          if (error.code === '42P01') throw new Error("Relation 'feedback' missing. Run the SQL setup script.");
-          throw error;
+  const cleanupRoom = async () => {
+      if (activeRoom) {
+          // Effectively delete the PIN so it can't be reused and doesn't clutter
+          await supabase.from('rooms').delete().eq('id', activeRoom.id);
+          setActiveRoom(null);
       }
   };
 
   const renderContent = () => {
-      if (dbError) return (
-          <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-red-50">
-              <AlertTriangle size={64} className="text-red-500 mb-6" />
-              <h1 className="text-3xl font-black text-red-900">Database Connection Failed</h1>
-              <button onClick={() => window.location.reload()} className="mt-4 bg-red-600 text-white px-8 py-3 rounded-xl font-bold">Retry</button>
-          </div>
-      );
+      if (dbError) return <div className="p-20 text-center text-red-500 font-bold">{dbError}</div>;
       if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse text-2xl tracking-tighter">Quiviex...</div>;
       
-      if (!user) {
-        if (view === 'auth') return <Auth onLogin={() => {}} onBackToLanding={() => setView('landing')} />;
-        if (view === 'community') return <CommunityPage user={null} onBack={() => setView('landing')} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
-        return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onShowLegal={(type) => setActiveLegalModal(type)} />;
+      const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin'];
+      if (!user && !publicViews.includes(view)) {
+          return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onJoinGame={() => setView('join_pin')} onShowLegal={(type) => setActiveLegalModal(type)} />;
       }
       
       switch(view) {
-          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={handleDeleteQuiz} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} />;
-          case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user} onSave={handleSaveQuiz} onExit={() => { setActiveQuiz(null); setView('home'); }} startWithTutorial={!user.hasSeenTutorial} onStatUpdate={(type) => handleStatUpdate(type === 'create' ? 'quizzesCreated' : type === 'ai_quiz' ? 'aiQuizzesGenerated' : 'aiImagesGenerated')} onOpenSettings={() => setView('settings')} />;
-          case 'take': return activeQuiz ? <QuizTaker quiz={activeQuiz} onComplete={(answers, score) => { setActiveResults({answers, score}); setView('results'); handleStatUpdate('quizzesPlayed'); }} onExit={() => setView('home')} /> : null;
-          case 'results': return activeQuiz && activeResults ? <QuizResults quiz={activeQuiz} userAnswers={activeResults.answers} score={activeResults.score} onPlayAgain={() => setView('take')} onHome={() => setView('home')} /> : null;
-          case 'study': return activeQuiz ? <FlashcardViewer quiz={activeQuiz} onExit={() => setView('home')} /> : null;
-          case 'achievements': return <AchievementsPage user={user} definitions={achievementsDefinitions} onBack={() => setView('home')} />;
-          case 'history': return <HistoryPage user={user} onBack={() => setView('home')} />;
-          case 'focus': return <FocusMode user={user} quizzes={quizzes} onBack={() => setView('home')} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
-          case 'settings': return <SettingsPage user={user} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} onDeleteAccount={handleDeleteAccount} />;
+          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={handleMarkNotificationRead} onClearNotifications={handleClearNotifications} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={(id) => {}} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={handleStartHost} onViewLeaderboard={() => setView('leaderboard')} />;
+          case 'auth': return <Auth onLogin={() => {}} onBackToLanding={() => setView('landing')} onJoinGame={() => setView('join_pin')} />;
+          case 'multiplayer_lobby': return <MultiplayerLobby room={activeRoom!} user={user} onBack={() => { cleanupRoom(); setView('home'); }} onStart={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
+          case 'join_pin': return <JoinPinPage onBack={() => user ? setView('home') : setView('landing')} onJoin={(room) => { setActiveRoom(room); setView('multiplayer_lobby'); }} />;
+          case 'leaderboard': return <LeaderboardPage user={user!} onBack={() => setView('home')} />;
+          case 'take': return activeQuiz ? <QuizTaker quiz={activeQuiz} room={activeRoom || undefined} user={user || undefined} onComplete={(answers, score, points) => { if(activeRoom) cleanupRoom(); setActiveResults({answers, score, points}); setView('results'); handleStatUpdate('quizzesPlayed'); if(points) handleStatUpdate('totalPoints', points); }} onExit={() => { if(activeRoom) cleanupRoom(); setView('home'); }} /> : null;
+          case 'results': return activeQuiz && activeResults ? <QuizResults quiz={activeQuiz} userAnswers={activeResults.answers} score={activeResults.score} points={activeResults.points} onPlayAgain={() => setView('take')} onHome={() => setView('home')} /> : null;
+          case 'achievements': return <AchievementsPage user={user!} definitions={achievementsDefinitions} onBack={() => setView('home')} />;
+          case 'history': return <HistoryPage user={user!} onBack={() => setView('home')} />;
+          case 'focus': return <FocusMode user={user!} quizzes={quizzes} onBack={() => setView('home')} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
+          case 'settings': return <SettingsPage user={user!} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user!, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} onDeleteAccount={() => {}} />;
           case 'community': return <CommunityPage user={user} onBack={() => user ? setView('home') : setView('landing')} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
           case 'admin': return <AdminDashboard onBack={() => setView('home')} />;
-          case 'landing': return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onShowLegal={(type) => setActiveLegalModal(type)} />;
-          default: return <div className="p-20 text-center font-bold">Initializing View...</div>;
+          case 'landing': return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onJoinGame={() => setView('join_pin')} onShowLegal={(type) => setActiveLegalModal(type)} />;
+          default: return <div className="p-20 text-center font-bold">Quiviex Environment Initializing...</div>;
       }
   };
 
@@ -342,20 +266,11 @@ export default function App() {
   return (
     <div className={`min-h-screen transition-all duration-500 bg-gradient-to-br ${theme.gradient} ${theme.text}`}>
         <NotificationToast title={notification?.title || ''} message={notification?.message || ''} isVisible={showNotification} onClose={() => setShowNotification(false)} />
-        {showFeedbackModal && user && (
-            <FeedbackModal
-                user={user}
-                onClose={() => setShowFeedbackModal(false)}
-                onSubmit={handleFeedbackSubmit}
-            />
-        )}
-        {activeLegalModal && (
-            <LegalModal 
-              type={activeLegalModal} 
-              onClose={() => setActiveLegalModal(null)} 
-            />
-        )}
-        {renderContent()}
+        {showFeedbackModal && user && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} onSubmit={async (f) => {}} />}
+        {activeLegalModal && <LegalModal type={activeLegalModal} onClose={() => setActiveLegalModal(null)} />}
+        <div key={view} className="view-transition">
+          {renderContent()}
+        </div>
     </div>
   );
 }

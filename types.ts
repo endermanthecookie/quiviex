@@ -2,6 +2,45 @@
 export type QuestionType = 'multiple-choice' | 'true-false' | 'text-input' | 'ordering' | 'fill-in-the-blank' | 'matching' | 'slider';
 export type QuizVisibility = 'public' | 'unlisted' | 'private';
 
+/* Added missing type used in constants.ts */
+export interface ColorTheme {
+  bg: string;
+  hover: string;
+  icon: string;
+  text: string;
+}
+
+/* Added missing type used in constants.ts */
+export interface TutorialStep {
+  title: string;
+  content: string;
+  highlight: string | null;
+  showTokenActions?: boolean;
+}
+
+/* Added missing type used in notification components and App.tsx */
+export interface QXNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'achievement' | 'reply' | 'system';
+  isRead: boolean;
+  createdAt: string;
+}
+
+/* Added missing type used in feedback components and App.tsx */
+export interface Feedback {
+  id: string;
+  userId: string;
+  username: string;
+  type: 'bug' | 'suggestion' | 'other';
+  content: string;
+  date: string;
+  status: 'new' | 'resolved';
+  adminReply?: string;
+}
+
 export interface UserStats {
   quizzesCreated: number;
   quizzesPlayed: number;
@@ -10,6 +49,7 @@ export interface UserStats {
   studySessions: number;
   aiQuizzesGenerated: number;
   aiImagesGenerated: number;
+  totalPoints: number; // New: Cumulative points for ranking
 }
 
 export interface Achievement {
@@ -48,15 +88,55 @@ export interface User {
   savedQuizIds: number[]; 
 }
 
-export interface Feedback {
+export interface Room {
     id: string;
-    userId: string;
+    pin: string;
+    hostId: string;
+    quizId: number;
+    status: 'waiting' | 'playing' | 'finished';
+    currentQuestionIndex: number;
+    createdAt: string;
+}
+
+export interface Participant {
+    id: string;
     username: string;
-    type: 'bug' | 'suggestion' | 'other';
-    content: string;
-    date: string;
-    status: 'new' | 'read' | 'resolved';
-    adminReply?: string;
+    score: number;
+    isHost: boolean;
+    lastActive: string;
+}
+
+export interface Quiz {
+  id: number;
+  userId: string;
+  title: string;
+  questions: Question[];
+  createdAt: string;
+  theme?: string;
+  customTheme?: CustomTheme;
+  shuffleQuestions?: boolean;
+  backgroundMusic?: string; 
+  visibility?: QuizVisibility; 
+  creatorUsername?: string;
+  creatorAvatarUrl?: string;
+  stats?: {
+    views: number;
+    plays: number;
+    avgRating: number;
+    totalRatings: number;
+    likes?: number;
+  };
+}
+
+export interface QuizResult {
+  id: string; 
+  quizId: number;
+  quizTitle: string;
+  date: string;
+  score: number;
+  points?: number; // New: Points earned in session
+  totalQuestions: number;
+  answers: (number | string | number[])[]; 
 }
 
 export interface Question {
@@ -78,51 +158,6 @@ export interface CustomTheme {
   cardOpacity: number; 
 }
 
-export interface Quiz {
-  id: number;
-  userId: string;
-  title: string;
-  questions: Question[];
-  createdAt: string;
-  theme?: string;
-  customTheme?: CustomTheme;
-  shuffleQuestions?: boolean;
-  backgroundMusic?: string; 
-  visibility?: QuizVisibility; 
-  creatorUsername?: string;
-  creatorAvatarUrl?: string;
-  stats?: {
-    views: number;
-    plays: number;
-    avgRating: number;
-    totalRatings: number;
-  };
-}
-
-export interface QuizResult {
-  id: string; 
-  quizId: number;
-  quizTitle: string;
-  date: string;
-  score: number;
-  totalQuestions: number;
-  answers: (number | string | number[])[]; 
-}
-
-export interface ColorTheme {
-  bg: string;
-  hover: string;
-  icon: string;
-  text: string;
-}
-
-export interface TutorialStep {
-  title: string;
-  content: string;
-  highlight: string | null;
-  showTokenActions?: boolean;
-}
-
 export interface Comment {
   id: string;
   quizId: number;
@@ -132,10 +167,4 @@ export interface Comment {
   createdAt: string;
   parentId?: string | null; 
   replies?: Comment[]; 
-}
-
-export interface Rating {
-  quizId: number;
-  userId: string;
-  rating: number; 
 }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Feedback } from '../types';
 import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash } from 'lucide-react';
@@ -57,9 +58,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const fetchRatings = async () => {
       try {
+          // Fixed join error: profiles join was failing due to missing FK in Supabase config.
+          // Fetching ratings and quizzes first. 
           const { data, error } = await supabase
               .from('ratings')
-              .select('*, quizzes(title), profiles(username)')
+              .select('*, quizzes(title)')
               .order('created_at', { ascending: false });
 
           if (error) {
@@ -68,6 +71,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           }
 
           if (data) {
+              // Map ratings and handle profile lookup manually or show user_id if join still fails
               const mapped: RatingEntry[] = data.map((r: any) => ({
                   id: r.id,
                   quiz_id: r.quiz_id,
@@ -75,7 +79,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                   rating: r.rating,
                   created_at: r.created_at,
                   quiz_title: r.quizzes?.title || 'Unknown Quiz',
-                  username: r.profiles?.username || 'Unknown User'
+                  username: r.user_id?.substring(0, 8) || 'Unknown' 
               }));
               setRatings(mapped);
           }
@@ -169,6 +173,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   };
 
   const handleResolveFeedback = async (id: string) => {
+      const fb = feedbacks.find(f => f.id === id);
       setProcessingId(id);
       try {
           const { error } = await supabase
@@ -178,6 +183,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
           if (error) throw error;
           setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, status: 'resolved' as const } : f));
+
+          if (fb?.userId) {
+              await supabase.from('notifications').insert({
+                  user_id: fb.userId,
+                  title: "Feedback Resolved",
+                  message: `Your report has been marked as resolved by an admin.`,
+                  type: 'info'
+              });
+          }
       } catch (error: any) {
           alert(`Failed to resolve: ${error.message}`);
       } finally {
@@ -186,12 +200,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   };
 
   const handleReplyFeedback = async (id: string) => {
+      const fb = feedbacks.find(f => f.id === id);
       if (!replyContent.trim()) return;
       setProcessingId(id);
       try {
           const { error } = await supabase.from('feedback').update({ admin_reply: replyContent }).eq('id', id);
           if (error) throw error;
           setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, adminReply: replyContent } : f));
+          
+          if (fb?.userId) {
+              // Ensure we use the userId from the specific feedback record
+              await supabase.from('notifications').insert({
+                  user_id: fb.userId,
+                  title: "Admin Replied",
+                  message: `An admin has responded to your feedback: "${replyContent.substring(0, 40)}..."`,
+                  type: 'reply'
+              });
+          }
+
           setReplyingTo(null);
           setReplyContent('');
       } catch (error: any) {
@@ -285,7 +311,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             </button>
             <div className="flex items-center gap-2">
                <Shield className="text-rose-500" size={28} />
-               <h1 className="text-2xl font-black tracking-tight">Sudo Control</h1>
+               <h1 className="text-2xl font-black tracking-tight">Admin Control</h1>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -377,7 +403,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                             <div className="mt-8 bg-slate-50 p-6 rounded-[1.5rem] border border-slate-100 flex gap-4">
                                                 <div className="bg-rose-100 p-2.5 rounded-xl h-fit shadow-sm"><Reply size={16} className="text-rose-600" /></div>
                                                 <div className="flex-1">
-                                                    <span className="text-[10px] font-black text-rose-600 uppercase tracking-[0.2em] mb-1 block">Infrastructure Reply</span>
+                                                    <span className="text-[10px] font-black text-rose-600 uppercase tracking-[0.2em] mb-1 block">Admin Reply</span>
                                                     <p className="text-slate-700 font-medium italic">{item.adminReply}</p>
                                                 </div>
                                             </div>
@@ -402,7 +428,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                          <textarea 
                                              value={replyContent} 
                                              onChange={(e) => setReplyContent((e.target as any).value)} 
-                                             placeholder="Type reply to unit..." 
+                                             placeholder="Type reply to user..." 
                                              className="flex-1 p-5 bg-slate-50 border-2 border-indigo-100 rounded-2xl focus:outline-none focus:border-indigo-400 focus:bg-white text-base font-bold shadow-inner" 
                                          />
                                          <button onClick={() => handleReplyFeedback(item.id)} disabled={processingId === item.id || !replyContent.trim()} className="bg-indigo-600 text-white font-black px-8 rounded-2xl hover:bg-indigo-700 transition-all flex items-center justify-center disabled:opacity-50 click-scale">
@@ -471,11 +497,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         <table className="w-full text-left">
                             <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase text-[10px] font-black tracking-[0.3em]">
                                 <tr>
-                                    <th className="p-6 pl-10">Architect</th>
-                                    <th className="p-6">Target Module</th>
-                                    <th className="p-6">Core Score</th>
-                                    <th className="p-6">Timestamp</th>
-                                    <th className="p-6 text-right pr-10">Erasure</th>
+                                    <th className="p-6 pl-10">User</th>
+                                    <th className="p-6">Quiz</th>
+                                    <th className="p-6">Rating</th>
+                                    <th className="p-6">Date</th>
+                                    <th className="p-6 text-right pr-10">Delete</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">

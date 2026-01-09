@@ -8,11 +8,13 @@ interface QuizResultsProps {
   quiz: Quiz;
   userAnswers: (number | string | number[])[];
   score: number;
+  /* Added points prop to resolve missing property error in App.tsx */
+  points?: number;
   onPlayAgain: () => void;
   onHome: () => void;
 }
 
-export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, score, onPlayAgain, onHome }) => {
+export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, score, points, onPlayAgain, onHome }) => {
   const percentage = Math.round((score / quiz.questions.length) * 100);
   const currentTheme = THEMES[quiz.theme || 'classic'] || THEMES.classic;
 
@@ -75,6 +77,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, sco
           
           <div className="text-2xl sm:text-3xl font-medium bg-black/20 inline-block px-8 py-3 rounded-full backdrop-blur-sm" style={quiz.customTheme ? { color: '#ffffff' } : {}}>
             {score} / {quiz.questions.length} Correct
+            {points !== undefined && <span className="ml-4 text-indigo-400 font-black">+{points} PTS</span>}
           </div>
         </div>
 

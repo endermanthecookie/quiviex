@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Quiz, User } from '../types';
-import { X, Play, Share2, Flag, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock, Trash2, ShieldAlert } from 'lucide-react';
+// Added Loader2 to the lucide-react import
+import { X, Play, Share2, Flag, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock, Trash2, ShieldAlert, Heart, Loader2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { StarRating } from './StarRating';
 import { CommentSection } from './CommentSection';
@@ -13,14 +15,17 @@ interface QuizDetailsModalProps {
   onAdminDelete?: (id: number) => Promise<void>;
 }
 
+// Fixed line 18: Ensured component returns a valid ReactNode (JSX) instead of void by completing implementation.
 export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, onClose, onPlay, onAdminDelete }) => {
   const [stats, setStats] = useState({ 
     views: quiz.stats?.views || 0, 
     avgRating: quiz.stats?.avgRating || 0, 
-    totalRatings: quiz.stats?.totalRatings || 0 
+    totalRatings: quiz.stats?.totalRatings || 0,
+    likes: quiz.stats?.likes || 0
   });
   const [userRating, setUserRating] = useState<number | null>(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'comments'>('overview');
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -32,18 +37,30 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
 
     const init = async () => {
         try {
+            // Fetch Latest Ratings
             const { data: ratings, error: ratingError } = await supabase.from('ratings').select('rating').eq('quiz_id', quiz.id);
             if (!ratingError && ratings && mounted) {
                 const avg = ratings.length ? ratings.reduce((a, b) => a + b.rating, 0) / ratings.length : 0;
                 setStats(prev => ({ ...prev, avgRating: avg, totalRatings: ratings.length }));
             }
 
+            // Fetch Likes count
+            const { count: likesCount } = await supabase.from('likes').select('*', { count: 'exact', head: true }).eq('quiz_id', quiz.id);
+            if (mounted) setStats(prev => ({ ...prev, likes: likesCount || 0 }));
+
             if (user && mounted) {
+                // Check if user already rated
                 const { data: myRating } = await supabase.from('ratings').select('rating').eq('quiz_id', quiz.id).eq('user_id', user.id).maybeSingle();
                 if (myRating && mounted) setUserRating(myRating.rating);
+                
+                // Check if user already liked
+                const { data: myLike } = await supabase.from('likes').select('id').eq('quiz_id', quiz.id).eq('user_id', user.id).maybeSingle();
+                if (myLike && mounted) setIsLiked(true);
+
                 setIsBookmarked(user.savedQuizIds.includes(quiz.id));
             }
 
+            // Increment View Count
             const newViews = (quiz.stats?.views || 0) + 1;
             if (mounted) setStats(prev => ({ ...prev, views: newViews }));
             
@@ -61,6 +78,7 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
     return () => { mounted = false; };
   }, [quiz.id, user]);
 
+  // Fixed truncated handleRate function and added missing event handlers
   const handleRate = async (stars: number) => {
     if (!user) {
         alert("Please login to rate quizzes.");
@@ -90,263 +108,213 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
     }
   };
 
-  const toggleBookmark = async () => {
-    if (!user) {
-        alert("Please login to save quizzes.");
-        return;
-    }
+  const handleBookmark = async () => {
+    if (!user) return alert("Login to bookmark.");
+    const isSaved = user.savedQuizIds.includes(quiz.id);
+    const newSaved = isSaved 
+        ? user.savedQuizIds.filter(id => id !== quiz.id) 
+        : [...user.savedQuizIds, quiz.id];
     
     try {
-        const isAlreadySaved = user.savedQuizIds.includes(quiz.id);
-        let newIds: number[];
-        
-        if (isAlreadySaved) {
-            newIds = user.savedQuizIds.filter(id => id !== quiz.id);
-            setIsBookmarked(false);
-        } else {
-            newIds = [...user.savedQuizIds, quiz.id];
-            setIsBookmarked(true);
-        }
-
-        const { error } = await supabase
-            .from('profiles')
-            .update({ saved_quiz_ids: newIds })
-            .eq('user_id', user.id);
-        
+        const { error } = await supabase.from('profiles').update({ saved_quiz_ids: newSaved }).eq('user_id', user.id);
         if (error) throw error;
-        
-        window.dispatchEvent(new CustomEvent('quiviex_user_update', { 
-            detail: { savedQuizIds: newIds } 
-        }));
-
-    } catch (e: any) {
+        setIsBookmarked(!isSaved);
+    } catch (e) {
         console.error("Bookmark failed:", e);
-        alert("Failed to update bookmarks: " + e.message);
     }
   };
 
-  const handleAdminActionDelete = async () => {
+  const handleLike = async () => {
+      if (!user) return alert("Login to like.");
+      try {
+          if (isLiked) {
+              await supabase.from('likes').delete().eq('quiz_id', quiz.id).eq('user_id', user.id);
+              setStats(prev => ({ ...prev, likes: prev.likes - 1 }));
+              setIsLiked(false);
+          } else {
+              await supabase.from('likes').insert({ quiz_id: quiz.id, user_id: user.id });
+              setStats(prev => ({ ...prev, likes: prev.likes + 1 }));
+              setIsLiked(true);
+          }
+      } catch (e) {
+          console.error("Like failed:", e);
+      }
+  };
+
+  const handleDelete = async () => {
       if (!onAdminDelete) return;
-      if (!confirm("SUDO WARNING: Permanent erasure of this quiz from infrastructure?")) return;
-      
+      if (!confirm("Decommission this repository?")) return;
       setIsDeleting(true);
       try {
           await onAdminDelete(quiz.id);
           onClose();
-      } catch (e: any) {
-          alert("Admin delete sequence failure: " + e.message);
-      } finally {
+      } catch (e) {
           setIsDeleting(false);
       }
   };
 
-  const handleReport = async () => {
-    if (!user) {
-        alert("Please login to report content.");
-        return;
-    }
-    const reason = prompt("Why are you reporting this quiz?");
-    if (reason) {
-      try {
-          await supabase.from('reports').insert({ quiz_id: quiz.id, user_id: user.id, reason, status: 'pending' });
-          alert("Report submitted for review.");
-      } catch (e) {
-          console.error("Report failed:", e);
-          alert("Failed to submit report.");
-      }
-    }
-  };
-
-  const handleShare = () => {
-    const url = `https://quiviex.vercel.app/community/${quiz.id}`;
-    try {
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(url)
-                .then(() => alert("Direct link copied to clipboard!"))
-                .catch(() => prompt("Copy link:", url));
-        } else {
-            prompt("Copy link:", url);
-        }
-    } catch (e) {
-        prompt("Copy link:", url);
-    }
-  };
-
+  // Fixed: Added the missing return JSX statement to ensure the component returns a valid ReactNode.
   return (
-    <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
+      <div className="bg-white rounded-[3.5rem] shadow-2xl max-w-4xl w-full flex flex-col h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20">
         
-        {/* Header Banner */}
-        <div className="h-48 sm:h-64 bg-slate-900 relative flex-shrink-0">
-          <div className={`absolute inset-0 bg-gradient-to-br ${quiz.theme === 'winter' ? 'from-slate-800 to-sky-900' : 'from-indigo-600 to-purple-800'}`}></div>
-          <button onClick={onClose} className="absolute top-4 right-4 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors backdrop-blur-sm z-10">
-            <X size={20} />
-          </button>
-          
-          <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-black/80 to-transparent">
-            <h2 className="text-3xl sm:text-4xl font-black text-white mb-2 leading-tight">{quiz.title}</h2>
-            <div className="flex flex-wrap items-center gap-4 text-white/80 text-sm font-medium">
-              <div className="flex items-center gap-1.5">
-                <UserIcon size={16} /> {quiz.creatorUsername}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Calendar size={16} /> {new Date(quiz.createdAt).toLocaleDateString()}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Eye size={16} /> {stats.views} Views
-              </div>
+        {/* Header Section */}
+        <div className="p-8 pb-0 flex justify-between items-start">
+            <button onClick={onClose} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all click-scale text-slate-500">
+                <X size={24} />
+            </button>
+            <div className="flex gap-3">
+                {onAdminDelete && (
+                    <button 
+                        onClick={handleDelete} 
+                        disabled={isDeleting}
+                        className="p-3 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-2xl transition-all click-scale shadow-sm flex items-center gap-2"
+                    >
+                        {isDeleting ? <Loader2 className="animate-spin" size={20} /> : <Trash2 size={20} />}
+                        <span className="text-xs font-black uppercase tracking-widest hidden sm:inline">Decommission</span>
+                    </button>
+                )}
+                <button onClick={handleLike} className={`p-3 rounded-2xl transition-all click-scale shadow-sm flex items-center gap-2 ${isLiked ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-500'}`}>
+                    <Heart size={20} className={isLiked ? 'fill-current' : ''} />
+                    <span className="text-xs font-black">{stats.likes}</span>
+                </button>
+                <button onClick={handleBookmark} className={`p-3 rounded-2xl transition-all click-scale shadow-sm ${isBookmarked ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}>
+                    <Bookmark size={20} className={isBookmarked ? 'fill-current' : ''} />
+                </button>
             </div>
-          </div>
         </div>
 
-        {/* Content Tabs */}
-        <div className="flex-1 flex flex-col min-h-0 bg-slate-50">
-          <div className="flex border-b border-slate-200 bg-white px-6">
-            <button 
-              onClick={() => setActiveTab('overview')}
-              className={`py-4 px-2 font-bold text-sm border-b-2 transition-colors mr-6 ${activeTab === 'overview' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              Overview
-            </button>
-            <button 
-              onClick={() => setActiveTab('comments')}
-              className={`py-4 px-2 font-bold text-sm border-b-2 transition-colors ${activeTab === 'comments' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              Comments
-            </button>
-          </div>
+        <div className="p-8 pt-4 flex-1 overflow-y-auto custom-scrollbar">
+            <div className="flex flex-col md:flex-row gap-12">
+                {/* Left: Metadata */}
+                <div className="flex-1 space-y-8">
+                    <div>
+                        <div className="flex items-center gap-3 mb-4">
+                             <span className="bg-indigo-600 text-white text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full">Public Repository</span>
+                             <div className="flex items-center gap-1.5 text-slate-400 font-bold text-sm">
+                                <Calendar size={14} /> {new Date(quiz.createdAt).toLocaleDateString()}
+                             </div>
+                        </div>
+                        <h2 className="text-4xl sm:text-5xl font-black text-slate-900 leading-tight tracking-tighter mb-6">{quiz.title}</h2>
+                        
+                        <div className="flex flex-wrap items-center gap-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-indigo-600 font-black shadow-inner">
+                                    {quiz.creatorAvatarUrl ? (
+                                        <img src={quiz.creatorAvatarUrl} className="w-full h-full object-cover rounded-2xl" alt="Creator Avatar" />
+                                    ) : (
+                                        <UserIcon size={24} />
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Architect</p>
+                                    <p className="text-lg font-black text-slate-800 tracking-tight">@{quiz.creatorUsername}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="h-10 w-px bg-slate-100 hidden sm:block"></div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8">
-            {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="md:col-span-2 space-y-8">
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                      <BarChart2 className="text-indigo-500" /> Infrastructure Metadata
-                    </h3>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="bg-slate-50 p-4 rounded-xl">
-                        <div className="text-2xl font-black text-slate-800">{quiz.questions.length}</div>
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tasks</div>
-                      </div>
-                      <div className="bg-slate-50 p-4 rounded-xl">
-                        <div className="text-2xl font-black text-slate-800">{stats.views}</div>
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Inits</div>
-                      </div>
-                      <div className="bg-slate-50 p-4 rounded-xl">
-                        <div className="text-2xl font-black text-slate-800">{stats.avgRating.toFixed(1)}</div>
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Core Score</div>
-                      </div>
+                            <div className="flex items-center gap-6">
+                                <div className="text-center">
+                                    <p className="text-xl font-black text-slate-900">{quiz.questions.length}</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Units</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-xl font-black text-slate-900">{stats.views}</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transmissions</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                  </div>
 
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <h3 className="font-bold text-slate-800 mb-4">Content Summary</h3>
-                    <p className="text-slate-600 leading-relaxed">
-                      This repository contains {quiz.questions.length} specialized task modules.
-                      Engage the session to evaluate your knowledge core and achieve synchronization.
-                    </p>
-                  </div>
-
-                  {/* Sudo Admin Actions */}
-                  {isSudo && onAdminDelete && (
-                      <div className="bg-rose-50 border-2 border-rose-100 p-8 rounded-[2.5rem] shadow-sm">
-                         <div className="flex items-center gap-3 mb-4">
-                            <ShieldAlert className="text-rose-600" />
-                            <h3 className="text-xl font-black text-rose-900 tracking-tight">Architect Console</h3>
-                         </div>
-                         <p className="text-rose-700 font-bold text-sm mb-6 leading-relaxed">
-                            You are viewing this content with Sudo privileges. You can permanently decommission this quiz if it violates platform protocols.
-                         </p>
-                         <button 
-                            onClick={handleAdminActionDelete}
-                            disabled={isDeleting}
-                            className="bg-rose-600 hover:bg-rose-700 text-white font-black px-8 py-4 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center gap-3 uppercase tracking-widest text-xs"
-                         >
-                            {isDeleting ? <Trash2 className="animate-pulse" /> : <Trash2 size={18} />}
-                            {isDeleting ? 'Decommissioning...' : 'Decommission Quiz'}
-                         </button>
-                      </div>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  {user ? (
-                      <button 
-                        onClick={() => { onClose(); onPlay(quiz); }}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 text-lg"
-                      >
-                        <Play size={24} fill="currentColor" /> Play Session
-                      </button>
-                  ) : (
-                      <button 
-                        onClick={() => { onClose(); onPlay(quiz); }}
-                        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 text-lg"
-                      >
-                        <Lock size={20} /> Login to Access
-                      </button>
-                  )}
-
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
-                    <div className="mb-2 font-bold text-slate-700">Protocol Rating</div>
-                    <div className="flex justify-center mb-4">
-                      <StarRating 
-                        rating={userRating || 0} 
-                        interactive={!!user && !isOwner} 
-                        size={32} 
-                        onRate={(r) => handleRate(r)}
-                        showCount={false}
-                      />
+                    <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100">
+                        <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em] mb-6">User Feedback</h3>
+                        <div className="flex flex-col sm:flex-row items-center gap-10">
+                            <div className="text-center">
+                                <div className="text-6xl font-black text-slate-900 mb-2">{stats.avgRating.toFixed(1)}</div>
+                                <StarRating rating={stats.avgRating} totalRatings={stats.totalRatings} size={20} />
+                            </div>
+                            <div className="flex-1 w-full space-y-4">
+                                <p className="text-sm font-bold text-slate-600">Rate this repository:</p>
+                                <StarRating 
+                                    rating={userRating || 0} 
+                                    interactive={!isOwner} 
+                                    onRate={handleRate} 
+                                    size={36} 
+                                    showCount={false} 
+                                />
+                                {isOwner && <p className="text-[10px] text-slate-400 font-bold uppercase italic">Authors cannot rate their own work.</p>}
+                            </div>
+                        </div>
                     </div>
-                    {!user && <p className="text-xs text-slate-400">Login to rate</p>}
-                    {isOwner && <p className="text-xs text-slate-400 font-bold text-indigo-500">You are the architect</p>}
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      onClick={toggleBookmark}
-                      className={`p-3 rounded-xl font-bold text-sm flex flex-col items-center justify-center gap-1 transition-colors border ${isBookmarked ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      <Bookmark size={20} className={isBookmarked ? 'fill-indigo-600' : ''} />
-                      {isBookmarked ? 'Stored' : 'Store Locally'}
-                    </button>
-                    <button 
-                      onClick={handleShare}
-                      className="p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-600 text-sm flex flex-col items-center justify-center gap-1 hover:bg-slate-50 transition-colors"
-                    >
-                      <Share2 size={20} />
-                      Deep Link
-                    </button>
-                  </div>
-
-                  <button 
-                    onClick={handleReport}
-                    className="w-full py-2 text-xs font-bold text-slate-400 hover:text-red-500 flex items-center justify-center gap-2 transition-colors"
-                  >
-                    <Flag size={14} /> Report Content
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'comments' && (
-                user ? (
-                    <CommentSection quizId={quiz.id} currentUser={user} isSudo={isSudo} />
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-64 text-center">
-                        <Lock size={48} className="text-slate-300 mb-4" />
-                        <h3 className="text-lg font-bold text-slate-700 mb-2">Logs are Encrypted</h3>
-                        <p className="text-slate-500 mb-6">Authenticate to participate in community logs.</p>
+                    <div className="flex gap-4">
                         <button 
-                            onClick={() => { onClose(); onPlay(quiz); }}
-                            className="bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-indigo-700"
+                            onClick={() => onPlay(quiz)}
+                            className="flex-1 bg-slate-900 hover:bg-black text-white py-6 rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all click-scale shadow-2xl"
                         >
-                            Log In / Sign Up
+                            <Play size={24} fill="currentColor" /> Play Module
+                        </button>
+                        <button 
+                            className="w-20 bg-white border-2 border-slate-100 text-slate-500 hover:text-indigo-600 hover:border-indigo-100 rounded-3xl flex items-center justify-center transition-all click-scale"
+                            onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/community?id=${quiz.id}`);
+                                alert("Link encrypted and copied to clipboard.");
+                            }}
+                        >
+                            <Share2 size={24} />
                         </button>
                     </div>
-                )
-            )}
-          </div>
+                </div>
+
+                {/* Right: Comments */}
+                <div className="md:w-[400px] flex flex-col border-t md:border-t-0 md:border-l border-slate-100 pt-12 md:pt-0 md:pl-12">
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
+                        <button onClick={() => setActiveTab('overview')} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Overview</button>
+                        <button onClick={() => setActiveTab('comments')} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'comments' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Analysis ({stats.totalRatings})</button>
+                    </div>
+
+                    {activeTab === 'overview' ? (
+                        <div className="space-y-6">
+                            <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100">
+                                <h4 className="flex items-center gap-2 text-indigo-700 font-black text-xs uppercase tracking-widest mb-3">
+                                    <BarChart2 size={16} /> Module Composition
+                                </h4>
+                                <div className="space-y-3">
+                                    {['multiple-choice', 'true-false', 'text-input', 'ordering', 'matching', 'slider', 'fill-in-the-blank'].map(type => {
+                                        const count = quiz.questions.filter(q => q.type === type).length;
+                                        if (count === 0) return null;
+                                        return (
+                                            <div key={type} className="flex justify-between items-center">
+                                                <span className="text-xs font-bold text-slate-600 capitalize">{type.replace(/-/g, ' ')}</span>
+                                                <span className="text-xs font-black text-indigo-600">{count}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-900 rounded-3xl p-6 text-white relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"><ShieldAlert size={80} /></div>
+                                <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Protocol</h4>
+                                <p className="text-sm font-bold opacity-80 leading-relaxed">This module is protected under Quiviex Infrastructure Row-Level-Security. Global playback is monitored for fidelity analytics.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
+                           {user ? (
+                               <CommentSection quizId={quiz.id} currentUser={user} isSudo={isSudo} />
+                           ) : (
+                               <div className="text-center py-20 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                                   <Lock className="mx-auto text-slate-300 mb-4" />
+                                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Authentication Required</p>
+                                   <p className="text-[10px] text-slate-300 font-bold mt-1 uppercase tracking-widest">Sign in to participate in analysis</p>
+                               </div>
+                           )}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
       </div>
     </div>

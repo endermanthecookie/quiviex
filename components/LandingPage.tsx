@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Sparkles, Shield, Zap, Globe, Github, Database, Brain, Rocket, PlayCircle, ChevronLeft, ChevronRight, X, Layers, Cpu, Users, BarChart3, Star, Mail, Loader2, User as UserIcon, Lock, Code } from 'lucide-react';
 import { Logo } from './Logo';
@@ -6,6 +7,7 @@ import { supabase } from '../services/supabase';
 interface LandingPageProps {
   onGetStarted: () => void;
   onExplore: () => void;
+  onJoinGame?: () => void; // New
   onShowLegal?: (type: 'terms' | 'guidelines' | 'privacy') => void;
 }
 
@@ -22,7 +24,7 @@ const FALLBACK_REVIEWS: Testimonial[] = [
     { username: "CreativeMind", review: "I love how I can customize the themes. It makes learning feel personal.", rating: 10 }
 ];
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplore, onShowLegal }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplore, onJoinGame, onShowLegal }) => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [slideIdx, setSlideIdx] = useState(0);
   const [isLoadingTestimonials, setIsLoadingTestimonials] = useState(true);
@@ -87,8 +89,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
           
           <div className="hidden lg:flex items-center gap-12">
             <button onClick={onExplore} className="text-[11px] font-black text-slate-400 hover:text-purple-400 transition-colors uppercase tracking-[0.3em]">Explore</button>
+            <button onClick={onJoinGame} className="text-[11px] font-black text-slate-400 hover:text-purple-400 transition-colors uppercase tracking-[0.3em] flex items-center gap-2"><Zap size={14} className="text-yellow-400" /> Join Game</button>
             <button className="text-[11px] font-black text-slate-400 hover:text-purple-400 transition-colors uppercase tracking-[0.3em]">Features</button>
-            <button className="text-[11px] font-black text-slate-400 hover:text-purple-400 transition-colors uppercase tracking-[0.3em]">Community</button>
           </div>
 
           <div className="flex items-center gap-6">
@@ -119,8 +121,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
             <button onClick={onGetStarted} className="w-full sm:w-auto bg-white text-slate-950 px-16 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(255,255,255,0.15)] hover:bg-purple-50 transition-all flex items-center justify-center gap-4 group click-scale">
               Start Creating <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
             </button>
-            <button onClick={onExplore} className="w-full sm:w-auto bg-slate-950/40 backdrop-blur-2xl border border-white/10 text-white px-16 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest hover:bg-white/5 transition-all flex items-center justify-center gap-4 click-scale">
-              <Globe size={24} className="text-purple-400" /> Explore Quizzes
+            <button onClick={onJoinGame} className="w-full sm:w-auto bg-indigo-600 text-white px-16 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(99,102,241,0.2)] hover:bg-indigo-700 transition-all flex items-center justify-center gap-4 click-scale">
+              <Zap size={24} className="text-yellow-400" /> Join with PIN
             </button>
           </div>
 

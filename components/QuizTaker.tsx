@@ -1,11 +1,15 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Quiz, Question } from '../types';
+import { Quiz, Question, Room, User } from '../types';
 import { Logo } from './Logo';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Users, Trophy } from 'lucide-react';
+import { supabase } from '../services/supabase';
 
 interface QuizTakerProps {
   quiz: Quiz;
-  onComplete: (answers: (number | string | number[])[], score: number) => void;
+  room?: Room;
+  user?: User;
+  onComplete: (answers: (number | string | number[])[], score: number, totalPoints: number) => void;
   onExit: () => void;
 }
 
@@ -13,22 +17,25 @@ interface ShuffledQuestion extends Question {
     originalIndex: number;
 }
 
-export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onExit }) => {
+export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComplete, onExit }) => {
   const [shuffledQuestions, setShuffledQuestions] = useState<ShuffledQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const userAnswersRef = useRef<(number | string | number[])[]>([]);
   const [timeLeft, setTimeLeft] = useState<number>(20);
   const [timerActive, setTimerActive] = useState(false);
-  const [textInput, setTextInput] = useState('');
   const [showExplanation, setShowExplanation] = useState(false);
   const [isCorrectFeedback, setIsCorrectFeedback] = useState<boolean | null>(null);
+  const [sessionPoints, setSessionPoints] = useState(0);
   const [streak, setStreak] = useState(0);
   const [startCountdown, setStartCountdown] = useState(3);
+  const [roomLeaderboard, setRoomLeaderboard] = useState<any[]>([]);
+  
+  const startTimeRef = useRef<number>(0);
   const bgMusicRef = useRef<any>(null);
 
   useEffect(() => {
     let q: ShuffledQuestion[] = quiz.questions.map((qs, idx) => ({ ...qs, originalIndex: idx }));
-    if (quiz.shuffleQuestions) {
+    if (quiz.shuffleQuestions && !room) { // Shuffling handled by room logic in MP
         for (let i = q.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [q[i], q[j]] = [q[j], q[i]];
@@ -36,59 +43,74 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onExit }
     }
     setShuffledQuestions(q);
     initializeQuestionState(q[0]);
-  }, [quiz]);
+  }, [quiz, room]);
 
   const initializeQuestionState = (q: Question) => {
       if (!q) return;
       setTimeLeft(q.timeLimit || 20);
-      setTextInput('');
+      startTimeRef.current = Date.now();
   };
 
   useEffect(() => {
-    if (quiz.backgroundMusic) {
-        const audio = new (window as any).Audio(quiz.backgroundMusic);
-        audio.loop = true;
-        audio.volume = 0.3;
-        bgMusicRef.current = audio;
-        audio.play().catch(() => {});
-    }
-    return () => { if (bgMusicRef.current) (bgMusicRef.current as any).pause(); };
-  }, [quiz.backgroundMusic]);
-
-  useEffect(() => {
     if (startCountdown > 0) {
-        const timer = (window as any).setInterval(() => {
+        const timer = window.setInterval(() => {
             setStartCountdown((prev: number) => {
-               if (prev <= 1) { (window as any).clearInterval(timer); setTimerActive(true); return 0; } 
+               if (prev <= 1) { window.clearInterval(timer); setTimerActive(true); return 0; } 
                return prev - 1;
             });
         }, 1000);
-        return () => (window as any).clearInterval(timer);
+        return () => window.clearInterval(timer);
     }
   }, [startCountdown]);
 
   useEffect(() => {
     if (!timerActive || timeLeft === null || showExplanation) return;
     if (timeLeft <= 0) { submitAnswer(-1); return; }
-    const timer = (window as any).setInterval(() => {
+    const timer = window.setInterval(() => {
       setTimeLeft(p => p - 1);
     }, 1000);
-    return () => (window as any).clearInterval(timer);
+    return () => window.clearInterval(timer);
   }, [timeLeft, timerActive, showExplanation]);
 
-  const submitAnswer = (answer: any) => {
+  const calculatePoints = (isCorrect: boolean, timeTakenSeconds: number, timeLimit: number) => {
+      if (!isCorrect) return 0;
+      // Bonus logic: < 1s = 500pts. 
+      if (timeTakenSeconds <= 1) return 500;
+      // Decay from 500 to 100
+      const remainingRatio = Math.max(0, (timeLimit - timeTakenSeconds) / (timeLimit - 1));
+      return Math.floor(100 + (400 * remainingRatio));
+  };
+
+  const submitAnswer = async (answer: any) => {
     setTimerActive(false);
+    const timeTaken = (Date.now() - startTimeRef.current) / 1000;
+    
     let isCorrect = false;
     if (answer !== -1) {
         isCorrect = checkAnswerIsCorrect(currentQuestion, answer);
-        setStreak(prev => isCorrect ? prev + 1 : 0);
-    } else {
-        setStreak(0);
     }
+    
+    const pointsGained = calculatePoints(isCorrect, timeTaken, currentQuestion.timeLimit);
+    setSessionPoints(prev => prev + pointsGained);
+    setStreak(prev => isCorrect ? prev + 1 : 0);
     setIsCorrectFeedback(isCorrect);
+    
     const newAnswers = [...userAnswersRef.current];
     newAnswers[currentQuestionIndex] = answer;
     userAnswersRef.current = newAnswers;
+
+    if (room) {
+        // Sync score to room participant list
+        const { data: participants } = await supabase.from('room_participants').select('*').eq('room_id', room.id);
+        const me = participants?.find(p => p.user_id === user?.id);
+        if (me) {
+            await supabase.from('room_participants').update({ score: me.score + pointsGained }).eq('id', me.id);
+        }
+        // Fetch latest rankings for MP leaderboard overlay
+        const { data: updated } = await supabase.from('room_participants').select('username, score').eq('room_id', room.id).order('score', { ascending: false });
+        setRoomLeaderboard(updated || []);
+    }
+
     setShowExplanation(true);
   };
 
@@ -105,11 +127,11 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onExit }
         userAnswersRef.current.forEach((ans, idx) => {
             finalAnswers[shuffledQuestions[idx].originalIndex] = ans;
         });
-        onComplete(finalAnswers, calculateScore(finalAnswers));
+        const finalScore = quiz.questions.reduce((acc, q, i) => acc + (checkAnswerIsCorrect(q, finalAnswers[i]) ? 1 : 0), 0);
+        onComplete(finalAnswers, finalScore, sessionPoints);
       }
   };
 
-  const calculateScore = (ans: any[]) => quiz.questions.reduce((acc, q, i) => acc + (checkAnswerIsCorrect(q, ans[i]) ? 1 : 0), 0);
   const checkAnswerIsCorrect = (q: any, a: any) => {
     if (q.type === 'text-input') return typeof a === 'string' && a.toLowerCase().trim() === (q.correctAnswer as string).toLowerCase().trim();
     return a === q.correctAnswer;
@@ -121,70 +143,79 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onExit }
   if (!currentQuestion) return null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden transition-all duration-1000">
-      {/* Countdown Overlay */}
-      {startCountdown > 0 && (
-          <div className="absolute inset-0 z-50 glass flex flex-col items-center justify-center animate-in fade-in duration-500">
-             <div className="text-[12rem] font-black text-white animate-bounce drop-shadow-[0_0_80px_rgba(168,85,247,0.8)] tracking-tighter">{startCountdown}</div>
-             <p className="text-lg font-black text-purple-400 mt-8 tracking-[1.5em] uppercase animate-pulse">Establishing Session</p>
-          </div>
-      )}
-
-      {/* Feedback Overlay */}
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden">
+      {/* Countdown & Feedback as before */}
       {showExplanation && (
-          <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
-              <div className="bg-white/5 border border-white/10 rounded-[3.5rem] p-12 max-w-xl w-full text-center shadow-2xl">
-                  <div className="mb-10">
-                      {isCorrectFeedback ? (
-                          <div className="text-emerald-400 font-black text-7xl animate-pulse tracking-tighter flex flex-col items-center gap-4">
-                             <CheckCircle2 size={100} /> CORRECT
-                          </div>
-                      ) : (
-                          <div className="text-rose-500 font-black text-7xl tracking-tighter flex flex-col items-center gap-4">
-                             <AlertCircle size={100} /> INCORRECT
-                          </div>
-                      )}
+          <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
+              <div className="max-w-2xl w-full text-center stagger-in">
+                  <div className={`mb-6 text-7xl font-black tracking-tighter ${isCorrectFeedback ? 'text-emerald-400' : 'text-rose-500'}`}>
+                      {isCorrectFeedback ? 'ACCURATE' : 'DEVIATION'}
                   </div>
-                  <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-6 rounded-2xl text-2xl click-scale uppercase tracking-tighter shadow-xl">
-                    Next Question
+                  
+                  {room && roomLeaderboard.length > 0 && (
+                      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-10">
+                          <h4 className="text-indigo-400 font-black uppercase text-xs tracking-widest mb-6 flex items-center justify-center gap-2">
+                             <Trophy size={16} /> Session Ranking
+                          </h4>
+                          <div className="space-y-3">
+                             {roomLeaderboard.slice(0, 5).map((p, i) => (
+                                 <div key={i} className="flex items-center justify-between px-6 py-3 bg-white/5 rounded-xl border border-white/5">
+                                     <div className="flex items-center gap-4">
+                                         <span className="text-slate-500 font-black text-xs">#{i+1}</span>
+                                         <span className="font-bold">@{p.username}</span>
+                                     </div>
+                                     <span className="font-black text-indigo-400">{p.score}</span>
+                                 </div>
+                             ))}
+                          </div>
+                      </div>
+                  )}
+
+                  <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-6 rounded-3xl text-2xl click-scale uppercase shadow-xl">
+                    Sync Next Module
                   </button>
               </div>
           </div>
       )}
 
-      <div className={`flex flex-col h-full transition-all duration-1000 ${startCountdown > 0 ? 'scale-110 opacity-0 blur-3xl' : 'scale-100 opacity-100 blur-0'}`}>
+      <div className={`flex flex-col h-full ${startCountdown > 0 ? 'opacity-0 blur-xl' : 'opacity-100 blur-0'}`}>
         <header className="glass px-8 py-5 flex items-center justify-between border-b border-white/5 z-40">
             <div className="flex items-center gap-3">
                 <Logo variant="small" className="shadow-lg" />
-                <div className="text-lg font-black tracking-tighter">QUIVIEX <span className="text-purple-400 italic">#{currentQuestionIndex+1}</span></div>
+                <div className="text-lg font-black tracking-tighter">PHASE <span className="text-indigo-400 italic">{currentQuestionIndex+1}</span></div>
             </div>
-            {streak > 1 && <div className="bg-purple-500/20 px-6 py-2 rounded-full border border-purple-500/30 text-2xl font-black italic tracking-widest text-purple-400 animate-in zoom-in">{streak}X STREAK</div>}
-            <button onClick={onExit} className="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white px-6 py-2.5 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all click-scale border border-rose-500/20">Exit Session</button>
+            <div className="flex items-center gap-6">
+                <div className="text-right">
+                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Fidelity</div>
+                    <div className="text-xl font-black text-indigo-400 tracking-tight">{sessionPoints} PTS</div>
+                </div>
+                {room && (
+                    <div className="flex items-center gap-2 bg-indigo-500/10 px-4 py-2 rounded-xl border border-indigo-500/20">
+                        <Users size={16} className="text-indigo-400" />
+                        <span className="text-xs font-black">MP ACTIVE</span>
+                    </div>
+                )}
+            </div>
         </header>
 
-        {/* Background Timer Bar */}
         <div className="absolute top-0 left-0 w-full h-2 z-30">
-            <div className={`h-full absolute left-0 transition-all duration-1000 ease-linear ${timeLeft <= 5 ? 'bg-rose-500 shadow-[0_0_30px_rgba(244,63,94,1)]' : 'bg-purple-500'}`} style={{ width: `${timePercentage}%` }} />
+            <div className={`h-full absolute left-0 transition-all duration-1000 ease-linear ${timeLeft <= 5 ? 'bg-rose-500 shadow-[0_0_30px_rgba(244,63,94,1)]' : 'bg-indigo-500'}`} style={{ width: `${timePercentage}%` }} />
         </div>
 
-        <main className="flex-1 flex flex-col justify-center px-6 py-12 sm:p-24 overflow-y-auto custom-scrollbar relative z-40">
+        <main className="flex-1 flex flex-col justify-center px-6 py-12 sm:p-24 relative z-40">
             <div className="max-w-4xl mx-auto w-full text-center">
-                {/* Timer Clock */}
-                <div className={`text-7xl font-black mb-12 tabular-nums drop-shadow-lg ${timeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-slate-300'}`}>
+                <div className={`text-7xl font-black mb-12 tabular-nums ${timeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-slate-300'}`}>
                   {timeLeft}
                 </div>
                 
-                {/* Question Layer - Ensures it's above the timer background visually */}
-                <div className="relative z-50">
-                   <h2 className="text-4xl sm:text-6xl font-black mb-16 leading-tight tracking-tight animate-in slide-in-from-bottom-8 duration-700 bg-clip-text">
-                     {currentQuestion.question}
-                   </h2>
-                </div>
+                <h2 className="text-4xl sm:text-6xl font-black mb-16 leading-tight tracking-tight animate-in slide-in-from-bottom-8 duration-700">
+                  {currentQuestion.question}
+                </h2>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 stagger-in">
                     {currentQuestion.options.map((opt, i) => (
                         <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className="glass p-10 rounded-[2.5rem] text-2xl font-black text-left flex items-center gap-8 group click-scale border border-white/5 hover:bg-white/10 transition-all">
-                            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-3xl font-black italic text-white/20 group-hover:text-purple-400 group-hover:bg-purple-500/20 transition-all">{i+1}</div>
+                            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-3xl font-black italic text-white/20 group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all">{i+1}</div>
                             <span className="flex-1">{opt}</span>
                         </button>
                     ))}

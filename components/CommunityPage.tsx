@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Quiz, User } from '../types';
-import { ArrowLeft, Search, Globe, Trash2, User as UserIcon, Star, Filter, TrendingUp, Clock, ArrowDown, Eye, CheckCircle2, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Search, Globe, Trash2, User as UserIcon, Star, Filter, TrendingUp, Clock, ArrowDown, Eye, CheckCircle2, PlusCircle, Heart } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { QuizDetailsModal } from './QuizDetailsModal';
 import { THEMES } from '../constants';
@@ -103,6 +104,8 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
              }
           } catch(e) {}
 
+          const { count: likesCount } = await supabase.from('likes').select('*', { count: 'exact', head: true }).eq('quiz_id', id);
+
           const mappedQuiz: Quiz = {
             id: q.id,
             userId: q.user_id,
@@ -120,7 +123,8 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                 views: q.views || 0,
                 plays: 0,
                 avgRating: avg,
-                totalRatings: count
+                totalRatings: count,
+                likes: likesCount || 0
             }
           };
 
@@ -179,6 +183,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
 
         const quizIds = (quizzesData || []).map((q: any) => q.id).filter((id: any) => typeof id === 'number');
         let ratingsMap: Record<number, { avg: number, count: number, sum: number }> = {};
+        let likesMap: Record<number, number> = {};
         
         if (quizIds.length > 0) {
             try {
@@ -190,6 +195,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                         entry.sum += r.rating;
                         entry.count += 1;
                         entry.avg = entry.sum / entry.count;
+                    });
+                }
+
+                const { data: likes, error: likesError } = await supabase.from('likes').select('quiz_id').in('quiz_id', quizIds);
+                if (!likesError && likes) {
+                    likes.forEach((l: any) => {
+                        likesMap[l.quiz_id] = (likesMap[l.quiz_id] || 0) + 1;
                     });
                 }
             } catch (err) {}
@@ -214,7 +226,8 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                     views: q.views || 0,
                     plays: 0, 
                     avgRating: ratingsMap[q.id]?.avg || 0,
-                    totalRatings: ratingsMap[q.id]?.count || 0
+                    totalRatings: ratingsMap[q.id]?.count || 0,
+                    likes: likesMap[q.id] || 0
                 }
             };
         });
@@ -232,14 +245,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
   };
 
   const handleAdminDelete = async (id: number) => {
-      // confirm dialog logic handled in modal or button
       try {
           const { error } = await supabase.from('quizzes').delete().eq('id', id);
           if (error) throw error;
           setQuizzes(prev => prev.filter(q => q.id !== id));
       } catch (e: any) {
           (window as any).console.error("Admin Decommission Sequence Fault:", e);
-          throw e; // Pass up to the caller
+          throw e; 
       }
   };
 
@@ -260,7 +272,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
 
   return (
     <div 
-        className="min-h-screen bg-[#f1f5f9]" 
+        className="min-h-screen bg-[#f1f5f9] view-transition" 
         onTouchStart={handleTouchStart} 
         onTouchMove={handleTouchMove} 
         onTouchEnd={handleTouchEnd}
@@ -280,17 +292,17 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
       )}
 
       <div 
-        className="fixed top-20 left-0 right-0 flex justify-center pointer-events-none transition-transform duration-200 z-50"
+        className="fixed top-20 left-0 right-0 flex justify-center pointer-events-none transition-transform duration-300 z-50"
         style={{ transform: `translateY(${pullY - 60}px)` }}
       >
           <div className="bg-white rounded-full p-2 shadow-lg border border-slate-200">
-              <ArrowDown size={24} className={`text-slate-600 ${pullY > 60 ? 'rotate-180 transition-transform' : ''}`} />
+              <ArrowDown size={24} className={`text-slate-600 transition-transform duration-300 ${pullY > 60 ? 'rotate-180' : ''}`} />
           </div>
       </div>
 
-      <header className="glass backdrop-blur-md border-b border-white/40 sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
+      <header className="glass backdrop-blur-md border-b border-white/40 sticky top-0 z-40 px-6 py-4 flex items-center justify-between animate-in slide-in-from-top duration-500">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+          <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-full transition-colors click-scale">
             <ArrowLeft size={24} className="text-slate-800" />
           </button>
           <div className="flex items-center gap-2">
@@ -325,7 +337,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
           {isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                   {[...Array(6)].map((_, i) => (
-                      <div key={i} className="glass rounded-[3rem] h-72 animate-pulse"></div>
+                      <div key={i} className="glass rounded-[3rem] h-72 animate-pulse shimmer"></div>
                   ))}
               </div>
           ) : filteredQuizzes.length === 0 ? (
@@ -343,15 +355,14 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                   </button>
               </div>
           ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 stagger-in pb-20">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 stagger-in pb-20" key={sortBy}>
                   {filteredQuizzes.map((quiz, idx) => (
                       <div 
                         key={quiz.id} 
                         onClick={() => handleOpenQuiz(quiz)}
-                        className="group bg-white rounded-[3rem] p-7 hover:shadow-2xl transition-all duration-500 flex flex-col relative animate-in zoom-in-95 fade-in border border-slate-100/50"
-                        style={{ animationDelay: `${(idx % 10) * 100}ms` }}
+                        className="group bg-white rounded-[3rem] p-7 hover:shadow-2xl transition-all duration-500 flex flex-col relative border border-slate-100/50 hover-lift"
                       >
-                          <div className={`h-44 rounded-[2rem] bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-8 p-7 flex flex-col justify-between overflow-hidden relative shadow-lg`}>
+                          <div className={`h-44 rounded-[2rem] bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-8 p-7 flex flex-col justify-between overflow-hidden relative shadow-lg transition-all duration-500 group-hover:shadow-indigo-100`}>
                                 <div className="flex justify-between items-start z-10">
                                     <div className="bg-black/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/10">
                                         {quiz.questions.length} Units
@@ -362,20 +373,20 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                                                 e.stopPropagation(); 
                                                 if(confirm("Sudo: Decommission repository?")) handleAdminDelete(quiz.id); 
                                             }}
-                                            className="p-2.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-colors shadow-lg"
+                                            className="p-2.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all click-scale shadow-lg"
                                         >
                                             <Trash2 size={16} />
                                         </button>
                                     )}
                                 </div>
-                                <h3 className="text-2xl font-black text-white drop-shadow-md line-clamp-2 leading-tight relative z-10">
+                                <h3 className="text-2xl font-black text-white drop-shadow-md line-clamp-2 leading-tight relative z-10 transition-transform group-hover:translate-x-1">
                                     {quiz.title}
                                 </h3>
-                                <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-4 -translate-y-4"><Globe size={160} /></div>
+                                <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-4 -translate-y-4 transition-transform duration-700 group-hover:scale-125"><Globe size={160} /></div>
                           </div>
                           
-                          <div className="flex items-center gap-4 mb-8 px-2">
-                              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden bg-indigo-50 border border-indigo-100">
+                          <div className="flex items-center gap-4 mb-8 px-2 transition-opacity group-hover:opacity-100">
+                              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden bg-indigo-50 border border-indigo-100 transition-transform group-hover:scale-110">
                                   {quiz.creatorAvatarUrl ? (
                                       <img src={quiz.creatorAvatarUrl} alt={quiz.creatorUsername} className="w-full h-full object-cover" />
                                   ) : (
@@ -388,12 +399,15 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                               </div>
                           </div>
 
-                          <div className="mt-auto grid grid-cols-2 gap-4 border-t border-slate-50 pt-8 px-2">
-                              <div className="flex items-center gap-2.5 text-slate-400 font-black text-xs uppercase tracking-widest">
-                                  <Eye size={18} /> {quiz.stats?.views || 0}
+                          <div className="mt-auto grid grid-cols-3 gap-4 border-t border-slate-50 pt-8 px-2">
+                              <div className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest group-hover:text-indigo-400 transition-colors">
+                                  <Eye size={14} /> {quiz.stats?.views || 0}
                               </div>
-                              <div className="flex items-center gap-1.5 justify-end text-yellow-500 font-black text-sm">
-                                  <Star size={18} className="fill-current" /> {(quiz.stats?.avgRating || 0).toFixed(1)}
+                              <div className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest group-hover:text-rose-400 transition-colors">
+                                  <Heart size={14} /> {quiz.stats?.likes || 0}
+                              </div>
+                              <div className="flex items-center gap-1 justify-end text-yellow-500 font-black text-sm">
+                                  <Star size={16} className="fill-current group-hover:rotate-12 transition-transform" /> {(quiz.stats?.avgRating || 0).toFixed(1)}
                               </div>
                           </div>
                       </div>
