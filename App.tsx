@@ -24,7 +24,6 @@ import { FeedbackModal } from './components/FeedbackModal';
 import { LegalModal } from './components/LegalModal';
 import { exportQuizToQZX, exportAllQuizzesToZip } from './services/exportService';
 import { supabase, checkSupabaseConnection } from './services/supabase';
-import { Analytics } from "@vercel/analytics/react";
 
 type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin' | 'onboarding' | 'not_found';
 
@@ -237,7 +236,6 @@ export default function App() {
   const theme = (user && THEMES[user?.preferences?.appTheme || 'light']) || THEMES.light;
   return (
     <div className={`min-h-screen transition-all duration-500 bg-gradient-to-br ${theme.gradient} ${theme.text}`}>
-        <Analytics />
         <NotificationToast title={notification?.title || ''} message={notification?.message || ''} isVisible={showNotification} onClose={() => setShowNotification(false)} />
         {showFeedbackModal && user && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} onSubmit={async (f) => {}} />}
         {activeLegalModal && <LegalModal type={activeLegalModal} onClose={() => setActiveLegalModal(null)} />}
