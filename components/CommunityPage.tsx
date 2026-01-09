@@ -77,11 +77,11 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
           if (!q) return;
 
           if (q.visibility === 'private' && q.user_id !== user?.id && !isSudo) {
-              (window as any).alert("This quiz is private.");
+              (window as any).alert("Access Denied: Private Repository.");
               return;
           }
 
-          let username = 'Unknown User';
+          let username = 'Unknown Architect';
           let avatarUrl = undefined;
           try {
              if (q.user_id) {
@@ -128,7 +128,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
           (window as any).history.pushState(null, '', `/community/${id}`);
 
       } catch (e) {
-          (window as any).console.error("Failed to load deep linked quiz", e);
+          (window as any).console.error("Deep link load fault:", e);
       }
   };
 
@@ -200,7 +200,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
             return {
                 id: q.id,
                 userId: q.user_id,
-                title: q.title || 'Untitled',
+                title: q.title || 'Untitled Session',
                 questions: Array.isArray(q.questions) ? q.questions : [],
                 createdAt: q.created_at,
                 theme: q.theme,
@@ -208,7 +208,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                 shuffleQuestions: q.shuffle_questions,
                 backgroundMusic: q.background_music,
                 visibility: q.visibility || 'public',
-                creatorUsername: userProfile?.username || 'Unknown User',
+                creatorUsername: userProfile?.username || 'Unknown Architect',
                 creatorAvatarUrl: userProfile?.avatarUrl,
                 stats: {
                     views: q.views || 0,
@@ -225,20 +225,21 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
 
         setQuizzes(mappedQuizzes);
     } catch (error: any) {
-        (window as any).console.error("Error fetching community quizzes:", error.message || error);
+        (window as any).console.error("Infrastructure fetch fault:", error.message || error);
     } finally {
         setIsLoading(false);
     }
   };
 
   const handleAdminDelete = async (id: number) => {
-      if(!(window as any).confirm("Admin: Are you sure you want to delete this quiz?")) return;
+      // confirm dialog logic handled in modal or button
       try {
           const { error } = await supabase.from('quizzes').delete().eq('id', id);
           if (error) throw error;
           setQuizzes(prev => prev.filter(q => q.id !== id));
       } catch (e: any) {
-          (window as any).console.error("Delete failed:", e);
+          (window as any).console.error("Admin Decommission Sequence Fault:", e);
+          throw e; // Pass up to the caller
       }
   };
 
@@ -274,6 +275,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                 handleCloseQuiz();
                 onPlayQuiz(q);
             }}
+            onAdminDelete={isSudo ? handleAdminDelete : undefined}
         />
       )}
 
@@ -293,7 +295,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
           </button>
           <div className="flex items-center gap-2">
             <Globe className="text-indigo-600" size={24} />
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">Community Library</h1>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">Global Repositories</h1>
           </div>
         </div>
         
@@ -317,7 +319,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
       <div className="max-w-7xl mx-auto p-6 sm:p-10">
           <div className="mb-10 flex items-center gap-3 stagger-in">
               <CheckCircle2 size={16} className="text-emerald-500" />
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.25em]">Authenticated Quiviex Global Repositories</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.25em]">Authenticated Quiviex Global Library</p>
           </div>
 
           {isLoading ? (
@@ -331,13 +333,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                   <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                       <Globe size={48} className="text-slate-200" />
                   </div>
-                  <h3 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">No Quizzes Found</h3>
-                  <p className="text-slate-500 font-bold text-lg mb-10 leading-relaxed">The library is empty. Be the first to create a public masterpiece and share it with the world!</p>
+                  <h3 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Library Empty</h3>
+                  <p className="text-slate-500 font-bold text-lg mb-10 leading-relaxed">No synchronization targets found. Be the first to initialize a public repository!</p>
                   <button 
                     onClick={onBack}
                     className="inline-flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest hover:bg-black transition-all shadow-2xl active:scale-95"
                   >
-                      <PlusCircle size={20} /> Make One Now
+                      <PlusCircle size={20} /> Create Module
                   </button>
               </div>
           ) : (
@@ -352,11 +354,14 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                           <div className={`h-44 rounded-[2rem] bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-8 p-7 flex flex-col justify-between overflow-hidden relative shadow-lg`}>
                                 <div className="flex justify-between items-start z-10">
                                     <div className="bg-black/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/10">
-                                        {quiz.questions.length} Items
+                                        {quiz.questions.length} Units
                                     </div>
                                     {isSudo && (
                                         <button 
-                                            onClick={(e) => { e.stopPropagation(); handleAdminDelete(quiz.id); }}
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                if(confirm("Sudo: Decommission repository?")) handleAdminDelete(quiz.id); 
+                                            }}
                                             className="p-2.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-colors shadow-lg"
                                         >
                                             <Trash2 size={16} />

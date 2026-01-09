@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare } from 'lucide-react';
+import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert } from 'lucide-react';
 import { Quiz, User as UserType } from '../types';
 import { Logo } from './Logo';
 
@@ -22,6 +22,7 @@ interface QuizHomeProps {
   onViewCommunity: () => void;
   onViewTutorial?: () => void;
   onOpenFeedback: () => void;
+  onViewAdmin?: () => void;
 }
 
 export const QuizHome: React.FC<QuizHomeProps> = ({
@@ -40,13 +41,16 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
   onExportQuiz,
   onViewCommunity,
   onViewTutorial,
-  onOpenFeedback
+  onOpenFeedback,
+  onViewAdmin
 }) => {
   const [activeTab, setActiveTab] = useState<'my' | 'saved'>('my');
   const [searchQuery, setSearchQuery] = useState('');
 
   const displayedQuizzes = (activeTab === 'my' ? quizzes : savedQuizzes)
     .filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const isSudo = user.email === 'sudo@quiviex.com';
 
   return (
     <div className="min-h-screen pb-20 animate-in fade-in duration-700 bg-[#f1f5f9]">
@@ -60,6 +64,12 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
         </div>
         
         <div className="flex items-center gap-3">
+          {isSudo && onViewAdmin && (
+              <button onClick={onViewAdmin} title="Sudo Mode" className="p-3 bg-slate-900 text-white hover:bg-black rounded-2xl transition-all shadow-lg click-scale flex items-center gap-2 px-5">
+                  <ShieldAlert size={20} className="text-red-400" />
+                  <span className="text-xs font-black uppercase tracking-widest">Sudo Panel</span>
+              </button>
+          )}
           <div className="hidden sm:flex items-center gap-2 bg-white/60 border border-white/30 px-3 py-2 rounded-2xl shadow-sm backdrop-blur-sm">
             {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.username} className="w-6 h-6 rounded-full object-cover border border-slate-200" />
@@ -78,9 +88,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* Adjusted Grid for better responsiveness */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-16 stagger-in">
-          {/* Hero Tile */}
           <button onClick={onCreateNew} className="lg:col-span-4 bg-gradient-to-br from-purple-500 to-indigo-600 p-8 sm:p-10 rounded-[3.5rem] text-white flex flex-col justify-between group click-scale shadow-2xl min-h-[320px] relative overflow-hidden">
              <div className="flex items-start justify-between z-10">
                 <PlusCircle size={36} className="text-white/80" />
@@ -137,8 +145,9 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
             <div key={quiz.id} className="group bg-white rounded-[3rem] p-8 hover:shadow-2xl transition-all duration-500 flex flex-col relative animate-in zoom-in-95 border border-slate-100" style={{ animationDelay: `${(idx % 10) * 100}ms` }}>
                 <div className={`h-52 rounded-[2.5rem] bg-gradient-to-br from-indigo-500 to-purple-600 mb-10 p-8 flex flex-col justify-between overflow-hidden relative shadow-lg`}>
                     <div className="absolute top-0 right-0 p-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 z-20">
-                       <button onClick={(e) => { e.stopPropagation(); onExportQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40"><Download size={18} /></button>
-                       <button onClick={(e) => { e.stopPropagation(); onDeleteQuiz(quiz.id); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-rose-500"><Trash2 size={18} /></button>
+                       <button onClick={(e) => { e.stopPropagation(); onEditQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40" title="Edit Quiz"><Edit2 size={18} /></button>
+                       <button onClick={(e) => { e.stopPropagation(); onExportQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40" title="Download QZX"><Download size={18} /></button>
+                       <button onClick={(e) => { e.stopPropagation(); onDeleteQuiz(quiz.id); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-rose-500" title="Delete"><Trash2 size={18} /></button>
                     </div>
                     <div className="bg-black/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full w-fit border border-white/10">
                         {quiz.questions.length} QUESTIONS

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon } from 'lucide-react';
 import { Quiz, Question, QuestionType, User, CustomTheme, QuizVisibility } from '../types';
 import { COLORS, TUTORIAL_STEPS, THEMES, BANNED_WORDS } from '../constants';
 import { TutorialWidget } from './TutorialWidget';
@@ -67,7 +67,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   const [showTokenHelpModal, setShowTokenHelpModal] = useState(false);
   const [showSaveOptionsModal, setShowSaveOptionsModal] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
-  const [showModerationAlert, setShowModerationAlert] = useState<{detected: string[], warningsRemaining: number} | null>(null);
+  const [showModerationAlert, setShowModerationAlert] = useState<{detected: string[], warningsRemaining: number, isSudo: boolean} | null>(null);
 
   const [isPreviewing, setIsPreviewing] = useState(false);
 
@@ -93,8 +93,22 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       if (!text) return [];
       const normalized = text.toLowerCase();
       return BANNED_WORDS.filter(word => {
-          const regex = new RegExp(`\\b${word}\\b`, 'i');
-          return regex.test(normalized);
+          if (!word) return false;
+          try {
+              // Robustly escape all regex special characters in the banned word
+              const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              
+              // Only use word boundaries if the word is purely alphanumeric
+              const isAlphaNumeric = /^[a-z0-9]+$/i.test(word);
+              const regex = isAlphaNumeric 
+                  ? new RegExp(`\\b${escapedWord}\\b`, 'i') 
+                  : new RegExp(escapedWord, 'i');
+              
+              return regex.test(normalized);
+          } catch (e) {
+              // Fallback to simple containment if regex fails for some reason
+              return normalized.includes(word.toLowerCase());
+          }
       });
   };
 
@@ -110,23 +124,26 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
 
       if (detected.size > 0) {
           const detectedList = Array.from(detected);
+          const isSudo = currentUser.email === 'sudo@quiviex.com';
           
-          // 1. Fetch current warning count
+          // 1. Fetch current warning count from database
           const { data: profile } = await supabase.from('profiles').select('warnings').eq('user_id', currentUser.id).single();
           const currentWarnings = (profile?.warnings || 0) + 1;
 
-          // 2. Handle Ban logic
-          if (currentWarnings >= 3) {
+          // 2. Handle Final Ban logic - SUDO IS EXEMPT FROM BAN
+          if (currentWarnings >= 3 && !isSudo) {
               await triggerNuclearBan();
               return false;
           }
 
-          // 3. Increment warnings in DB
+          // 3. Update DB strike count
           await supabase.from('profiles').update({ warnings: currentWarnings }).eq('user_id', currentUser.id);
           
+          // 4. Trigger popup and block save (return false)
           setShowModerationAlert({
               detected: detectedList,
-              warningsRemaining: 3 - currentWarnings
+              warningsRemaining: isSudo ? 999999 : 3 - currentWarnings,
+              isSudo: isSudo
           });
           return false;
       }
@@ -135,18 +152,14 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
 
   const triggerNuclearBan = async () => {
       try {
-          // Blacklist email
-          await supabase.from('banned_emails').insert({ email: currentUser.email, reason: 'Repeated content moderation violations' });
-          // Delete all quizzes
-          await supabase.from('quizzes').delete().eq('user_id', currentUser.id);
-          // Delete user data
+          await supabase.from('banned_emails').insert({ email: currentUser.email, reason: 'Content Moderation: Terminal Strike' });
+          await supabase.from('quizzes').delete().eq('user_id', currentUser.id).neq('visibility', 'public');
           await supabase.from('profiles').delete().eq('user_id', currentUser.id);
-          // Force sign out
           await supabase.auth.signOut();
-          (window as any).alert("PERMANENT BAN: Your account has been terminated due to repeated violations of our content standards. This email is now blacklisted.");
+          alert("SECURITY ALERT: INFRASTRUCTURE ACCESS REVOKED. Your account has been decommissioned due to 3 moderation strikes. This identity is permanently blacklisted.");
           window.location.reload();
       } catch (e) {
-          (window as any).console.error("Ban execution failed:", e);
+          console.error("Ban sequence fault:", e);
       }
   };
 
@@ -164,6 +177,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       return;
     }
 
+    // This now correctly blocks Sudo if bad words are present
     const isModerated = await performModerationCheck();
     if (!isModerated) return;
 
@@ -226,31 +240,51 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
 
   return (
     <div className="flex h-screen bg-slate-50 relative overflow-hidden">
+        {/* MODERATION WARNING POP-UP */}
         {showModerationAlert && (
-            <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-4">
-                <div className="bg-white rounded-[3rem] shadow-2xl max-w-lg w-full p-10 text-center animate-in zoom-in duration-300">
-                    <div className="w-24 h-24 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-8">
-                        <ShieldAlert size={48} />
+            <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-4">
+                <div className="bg-white rounded-[3.5rem] shadow-2xl max-w-xl w-full p-12 text-center animate-in zoom-in duration-500 border border-white/20">
+                    <div className="w-28 h-28 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-10 shadow-lg">
+                        <ShieldAlert size={60} />
                     </div>
-                    <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Content Violation</h3>
-                    <p className="text-slate-600 font-bold mb-6 leading-relaxed">
-                        Our automated scanner detected prohibited content in your quiz. 
-                        <span className="block mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs font-mono text-slate-400">
-                            Detected: {showModerationAlert.detected.join(', ')}
+                    <h3 className="text-4xl font-black text-slate-900 mb-6 tracking-tighter">Moderation Strike</h3>
+                    <p className="text-slate-500 font-bold mb-8 leading-relaxed text-lg">
+                        Our core systems detected terms that violate community safety standards.
+                        <span className="block mt-6 bg-slate-50 p-6 rounded-3xl border border-slate-100 text-sm font-mono text-rose-500 overflow-x-auto whitespace-pre-wrap">
+                            Flagged Elements: {showModerationAlert.detected.join(', ')}
                         </span>
                     </p>
                     
-                    <div className="bg-rose-50 border border-rose-100 p-6 rounded-3xl mb-8">
-                        <p className="text-rose-600 font-black text-xl mb-1 uppercase tracking-widest">Strike Warning</p>
-                        <p className="text-rose-500 font-bold">Warnings Remaining: {showModerationAlert.warningsRemaining}</p>
-                        <p className="text-[10px] text-rose-400 font-black uppercase tracking-widest mt-2">3 strikes = PERMANENT ACCOUNT BAN</p>
+                    <div className="bg-rose-50 border-2 border-rose-100 p-8 rounded-[2.5rem] mb-10">
+                        <div className="flex justify-center gap-2 mb-4">
+                             {showModerationAlert.isSudo ? (
+                                 <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-indigo-600 text-white shadow-lg animate-pulse">
+                                     <InfinityIcon size={32} />
+                                 </div>
+                             ) : (
+                                [1,2,3].map(i => (
+                                    <div key={i} className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${i <= (3 - showModerationAlert.warningsRemaining) ? 'bg-rose-500 text-white shadow-lg' : 'bg-white text-slate-300 border border-slate-100'}`}>
+                                        {i}
+                                    </div>
+                                ))
+                             )}
+                        </div>
+                        <p className="text-rose-600 font-black text-2xl mb-1 uppercase tracking-widest">
+                            {showModerationAlert.isSudo ? 'SUDO OVERRIDE' : 'STRIKE ISSUED'}
+                        </p>
+                        <p className="text-rose-500 font-bold text-lg">
+                            {showModerationAlert.isSudo ? 'Architect Warnings Remaining: ∞' : `Warnings Remaining: ${showModerationAlert.warningsRemaining}`}
+                        </p>
+                        <p className="text-xs text-rose-400 font-black uppercase tracking-widest mt-4 opacity-60">
+                            {showModerationAlert.isSudo ? 'NOTICE: PROHIBITED WORDS MUST BE REMOVED BEFORE SAVING' : 'WARNING: TERMINAL STRIKE RESULTS IN ACCOUNT ERASURE'}
+                        </p>
                     </div>
 
                     <button 
                         onClick={() => setShowModerationAlert(null)}
-                        className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl"
+                        className="w-full bg-slate-900 text-white py-6 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl click-scale text-lg"
                     >
-                        I understand, I'll fix it
+                        I'll fix it
                     </button>
                 </div>
             </div>
@@ -304,7 +338,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                              <button onClick={(e) => { e.stopPropagation(); removeQuestion(idx); }} className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-white/20 rounded-xl text-red-300 transition-all"><Trash2 size={16} /></button>
                          </div>
                          <p className="text-sm font-bold line-clamp-2 h-10 text-slate-200 leading-tight">
-                             {q.question || <span className="italic opacity-30 font-medium">Untitled Task...</span>}
+                             {q.question || <span className="italic opacity-30 font-medium">Untitled Question...</span>}
                          </p>
                      </div>
                  ))}

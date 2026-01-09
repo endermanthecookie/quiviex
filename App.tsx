@@ -12,6 +12,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { CommunityPage } from './components/CommunityPage';
 import { Auth } from './components/Auth';
 import { LandingPage } from './components/LandingPage';
+import { AdminDashboard } from './components/AdminDashboard';
 import { THEMES } from './constants';
 import { NotificationToast } from './components/NotificationToast';
 import { FeedbackModal } from './components/FeedbackModal';
@@ -77,7 +78,7 @@ export default function App() {
 
   useEffect(() => {
     const applyFont = async () => {
-        const body = (window as any).document.body;
+        const body = document.body;
         const fontId = user?.preferences?.appFont;
         if (fontId && fontId.startsWith('Font')) {
             const fontIndex = fontId.replace('Font', '');
@@ -89,7 +90,7 @@ export default function App() {
             try {
                 const customFontFace = new FontFace(fontId, `url(${fontUrl})`);
                 const loadedFont = await customFontFace.load();
-                (window as any).document.fonts.add(loadedFont);
+                document.fonts.add(loadedFont);
                 body.style.fontFamily = `'${fontId}', 'QuiviexCustom', 'Plus Jakarta Sans', sans-serif`;
             } catch (error) {
                 body.style.fontFamily = `'QuiviexCustom', 'Plus Jakarta Sans', sans-serif`;
@@ -140,7 +141,7 @@ export default function App() {
       } else {
         setUser(null);
         setIsLoading(false);
-        if (view !== 'landing') setView('landing');
+        if (view !== 'landing' && view !== 'community') setView('landing');
       }
     });
     return () => subscription.unsubscribe();
@@ -194,20 +195,114 @@ export default function App() {
   };
 
   const persistUser = async (updatedUser: User) => {
+    const oldUsername = user?.username;
     setUser(updatedUser);
     try {
       await supabase.from('profiles').update({
         username: updatedUser.username, stats: updatedUser.stats, history: updatedUser.history,
         preferences: updatedUser.preferences, saved_quiz_ids: updatedUser.savedQuizIds, avatar_url: updatedUser.avatarUrl, updated_at: new Date().toISOString()
       }).eq('user_id', updatedUser.id);
+
+      if (oldUsername !== updatedUser.username) {
+        await supabase.from('platform_reviews')
+          .update({ username: updatedUser.username, avatar_url: updatedUser.avatarUrl })
+          .eq('user_id', updatedUser.id);
+      }
     } catch (error) { console.error(error); }
   };
 
-  const handleFeedbackSubmit = async (feedback: any) => {
+  const handleSaveQuiz = async (quizData: Quiz) => {
+    if (!user) return;
+    try {
+      const payload: any = {
+        user_id: user.id,
+        title: quizData.title,
+        questions: quizData.questions,
+        theme: quizData.theme,
+        custom_theme: quizData.customTheme,
+        shuffle_questions: quizData.shuffleQuestions,
+        background_music: quizData.backgroundMusic,
+        visibility: quizData.visibility || 'private'
+      };
+
+      let result;
+      if (!quizData.id || quizData.id > 1000000000) {
+         result = await supabase.from('quizzes').insert(payload).select().single();
+      } else {
+         result = await supabase.from('quizzes').update(payload).eq('id', quizData.id).select().single();
+      }
+
+      if (result.error) throw result.error;
+      
+      await fetchQuizzes(user.id);
+      setView('home');
+      setActiveQuiz(null);
+    } catch (err: any) {
+      console.error("Save error:", err);
+      alert("Save failed: " + (err.message || "Check your database connection."));
+    }
+  };
+
+  const handleDeleteQuiz = async (id: number) => {
+      if (!user) return;
+      if (!window.confirm('PERMANENT DELETION: Are you sure you want to erase this quiz?')) return;
+      
+      try {
+          const { error } = await supabase.from('quizzes').delete().eq('id', id);
+          if (error) {
+              if (error.code === '42501') throw new Error("Permission Denied: Run the SQL DELETE policy for the quizzes table.");
+              throw error;
+          }
+          fetchQuizzes(user.id);
+      } catch (err: any) {
+          console.error("Deletion fault:", err);
+          alert("Deletion failed: " + err.message);
+      }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    if (user.email === 'sudo@quiviex.com') {
+        alert("CRITICAL SYSTEM ALERT: The System Architect (Sudo) account is part of the core infrastructure and cannot be decommissioned.");
+        return;
+    }
+
+    if (!window.confirm("PERMANENT DATA ERASURE: This will delete your profile, history, and all quizzes EXCEPT for those set to 'Public'. This action is irreversible. Proceed?")) return;
+
+    try {
+        await supabase.from('quizzes').delete().eq('user_id', user.id).neq('visibility', 'public');
+        await supabase.from('quizzes').update({ user_id: null }).eq('user_id', user.id).eq('visibility', 'public');
+        await supabase.from('profiles').delete().eq('user_id', user.id);
+        await supabase.from('platform_reviews').delete().eq('user_id', user.id);
+        
+        await supabase.auth.signOut();
+        setUser(null);
+        setView('landing');
+    } catch (e: any) {
+        alert("Erasure sequence partial failure: " + e.message);
+    }
+  };
+
+  const handleFeedbackSubmit = async (feedback: Feedback) => {
+      if (!user) return;
+      
+      // Fix: Ensure we provide the ID to resolve the not-null constraint error
+      // Use crypto.randomUUID() if the provided feedback object lacks a valid ID
       const { error } = await supabase.from('feedback').insert({
-          id: feedback.id, user_id: user?.id, username: user?.username, type: feedback.type, content: feedback.content, status: 'new'
+          id: feedback.id || crypto.randomUUID(), 
+          user_id: user.id, 
+          username: user.username, 
+          type: feedback.type, 
+          content: feedback.content, 
+          status: 'new'
       });
-      if (error) throw error;
+      
+      if (error) {
+          console.error("Feedback Insert Fault:", error);
+          if (error.code === '42P01') throw new Error("Relation 'feedback' missing. Run the SQL setup script.");
+          throw error;
+      }
   };
 
   const renderContent = () => {
@@ -218,24 +313,27 @@ export default function App() {
               <button onClick={() => window.location.reload()} className="mt-4 bg-red-600 text-white px-8 py-3 rounded-xl font-bold">Retry</button>
           </div>
       );
-      if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse">Quiviex...</div>;
+      if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse text-2xl tracking-tighter">Quiviex...</div>;
       
       if (!user) {
         if (view === 'auth') return <Auth onLogin={() => {}} onBackToLanding={() => setView('landing')} />;
+        if (view === 'community') return <CommunityPage user={null} onBack={() => setView('landing')} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
         return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onShowLegal={(type) => setActiveLegalModal(type)} />;
       }
       
       switch(view) {
-          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => setView('create')} onEditQuiz={(q) => { setView('create'); }} onDeleteQuiz={async (id) => { if(confirm('Delete?')){ await supabase.from('quizzes').delete().eq('id', id); fetchQuizzes(user.id); } }} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} />;
-          case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user} onSave={async (q) => { await supabase.from('quizzes').upsert({ user_id: user.id, ...q }); fetchQuizzes(user.id); setView('home'); }} onExit={() => setView('home')} startWithTutorial={!user.hasSeenTutorial} onStatUpdate={(type) => handleStatUpdate(type === 'create' ? 'quizzesCreated' : type === 'ai_quiz' ? 'aiQuizzesGenerated' : 'aiImagesGenerated')} onOpenSettings={() => setView('settings')} />;
+          case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); handleStatUpdate('studySessions'); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={handleDeleteQuiz} onLogout={async () => { await supabase.auth.signOut(); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => setView('community')} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} />;
+          case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user} onSave={handleSaveQuiz} onExit={() => { setActiveQuiz(null); setView('home'); }} startWithTutorial={!user.hasSeenTutorial} onStatUpdate={(type) => handleStatUpdate(type === 'create' ? 'quizzesCreated' : type === 'ai_quiz' ? 'aiQuizzesGenerated' : 'aiImagesGenerated')} onOpenSettings={() => setView('settings')} />;
           case 'take': return activeQuiz ? <QuizTaker quiz={activeQuiz} onComplete={(answers, score) => { setActiveResults({answers, score}); setView('results'); handleStatUpdate('quizzesPlayed'); }} onExit={() => setView('home')} /> : null;
           case 'results': return activeQuiz && activeResults ? <QuizResults quiz={activeQuiz} userAnswers={activeResults.answers} score={activeResults.score} onPlayAgain={() => setView('take')} onHome={() => setView('home')} /> : null;
           case 'study': return activeQuiz ? <FlashcardViewer quiz={activeQuiz} onExit={() => setView('home')} /> : null;
           case 'achievements': return <AchievementsPage user={user} definitions={achievementsDefinitions} onBack={() => setView('home')} />;
           case 'history': return <HistoryPage user={user} onBack={() => setView('home')} />;
           case 'focus': return <FocusMode user={user} quizzes={quizzes} onBack={() => setView('home')} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
-          case 'settings': return <SettingsPage user={user} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} />;
+          case 'settings': return <SettingsPage user={user} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} onDeleteAccount={handleDeleteAccount} />;
           case 'community': return <CommunityPage user={user} onBack={() => user ? setView('home') : setView('landing')} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
+          case 'admin': return <AdminDashboard onBack={() => setView('home')} />;
+          case 'landing': return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onShowLegal={(type) => setActiveLegalModal(type)} />;
           default: return <div className="p-20 text-center font-bold">Initializing View...</div>;
       }
   };
@@ -253,7 +351,7 @@ export default function App() {
         )}
         {activeLegalModal && (
             <LegalModal 
-              type={activeLegalModal === 'terms' ? 'terms' : 'guidelines'} 
+              type={activeLegalModal} 
               onClose={() => setActiveLegalModal(null)} 
             />
         )}

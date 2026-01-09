@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Quiz, User } from '../types';
-import { X, Play, Share2, Flag, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock } from 'lucide-react';
+import { X, Play, Share2, Flag, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock, Trash2, ShieldAlert } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { StarRating } from './StarRating';
 import { CommentSection } from './CommentSection';
@@ -11,9 +10,10 @@ interface QuizDetailsModalProps {
   user: User | null;
   onClose: () => void;
   onPlay: (quiz: Quiz) => void;
+  onAdminDelete?: (id: number) => Promise<void>;
 }
 
-export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, onClose, onPlay }) => {
+export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, onClose, onPlay, onAdminDelete }) => {
   const [stats, setStats] = useState({ 
     views: quiz.stats?.views || 0, 
     avgRating: quiz.stats?.avgRating || 0, 
@@ -22,6 +22,7 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
   const [userRating, setUserRating] = useState<number | null>(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'comments'>('overview');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isOwner = user ? quiz.userId === user.id : false;
   const isSudo = user?.email === 'sudo@quiviex.com';
@@ -40,8 +41,6 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
             if (user && mounted) {
                 const { data: myRating } = await supabase.from('ratings').select('rating').eq('quiz_id', quiz.id).eq('user_id', user.id).maybeSingle();
                 if (myRating && mounted) setUserRating(myRating.rating);
-
-                // Use the profile data for bookmark check
                 setIsBookmarked(user.savedQuizIds.includes(quiz.id));
             }
 
@@ -49,11 +48,11 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
             if (mounted) setStats(prev => ({ ...prev, views: newViews }));
             
             supabase.from('quizzes').update({ views: newViews }).eq('id', quiz.id).then(({ error }) => {
-                if (error) (window as any).console.warn("Failed to update views:", error.message);
+                if (error) console.warn("Failed to update views:", error.message);
             });
 
         } catch (e) {
-            (window as any).console.error("Error initializing quiz details:", e);
+            console.error("Error initializing quiz details:", e);
         }
     };
 
@@ -64,11 +63,11 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
 
   const handleRate = async (stars: number) => {
     if (!user) {
-        (window as any).alert("Please login to rate quizzes.");
+        alert("Please login to rate quizzes.");
         return;
     }
     if (isOwner) {
-      (window as any).alert("You cannot rate your own quiz!");
+      alert("You cannot rate your own quiz!");
       return;
     }
     
@@ -86,14 +85,14 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
             setStats(prev => ({ ...prev, avgRating: avg, totalRatings: ratings.length }));
         }
     } catch (e) {
-        (window as any).console.error("Rating failed:", e);
-        (window as any).alert("Failed to save rating.");
+        console.error("Rating failed:", e);
+        alert("Failed to save rating.");
     }
   };
 
   const toggleBookmark = async () => {
     if (!user) {
-        (window as any).alert("Please login to save quizzes.");
+        alert("Please login to save quizzes.");
         return;
     }
     
@@ -109,7 +108,6 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
             setIsBookmarked(true);
         }
 
-        // Persist to database separate column in profiles
         const { error } = await supabase
             .from('profiles')
             .update({ saved_quiz_ids: newIds })
@@ -117,30 +115,44 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
         
         if (error) throw error;
         
-        // Update user state globally
-        (window as any).dispatchEvent(new CustomEvent('quiviex_user_update', { 
+        window.dispatchEvent(new CustomEvent('quiviex_user_update', { 
             detail: { savedQuizIds: newIds } 
         }));
 
     } catch (e: any) {
-        (window as any).console.error("Bookmark failed:", e);
-        (window as any).alert("Failed to update bookmarks: " + e.message);
+        console.error("Bookmark failed:", e);
+        alert("Failed to update bookmarks: " + e.message);
     }
+  };
+
+  const handleAdminActionDelete = async () => {
+      if (!onAdminDelete) return;
+      if (!confirm("SUDO WARNING: Permanent erasure of this quiz from infrastructure?")) return;
+      
+      setIsDeleting(true);
+      try {
+          await onAdminDelete(quiz.id);
+          onClose();
+      } catch (e: any) {
+          alert("Admin delete sequence failure: " + e.message);
+      } finally {
+          setIsDeleting(false);
+      }
   };
 
   const handleReport = async () => {
     if (!user) {
-        (window as any).alert("Please login to report content.");
+        alert("Please login to report content.");
         return;
     }
-    const reason = (window as any).prompt("Why are you reporting this quiz?");
+    const reason = prompt("Why are you reporting this quiz?");
     if (reason) {
       try {
           await supabase.from('reports').insert({ quiz_id: quiz.id, user_id: user.id, reason, status: 'pending' });
-          (window as any).alert("Report submitted for review.");
+          alert("Report submitted for review.");
       } catch (e) {
-          (window as any).console.error("Report failed:", e);
-          (window as any).alert("Failed to submit report.");
+          console.error("Report failed:", e);
+          alert("Failed to submit report.");
       }
     }
   };
@@ -148,15 +160,15 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
   const handleShare = () => {
     const url = `https://quiviex.vercel.app/community/${quiz.id}`;
     try {
-        if ((window as any).navigator.clipboard && (window as any).isSecureContext) {
-            (window as any).navigator.clipboard.writeText(url)
-                .then(() => (window as any).alert("Deep link copied to clipboard!"))
-                .catch(() => (window as any).prompt("Copy link:", url));
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(url)
+                .then(() => alert("Direct link copied to clipboard!"))
+                .catch(() => prompt("Copy link:", url));
         } else {
-            (window as any).prompt("Copy link:", url);
+            prompt("Copy link:", url);
         }
     } catch (e) {
-        (window as any).prompt("Copy link:", url);
+        prompt("Copy link:", url);
     }
   };
 
@@ -210,31 +222,52 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
                 <div className="md:col-span-2 space-y-8">
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                     <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                      <BarChart2 className="text-indigo-500" /> Stats
+                      <BarChart2 className="text-indigo-500" /> Infrastructure Metadata
                     </h3>
                     <div className="grid grid-cols-3 gap-4 text-center">
                       <div className="bg-slate-50 p-4 rounded-xl">
                         <div className="text-2xl font-black text-slate-800">{quiz.questions.length}</div>
-                        <div className="text-xs font-bold text-slate-400 uppercase">Questions</div>
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tasks</div>
                       </div>
                       <div className="bg-slate-50 p-4 rounded-xl">
                         <div className="text-2xl font-black text-slate-800">{stats.views}</div>
-                        <div className="text-xs font-bold text-slate-400 uppercase">Plays</div>
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Inits</div>
                       </div>
                       <div className="bg-slate-50 p-4 rounded-xl">
                         <div className="text-2xl font-black text-slate-800">{stats.avgRating.toFixed(1)}</div>
-                        <div className="text-xs font-bold text-slate-400 uppercase">Rating</div>
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Core Score</div>
                       </div>
                     </div>
                   </div>
 
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <h3 className="font-bold text-slate-800 mb-4">Description</h3>
+                    <h3 className="font-bold text-slate-800 mb-4">Content Summary</h3>
                     <p className="text-slate-600 leading-relaxed">
-                      This quiz contains {quiz.questions.length} questions.
-                      Test your knowledge and see if you can get a perfect score!
+                      This repository contains {quiz.questions.length} specialized task modules.
+                      Engage the session to evaluate your knowledge core and achieve synchronization.
                     </p>
                   </div>
+
+                  {/* Sudo Admin Actions */}
+                  {isSudo && onAdminDelete && (
+                      <div className="bg-rose-50 border-2 border-rose-100 p-8 rounded-[2.5rem] shadow-sm">
+                         <div className="flex items-center gap-3 mb-4">
+                            <ShieldAlert className="text-rose-600" />
+                            <h3 className="text-xl font-black text-rose-900 tracking-tight">Architect Console</h3>
+                         </div>
+                         <p className="text-rose-700 font-bold text-sm mb-6 leading-relaxed">
+                            You are viewing this content with Sudo privileges. You can permanently decommission this quiz if it violates platform protocols.
+                         </p>
+                         <button 
+                            onClick={handleAdminActionDelete}
+                            disabled={isDeleting}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-black px-8 py-4 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center gap-3 uppercase tracking-widest text-xs"
+                         >
+                            {isDeleting ? <Trash2 className="animate-pulse" /> : <Trash2 size={18} />}
+                            {isDeleting ? 'Decommissioning...' : 'Decommission Quiz'}
+                         </button>
+                      </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -243,19 +276,19 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
                         onClick={() => { onClose(); onPlay(quiz); }}
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 text-lg"
                       >
-                        <Play size={24} fill="currentColor" /> Play Now
+                        <Play size={24} fill="currentColor" /> Play Session
                       </button>
                   ) : (
                       <button 
                         onClick={() => { onClose(); onPlay(quiz); }}
                         className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 text-lg"
                       >
-                        <Lock size={20} /> Login to Play
+                        <Lock size={20} /> Login to Access
                       </button>
                   )}
 
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
-                    <div className="mb-2 font-bold text-slate-700">Rate this Quiz</div>
+                    <div className="mb-2 font-bold text-slate-700">Protocol Rating</div>
                     <div className="flex justify-center mb-4">
                       <StarRating 
                         rating={userRating || 0} 
@@ -266,7 +299,7 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
                       />
                     </div>
                     {!user && <p className="text-xs text-slate-400">Login to rate</p>}
-                    {isOwner && <p className="text-xs text-slate-400">You created this quiz</p>}
+                    {isOwner && <p className="text-xs text-slate-400 font-bold text-indigo-500">You are the architect</p>}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -275,14 +308,14 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
                       className={`p-3 rounded-xl font-bold text-sm flex flex-col items-center justify-center gap-1 transition-colors border ${isBookmarked ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                     >
                       <Bookmark size={20} className={isBookmarked ? 'fill-indigo-600' : ''} />
-                      {isBookmarked ? 'Saved' : 'Save Quiz'}
+                      {isBookmarked ? 'Stored' : 'Store Locally'}
                     </button>
                     <button 
                       onClick={handleShare}
                       className="p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-600 text-sm flex flex-col items-center justify-center gap-1 hover:bg-slate-50 transition-colors"
                     >
                       <Share2 size={20} />
-                      Share
+                      Deep Link
                     </button>
                   </div>
 
@@ -302,8 +335,8 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
                 ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-center">
                         <Lock size={48} className="text-slate-300 mb-4" />
-                        <h3 className="text-lg font-bold text-slate-700 mb-2">Comments are locked</h3>
-                        <p className="text-slate-500 mb-6">Join the community to see and post comments.</p>
+                        <h3 className="text-lg font-bold text-slate-700 mb-2">Logs are Encrypted</h3>
+                        <p className="text-slate-500 mb-6">Authenticate to participate in community logs.</p>
                         <button 
                             onClick={() => { onClose(); onPlay(quiz); }}
                             className="bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-indigo-700"
