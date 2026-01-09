@@ -214,15 +214,22 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
                 {questions.map((q, idx) => (
+                    /* Added 'group' class to allow hover state for delete button */
                     <div 
                         key={idx} 
                         onClick={() => setCurrentQuestionIndex(idx)} 
-                        className={`p-6 rounded-[1.5rem] cursor-pointer transition-all border ${currentQuestionIndex === idx ? 'bg-[#5c4cf4] border-[#7c6ff5] shadow-xl scale-[1.02]' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                        className={`group p-6 rounded-[1.5rem] cursor-pointer transition-all border ${currentQuestionIndex === idx ? 'bg-[#5c4cf4] border-[#7c6ff5] shadow-xl scale-[1.02]' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
                     >
                         <div className="flex justify-between items-start mb-3">
                             <span className={`text-xs font-black uppercase tracking-widest ${currentQuestionIndex === idx ? 'text-white' : 'text-slate-500'}`}>Q. {idx + 1}</span>
                             {questions.length > 1 && (
-                                <button onClick={(e) => { e.stopPropagation(); removeQuestion(idx); }} className="opacity-0 group-hover:opacity-100 text-white/50 hover:text-white transition-opacity"><Trash2 size={16} /></button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); removeQuestion(idx); }} 
+                                    className="opacity-0 group-hover:opacity-100 text-white/50 hover:text-rose-400 transition-all transform hover:scale-110"
+                                    title="Delete this question"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
                             )}
                         </div>
                         <p className={`text-sm font-bold line-clamp-2 leading-relaxed ${!q.question ? 'italic opacity-30' : 'text-white'}`}>
@@ -284,6 +291,16 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
 
                         {/* Feature Icons */}
                         <div className="absolute top-10 right-10 sm:top-16 sm:right-16 flex gap-2">
+                             {/* Added explicit delete button for current question */}
+                             {questions.length > 1 && (
+                                <button 
+                                    onClick={() => removeQuestion(currentQuestionIndex)} 
+                                    className="p-3 rounded-2xl border bg-rose-50 border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white transition-all click-scale shadow-sm" 
+                                    title="Delete Current Question"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                             )}
                              <button onClick={() => setShowMusicModal(true)} className={`p-3 rounded-2xl border transition-all ${bgMusic ? 'bg-[#5c4cf4] border-[#5c4cf4] text-white shadow-lg' : 'bg-slate-50 border-slate-100 text-slate-400 hover:text-slate-600'}`} title="Audio Setup"><Music size={18} /></button>
                              <button onClick={() => setShowThemeEditor(true)} className="p-3 rounded-2xl border bg-slate-50 border-slate-100 text-slate-400 hover:text-slate-600 transition-all" title="Theme Designer"><Palette size={18} /></button>
                         </div>

@@ -91,7 +91,7 @@ export default function App() {
       if (error) throw error;
       if (data) setQuizzes(data.map((q: any) => ({
         id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
-        theme: q.theme, customTheme: q.custom_theme, shuffleQuestions: q.shuffle_questions, backgroundMusic: q.background_music, visibility: q.visibility
+        theme: q.theme, customTheme: q.custom_theme, shuffle_questions: q.shuffle_questions, backgroundMusic: q.background_music, visibility: q.visibility
       })));
     } catch (error) { console.error(error); }
   };
@@ -229,13 +229,32 @@ export default function App() {
   };
 
   const handleDeleteQuiz = async (id: number) => {
-    if (!confirm("Delete this module permanently?")) return;
+    if (!confirm("Are you sure? This will permanently decommission this module and all its data (ratings, comments, results).")) return;
+    
+    setIsLoading(true);
     try {
+      // Step 1: Purge related data to bypass foreign key constraints
+      // Note: In some DB setups these will fail if tables don't exist, we use .maybeSingle() logic or ignore errors
+      await supabase.from('ratings').delete().eq('quiz_id', id);
+      await supabase.from('comments').delete().eq('quiz_id', id);
+      await supabase.from('likes').delete().eq('quiz_id', id);
+      
+      // Step 2: Delete the actual quiz
       const { error } = await supabase.from('quizzes').delete().eq('id', id);
-      if (error) throw error;
+      
+      if (error) {
+        if (error.code === '23503') {
+           throw new Error("Deletion blocked: This quiz still has active results in student history. Please contact support to force delete.");
+        }
+        throw error;
+      }
+      
+      // Step 3: Update local state immediately
       setQuizzes(prev => prev.filter(q => q.id !== id));
     } catch (e: any) {
-      alert("Delete failed: " + e.message);
+      alert("Purge Failure: " + (e.message || "Database synchronization error."));
+    } finally {
+      setIsLoading(false);
     }
   };
 
