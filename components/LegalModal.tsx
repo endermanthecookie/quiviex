@@ -50,7 +50,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
                         </h3>
                         <ul className="space-y-3 pl-2">
                             <li className="flex gap-2"><div>• Other users can see your nickname, optional profile picture, and quizzes if you choose to share them in the Community Tab.</div></li>
-                            <li className="flex gap-2"><div>• Private quizzes are only accessible via link.</div></li>
+                            <li className="flex gap-2"><div>• Unlisted quizzes are only accessible via link.</div></li>
                         </ul>
                     </div>
 
@@ -91,7 +91,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
             ) : (
                 <div className="space-y-6">
                     <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-green-800 font-bold mb-4">
-                        <Book className="inline-block mr-2 mb-1" size={16} />
+                        < Book className="inline-block mr-2 mb-1" size={16} />
                         Community Content Standard
                     </div>
                     <p><strong>1. Be Respectful:</strong> Do not create content that promotes hate speech or violence.</p>

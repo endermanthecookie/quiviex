@@ -28,13 +28,13 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
-      setError('Please enter a topic');
+      setError('Please enter a topic identity');
       return;
     }
 
     setError(null);
     setIsGenerating(true);
-    setLoadingStatus(`Querying AI...`);
+    setLoadingStatus(`Querying Infrastructure...`);
 
     try {
       const result = await generateQuizWithAI(topic, difficulty, count, user.preferences, quizType);
@@ -44,7 +44,7 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
       setSelectedIndices(allIndices);
       setStep('review');
     } catch (err: any) {
-      setError(err.message || "Failed to generate quiz.");
+      setError(err.message || "Failed to generate blueprint.");
     } finally {
       setIsGenerating(false);
       setLoadingStatus('');
@@ -58,7 +58,7 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
       let processedQuestions = finalQuestions;
 
       if (autoImages) {
-        setLoadingStatus(`Creating visuals (0/${finalQuestions.length})...`);
+        setLoadingStatus(`Synchronizing Visuals...`);
         processedQuestions = await Promise.all(finalQuestions.map(async (q, idx) => {
             try {
                 const imageUrl = await generateImageForQuestion(q.question, user.preferences);
@@ -80,50 +80,50 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 z-[70] flex items-center justify-center p-4">
-      <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 h-[85vh]">
-        <div className="bg-[#1a1f2e] p-6 flex justify-between items-center text-white flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <Sparkles size={24} className="text-yellow-400" />
-            <h2 className="text-xl font-black uppercase tracking-tight">AI Assistant</h2>
+    <div className="fixed inset-0 bg-slate-950/80 z-[70] flex items-center justify-center p-4 backdrop-blur-xl animate-in fade-in duration-300">
+      <div className="bg-white rounded-[3.5rem] shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in zoom-in duration-500 h-[85vh] border border-white/20">
+        <div className="bg-[#1a1f2e] p-8 flex justify-between items-center text-white flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <Sparkles size={28} className="text-yellow-400" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">AI Assistant</h2>
           </div>
-          <button onClick={onClose} className="hover:bg-white/10 rounded-full p-2 transition-colors">
-            <X size={20} />
+          <button onClick={onClose} className="hover:bg-white/10 rounded-2xl p-3 transition-colors">
+            <X size={24} />
           </button>
         </div>
 
         {step === 'config' ? (
-            <div className="p-10 space-y-8 bg-white overflow-y-auto flex-1">
-            {error && <div className="bg-rose-50 border border-rose-100 text-rose-600 p-5 rounded-2xl text-xs font-black uppercase tracking-widest">{error}</div>}
+            <div className="p-12 space-y-10 bg-white overflow-y-auto flex-1">
+            {error && <div className="bg-rose-50 border-2 border-rose-100 text-rose-600 p-6 rounded-3xl text-xs font-black uppercase tracking-widest animate-in slide-in-from-top-2">{error}</div>}
 
-            <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-1">Topic Identity</label>
-                <div className="p-1 bg-slate-50 border-2 border-slate-100 rounded-3xl focus-within:border-indigo-500 transition-all">
+            <div className="space-y-4">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Topic</label>
+                <div className="p-1 bg-slate-50 border-2 border-slate-100 rounded-[2rem] focus-within:border-indigo-500 transition-all shadow-inner">
                     <input
                         type="text"
                         value={topic}
                         onChange={(e) => setTopic(e.target.value)}
                         placeholder="Quantum Physics, Cooking, etc..."
-                        className="w-full px-6 py-4 bg-transparent border-none focus:ring-0 font-bold text-lg text-slate-800 italic"
+                        className="w-full px-8 py-6 bg-transparent border-none focus:ring-0 font-bold text-2xl text-slate-800 italic"
                     />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-1">Complexity</label>
-                    <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-3xl font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500">
+            <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-4">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Difficulty</label>
+                    <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer">
                         <option value="easy">Easy</option>
                         <option value="medium">Medium</option>
                         <option value="hard">Hard</option>
                     </select>
                 </div>
-                <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-1">Module Count</label>
-                    <select value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-3xl font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500">
-                        <option value={5}>5 Units</option>
-                        <option value={10}>10 Units</option>
-                        <option value={15}>15 Units</option>
+                <div className="space-y-4">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Questions</label>
+                    <select value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer">
+                        <option value={5}>5 Questions</option>
+                        <option value={10}>10 Questions</option>
+                        <option value={15}>15 Questions</option>
                     </select>
                 </div>
             </div>
@@ -131,43 +131,34 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
             <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="w-full py-6 bg-slate-900 hover:bg-black text-white rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 transition-all shadow-xl disabled:opacity-50"
+                className="w-full py-8 bg-slate-900 hover:bg-black text-white rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-4 transition-all shadow-2xl disabled:opacity-50 click-scale"
             >
-                {isGenerating ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} className="text-yellow-400" />}
-                {isGenerating ? loadingStatus : 'Generate Blueprint'}
+                {isGenerating ? <Loader2 className="animate-spin" size={24} /> : <Sparkles size={24} className="text-yellow-400" />}
+                {isGenerating ? loadingStatus : 'Generate Quiz'}
             </button>
             </div>
         ) : (
             <div className="flex flex-col flex-1 min-h-0 bg-slate-50">
-                <div className="p-6 bg-white border-b border-slate-100 flex justify-between items-center flex-shrink-0">
+                <div className="p-8 bg-white border-b border-slate-100 flex justify-between items-center flex-shrink-0 shadow-sm">
                     <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest">Blueprint Review</h3>
-                    <button onClick={() => setStep('config')} className="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-widest">Change Configuration</button>
+                    <button onClick={() => setStep('config')} className="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-widest">Edit Configuration</button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
                     {generatedData?.questions.map((q, idx) => (
-                        <div key={idx} className="p-6 rounded-[2rem] border-2 bg-white border-slate-100 hover:border-indigo-100 transition-all">
-                             <p className="font-bold text-slate-800 mb-4">{q.question}</p>
-                             <div className="flex flex-wrap gap-2">
+                        <div key={idx} className="p-8 rounded-[2.5rem] border-2 bg-white border-slate-100 hover:border-indigo-100 transition-all shadow-sm">
+                             <p className="font-bold text-slate-800 text-xl mb-6 italic">"{q.question}"</p>
+                             <div className="flex flex-wrap gap-3">
                                 {q.options.map((o, i) => (
-                                    <span key={i} className={`text-[10px] px-3 py-1.5 rounded-full font-black uppercase tracking-widest ${i === q.correctAnswer ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}>{o}</span>
+                                    <span key={i} className={`text-[10px] px-5 py-2.5 rounded-full font-black uppercase tracking-widest ${i === q.correctAnswer ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}>{o}</span>
                                 ))}
                              </div>
                         </div>
                     ))}
                 </div>
-                <div className="p-8 bg-white border-t border-slate-100 space-y-6">
-                    <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><ImageIcon size={14} /> Auto-Generate Visuals</span>
-                        <input type="checkbox" checked={autoImages} onChange={(e) => setAutoImages(e.target.checked)} className="accent-indigo-600 h-5 w-5 rounded-lg" />
+                <div className="p-10 bg-white border-t border-slate-100 space-y-8 shadow-2xl">
+                    <div className="flex items-center justify-between bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3"><ImageIcon size={18} /> Visual Synchronization</span>
+                        <input type="checkbox" checked={autoImages} onChange={(e) => setAutoImages(e.target.checked)} className="accent-indigo-600 h-6 w-6 rounded-xl cursor-pointer" />
                     </div>
-                    <button onClick={handleConfirmSelection} disabled={isGenerating} className="w-full py-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 shadow-xl transition-all disabled:opacity-50">
-                        {isGenerating ? <Loader2 className="animate-spin" size={20} /> : <PlusCircle size={20} />}
-                        {isGenerating ? loadingStatus : `Commit ${generatedData?.questions.length} Units`}
-                    </button>
-                </div>
-            </div>
-        )}
-      </div>
-    </div>
-  );
-};
+                    <button onClick={handleConfirmSelection} disabled={isGenerating} className="w-full py-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center gap-4 shadow-2xl transition-all disabled:opacity-50 click-scale">
+                        {isGenerating ? <Loader2 className="animate-spin" size={24} /> : <PlusCircle size={24} />}

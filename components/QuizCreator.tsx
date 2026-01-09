@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2, Info } from 'lucide-react';
+import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2, Info, RefreshCw } from 'lucide-react';
 import { Quiz, Question, QuestionType, User, CustomTheme, QuizVisibility } from '../types';
 import { COLORS, TUTORIAL_STEPS, THEMES, BANNED_WORDS } from '../constants';
 import { TutorialWidget } from './TutorialWidget';
@@ -175,7 +175,13 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   };
 
   const removeQuestion = (index: number) => {
-    if (questions.length === 1) return;
+    if (questions.length === 1) {
+        // If it's the last question, just reset it instead of deleting
+        const resetQs = [JSON.parse(JSON.stringify(DEFAULT_QUESTION))];
+        setQuestions(resetQs);
+        setCurrentQuestionIndex(0);
+        return;
+    }
     const newQuestions = questions.filter((_, i) => i !== index);
     setQuestions(newQuestions);
     if (currentQuestionIndex >= newQuestions.length) setCurrentQuestionIndex(newQuestions.length - 1);
@@ -205,8 +211,8 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
         {showMusicModal && <MusicSelectionModal currentMusic={bgMusic} onSelect={setBgMusic} onClose={() => setShowMusicModal(false)} />}
         {showThemeEditor && <ThemeEditorModal initialTheme={customTheme} onSave={(t) => { setCustomTheme(t); setShowThemeEditor(false); }} onClose={() => setShowThemeEditor(false)} onAiUsed={() => onStatUpdate('ai_img')} />}
 
-        {/* Sidebar - RESTORED DARK INTERFACE */}
-        <div className="w-[320px] bg-[#1a1f2e] text-white flex flex-col relative z-20 shadow-2xl">
+        {/* Sidebar - MATCHING SCREENSHOT EXACTLY */}
+        <div className="w-[320px] bg-[#1a1f2e] text-white flex flex-col relative z-20 shadow-2xl flex-shrink-0">
             <div className="p-8 border-b border-white/5 flex items-center gap-4">
                 <Logo variant="small" />
                 <h1 className="text-2xl font-black tracking-tight">Editor</h1>
@@ -214,23 +220,20 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
                 {questions.map((q, idx) => (
-                    /* Added 'group' class to allow hover state for delete button */
                     <div 
                         key={idx} 
                         onClick={() => setCurrentQuestionIndex(idx)} 
-                        className={`group p-6 rounded-[1.5rem] cursor-pointer transition-all border ${currentQuestionIndex === idx ? 'bg-[#5c4cf4] border-[#7c6ff5] shadow-xl scale-[1.02]' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                        className={`group p-6 rounded-[1.5rem] cursor-pointer transition-all border relative ${currentQuestionIndex === idx ? 'bg-[#5c4cf4] border-[#7c6ff5] shadow-xl scale-[1.02]' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
                     >
                         <div className="flex justify-between items-start mb-3">
                             <span className={`text-xs font-black uppercase tracking-widest ${currentQuestionIndex === idx ? 'text-white' : 'text-slate-500'}`}>Q. {idx + 1}</span>
-                            {questions.length > 1 && (
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); removeQuestion(idx); }} 
-                                    className="opacity-0 group-hover:opacity-100 text-white/50 hover:text-rose-400 transition-all transform hover:scale-110"
-                                    title="Delete this question"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            )}
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); removeQuestion(idx); }} 
+                                className="text-rose-400 hover:text-white transition-all transform hover:scale-110"
+                                title="Delete Question"
+                            >
+                                <Trash2 size={16} />
+                            </button>
                         </div>
                         <p className={`text-sm font-bold line-clamp-2 leading-relaxed ${!q.question ? 'italic opacity-30' : 'text-white'}`}>
                             {q.question || 'Untitled Question...'}
@@ -239,11 +242,11 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                 ))}
 
                 <button onClick={addQuestion} className="w-full py-6 border-2 border-dashed border-white/10 rounded-[1.5rem] text-slate-400 hover:text-white hover:border-white/30 transition-all font-black flex items-center justify-center gap-3 uppercase text-xs tracking-widest">
-                    <PlusCircle size={20} /> Add Item
+                    <PlusCircle size={20} /> ADD ITEM
                 </button>
             </div>
 
-            <div className="p-6 border-t border-white/5 space-y-3">
+            <div className="p-6 border-t border-white/5 space-y-3 bg-[#1a1f2e]">
                  <button onClick={() => setShowAIModal(true)} className="w-full bg-[#5c4cf4] hover:bg-[#4a3ddb] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl uppercase tracking-widest text-xs">
                      <Sparkles size={16} /> AI Assistant
                  </button>
@@ -263,7 +266,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                     value={quizTitle} 
                     onChange={(e) => setQuizTitle(e.target.value)} 
                     placeholder="Untitled Quiz" 
-                    className="text-2xl font-black bg-transparent text-slate-900 border-none focus:ring-0 placeholder-slate-200 text-center tracking-tight flex-1 max-w-xl mx-4" 
+                    className="text-2xl font-black bg-transparent text-slate-900 border-none focus:ring-0 placeholder-slate-200 text-center tracking-tight flex-1 max-w-xl mx-4 italic" 
                 />
 
                 <button 
@@ -280,7 +283,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                 <div className="w-full max-w-5xl animate-in fade-in duration-500 stagger-in">
                     
                     {/* The Floating White Card */}
-                    <div className="bg-white rounded-[3.5rem] shadow-2xl overflow-hidden border border-white p-12 sm:p-16 relative">
+                    <div className="bg-white rounded-[3.5rem] shadow-2xl overflow-hidden border border-white p-12 sm:p-16 relative min-h-[600px]">
                         
                         {/* Pill Label - TOP LEFT INSIDE CARD */}
                         <div className="absolute top-10 left-10 sm:top-16 sm:left-16">
@@ -289,18 +292,16 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                             </div>
                         </div>
 
-                        {/* Feature Icons */}
+                        {/* Feature Icons - TOP RIGHT */}
                         <div className="absolute top-10 right-10 sm:top-16 sm:right-16 flex gap-2">
-                             {/* Added explicit delete button for current question */}
-                             {questions.length > 1 && (
-                                <button 
-                                    onClick={() => removeQuestion(currentQuestionIndex)} 
-                                    className="p-3 rounded-2xl border bg-rose-50 border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white transition-all click-scale shadow-sm" 
-                                    title="Delete Current Question"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                             )}
+                             <button 
+                                onClick={() => removeQuestion(currentQuestionIndex)} 
+                                className="p-3 rounded-2xl border bg-rose-50 border-rose-100 text-rose-500 hover:bg-rose-500 hover:text-white transition-all click-scale shadow-sm flex items-center gap-2 group" 
+                                title="Delete Question"
+                            >
+                                <Trash2 size={18} />
+                                <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Delete Question</span>
+                            </button>
                              <button onClick={() => setShowMusicModal(true)} className={`p-3 rounded-2xl border transition-all ${bgMusic ? 'bg-[#5c4cf4] border-[#5c4cf4] text-white shadow-lg' : 'bg-slate-50 border-slate-100 text-slate-400 hover:text-slate-600'}`} title="Audio Setup"><Music size={18} /></button>
                              <button onClick={() => setShowThemeEditor(true)} className="p-3 rounded-2xl border bg-slate-50 border-slate-100 text-slate-400 hover:text-slate-600 transition-all" title="Theme Designer"><Palette size={18} /></button>
                         </div>
@@ -337,7 +338,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                                                     newOpts[i] = e.target.value;
                                                     updateQuestion('options', newOpts);
                                                 }} 
-                                                placeholder={`Choice ${i + 1}`} 
+                                                placeholder={`Option ${i + 1}`} 
                                                 className="w-full bg-transparent border-none p-0 focus:ring-0 font-bold text-slate-700" 
                                             />
                                         </div>
@@ -354,7 +355,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                                     <textarea 
                                         value={currentQ.explanation || ''} 
                                         onChange={(e) => updateQuestion('explanation', e.target.value)} 
-                                        placeholder="Add context or logic for this module..." 
+                                        placeholder="Add context for this question..." 
                                         className="w-full bg-transparent border-none p-0 focus:ring-0 font-bold text-slate-600 resize-none h-24" 
                                     />
                                 </div>
