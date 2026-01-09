@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Users, Zap, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Users, Zap, Loader2, AlertCircle, Check } from 'lucide-react';
 import { Logo } from './Logo';
 import { supabase } from '../services/supabase';
 import { Room } from '../types';
@@ -12,11 +12,14 @@ interface JoinPinPageProps {
 
 export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
   const [pin, setPin] = useState('');
+  const [step, setStep] = useState<'pin' | 'name'>('pin');
+  const [username, setUsername] = useState('');
+  const [tempRoom, setTempRoom] = useState<Room | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleJoin = async (e?: React.FormEvent) => {
+  const handleValidatePin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (pin.length !== 6) return;
 
@@ -34,7 +37,7 @@ export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
         if (roomError || !room) {
             setError("Invalid PIN or the game has already started.");
         } else {
-            onJoin({
+            const roomObj: Room = {
                 id: room.id,
                 pin: room.pin,
                 hostId: room.host_id,
@@ -42,13 +45,24 @@ export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
                 status: room.status as any,
                 currentQuestionIndex: room.current_question_index,
                 createdAt: room.created_at
-            });
+            };
+            setTempRoom(roomObj);
+            setStep('name');
         }
     } catch (e) {
         setError("Connection error while searching for game.");
     } finally {
         setIsLoading(false);
     }
+  };
+
+  const handleFinishJoin = (e?: React.FormEvent) => {
+      if (e) e.preventDefault();
+      if (!username.trim() || !tempRoom) return;
+      
+      // Store the name so Lobby can pick it up
+      sessionStorage.setItem('qx_temp_username', username.trim());
+      onJoin(tempRoom);
   };
 
   const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,7 +72,42 @@ export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 font-['Plus_Jakarta_Sans']">
-      <div className="max-w-md w-full animate-in zoom-in-95 duration-500">
+      
+      {/* Name Entry Popup Step */}
+      {step === 'name' && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-50 flex items-center justify-center p-6 animate-in fade-in duration-300">
+            <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full text-slate-900 shadow-2xl animate-in zoom-in duration-500">
+                <div className="text-center mb-8">
+                    <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <Users size={32} />
+                    </div>
+                    <h3 className="text-3xl font-black tracking-tight mb-2">Enter Name</h3>
+                    <p className="text-slate-500 font-bold text-sm">Almost there! What should we call you in the game?</p>
+                </div>
+
+                <form onSubmit={handleFinishJoin} className="space-y-6">
+                    <input 
+                        type="text"
+                        placeholder="Username..."
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-5 text-xl font-bold focus:outline-none focus:border-indigo-500 transition-all"
+                        maxLength={15}
+                        autoFocus
+                    />
+                    <button 
+                        type="submit"
+                        disabled={username.trim().length < 2}
+                        className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl uppercase tracking-widest hover:bg-indigo-700 transition-all click-scale disabled:opacity-50 shadow-xl"
+                    >
+                        Done
+                    </button>
+                </form>
+            </div>
+        </div>
+      )}
+
+      <div className={`max-w-md w-full transition-all duration-500 ${step === 'name' ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
         <div className="flex flex-col items-center text-center mb-12">
             <Logo variant="medium" className="mb-8 shadow-[0_0_50px_rgba(168,85,247,0.3)]" />
             <h1 className="text-4xl font-black tracking-tighter mb-2">Join a Game</h1>
@@ -72,7 +121,7 @@ export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
             </div>
         )}
 
-        <form onSubmit={handleJoin} className="space-y-8">
+        <form onSubmit={handleValidatePin} className="space-y-8">
             <div className="relative group">
                 <input 
                     ref={inputRef}
@@ -94,7 +143,7 @@ export const JoinPinPage: React.FC<JoinPinPageProps> = ({ onBack, onJoin }) => {
                     className="w-full bg-white text-slate-950 py-6 rounded-3xl font-black text-xl uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-2xl flex items-center justify-center gap-4 click-scale disabled:opacity-50"
                 >
                     {isLoading ? <Loader2 className="animate-spin" /> : <Zap size={24} className="text-indigo-600" />}
-                    Enter Lobby
+                    Next
                 </button>
                 <button 
                     type="button"

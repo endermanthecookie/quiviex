@@ -21,8 +21,8 @@ export const PlaySelectionModal: React.FC<PlaySelectionModalProps> = ({ quiz, on
           <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-500/20">
             <Zap size={36} className="text-yellow-400" />
           </div>
-          <h3 className="text-3xl font-black text-white tracking-tight mb-2">Initialize Session</h3>
-          <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Module: {quiz.title}</p>
+          <h3 className="text-3xl font-black text-white tracking-tight mb-2">Play Quiz</h3>
+          <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">{quiz.title}</p>
         </div>
 
         <div className="p-10 space-y-6">
@@ -39,8 +39,8 @@ export const PlaySelectionModal: React.FC<PlaySelectionModalProps> = ({ quiz, on
                 <Users size={28} />
               </div>
               <div>
-                <div className="font-black text-indigo-900 text-xl group-hover:text-white transition-colors">Yes, Multiplayer</div>
-                <div className="text-indigo-600/70 text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-200 transition-colors">Host a live session</div>
+                <div className="font-black text-indigo-900 text-xl group-hover:text-white transition-colors">Yes, Play with Friends</div>
+                <div className="text-indigo-600/70 text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-200 transition-colors">Host a multiplayer game</div>
               </div>
             </button>
 
@@ -52,15 +52,15 @@ export const PlaySelectionModal: React.FC<PlaySelectionModalProps> = ({ quiz, on
                 <User size={28} />
               </div>
               <div>
-                <div className="font-black text-slate-800 text-xl group-hover:text-white transition-colors">No, Solo Sync</div>
-                <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest group-hover:text-slate-500 transition-colors">Single player mode</div>
+                <div className="font-black text-slate-800 text-xl group-hover:text-white transition-colors">No, Solo Play</div>
+                <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest group-hover:text-slate-500 transition-colors">Just me</div>
               </div>
             </button>
           </div>
         </div>
 
         <div className="p-6 bg-slate-50 border-t border-slate-100 text-center">
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-xs uppercase tracking-widest">Cancel Request</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-xs uppercase tracking-widest">Cancel</button>
         </div>
       </div>
     </div>

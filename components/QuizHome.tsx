@@ -89,7 +89,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
         <div className="flex items-center gap-3">
           <button onClick={onJoinGame} className="hidden lg:flex p-3 bg-indigo-600 text-white hover:bg-indigo-700 rounded-2xl transition-all shadow-lg click-scale items-center gap-2 px-5 group">
               <Zap size={20} className="text-yellow-400 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-black uppercase tracking-widest">Join Module</span>
+              <span className="text-xs font-black uppercase tracking-widest">Join Quiz</span>
           </button>
 
           {isSudo && onViewAdmin && (
@@ -101,7 +101,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
           
           <div className="hidden sm:flex items-center gap-2 bg-white/60 border border-white/30 px-3 py-2 rounded-2xl shadow-sm backdrop-blur-sm transition-all hover:bg-white">
             <div className="flex flex-col items-end mr-1">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Loyalty Points</span>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Points</span>
                 <span className="text-xs font-black text-indigo-600 leading-none">{user.stats.totalPoints || 0}</span>
             </div>
             {user.avatarUrl ? (
@@ -128,11 +128,11 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
           <button onClick={onCreateNew} className="lg:col-span-3 bg-gradient-to-br from-purple-500 to-indigo-600 p-8 sm:p-10 rounded-[3.5rem] text-white flex flex-col justify-between group click-scale shadow-2xl min-h-[320px] relative overflow-hidden transition-all duration-500 hover:shadow-purple-200">
              <div className="flex items-start justify-between z-10">
                 <PlusCircle size={36} className="text-white/80" />
-                <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border border-white/10">Start Builder</span>
+                <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border border-white/10">Creator</span>
              </div>
              <div className="text-left z-10 max-w-lg mt-auto">
                 <h3 className="text-4xl sm:text-5xl font-black tracking-tight leading-none mb-3 transform transition-transform group-hover:translate-x-2">Create New Quiz</h3>
-                <p className="text-lg opacity-80 font-bold">Build your next core session with AI tools</p>
+                <p className="text-lg opacity-80 font-bold">Build a quiz with AI tools</p>
              </div>
              <div className="absolute -top-10 -right-10 p-8 opacity-20 transform translate-x-4 -translate-y-4 group-hover:scale-125 group-hover:rotate-45 transition-all duration-1000"><PlusCircle size={300} /></div>
           </button>
@@ -143,7 +143,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
              </div>
              <div className="text-left">
                 <h3 className="text-2xl font-black tracking-tight text-slate-800 leading-tight mb-2">Join Game</h3>
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Fast Link Protocol</p>
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Enter a PIN</p>
              </div>
           </button>
           
@@ -156,7 +156,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
 
                 <button onClick={onViewLeaderboard} className="bg-indigo-600 p-6 rounded-[2.5rem] border border-indigo-400 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-2xl hover:shadow-indigo-200">
                    <Crown size={32} className="text-yellow-400 mb-3 group-hover:scale-110 transition-transform" />
-                   <h3 className="text-lg font-black tracking-tight text-white leading-tight">Elite</h3>
+                   <h3 className="text-lg font-black tracking-tight text-white leading-tight">Leaderboard</h3>
                 </button>
              </div>
 
@@ -192,7 +192,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
                     </div>
                     <div className="flex justify-between items-start z-10">
                         <div className="bg-black/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/10">
-                            {quiz.questions.length} UNITS
+                            {quiz.questions.length} QUESTIONS
                         </div>
                     </div>
                     <h3 className="text-2xl font-black text-white leading-tight drop-shadow-md relative z-10 group-hover:scale-[1.02] transition-transform">{quiz.title}</h3>

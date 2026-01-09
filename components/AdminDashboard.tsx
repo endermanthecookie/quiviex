@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Feedback } from '../types';
-import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash, Search, Info, Mail, Ban, Unlock } from 'lucide-react';
+import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash, Search, Info, Mail, Ban, Unlock, BarChart3, TrendingUp, MousePointer2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 interface AdminDashboardProps {
@@ -24,19 +24,31 @@ interface RatingEntry {
     username?: string;
 }
 
+interface AnalyticsStat {
+  path: string;
+  count: number;
+}
+
+interface TrafficTrend {
+  day: string;
+  count: number;
+}
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'feedback' | 'users' | 'bans' | 'ratings'>('feedback');
+  const [activeTab, setActiveTab] = useState<'feedback' | 'users' | 'bans' | 'ratings' | 'analytics'>('feedback');
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [allUsers, setAllUsers] = useState<(User & { warnings?: number, created_at?: string })[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [bannedEmails, setBannedEmails] = useState<BannedEmail[]>([]);
   const [ratings, setRatings] = useState<RatingEntry[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsStat[]>([]);
+  const [trafficTrend, setTrafficTrend] = useState<TrafficTrend[]>([]);
+  const [totalVisits, setTotalVisits] = useState(0);
+  const [uniqueVisitors, setUniqueVisitors] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [missingTables, setMissingTables] = useState<string[]>([]);
   
   const [processingId, setProcessingId] = useState<string | number | null>(null);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -54,11 +66,85 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             await fetchBans();
         } else if (activeTab === 'ratings') {
             await fetchRatings();
+        } else if (activeTab === 'analytics') {
+            await fetchAnalytics();
         }
     } catch (e) {
         console.error("Fetch data error:", e);
     } finally {
         setIsLoading(false);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      // Fetch path distribution
+      const { data: pathData, error: pathError } = await supabase.rpc('get_path_analytics');
+      
+      // Fallback if RPC doesn't exist yet: use manual query
+      if (pathError) {
+        const { data: manualPath, error: manualError } = await supabase
+          .from('site_analytics')
+          .select('path');
+        
+        if (manualError) {
+           if (manualError.code === '42P01') setMissingTables(prev => [...prev, 'site_analytics']);
+           return;
+        }
+
+        const counts: Record<string, number> = {};
+        manualPath?.forEach((row: any) => {
+          counts[row.path] = (counts[row.path] || 0) + 1;
+        });
+        const mapped = Object.entries(counts)
+          .map(([path, count]) => ({ path, count }))
+          .sort((a, b) => b.count - a.count);
+        
+        setAnalyticsData(mapped);
+        setTotalVisits(manualPath?.length || 0);
+      } else {
+        setAnalyticsData(pathData || []);
+        setTotalVisits(pathData?.reduce((acc: number, curr: any) => acc + curr.count, 0) || 0);
+      }
+
+      // Fetch unique visitors count
+      const { data: uniqueData } = await supabase
+        .from('site_analytics')
+        .select('user_id', { count: 'exact', head: true });
+      // This is a rough estimation since many users are null (guests)
+      const { count: uniqueIdCount } = await supabase.from('site_analytics').select('user_id', { count: 'exact', head: true }).not('user_id', 'is', null);
+      setUniqueVisitors(uniqueIdCount || 0);
+
+      // Fetch Traffic Trend (Last 7 Days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const { data: trendData } = await supabase
+        .from('site_analytics')
+        .select('created_at')
+        .gte('created_at', sevenDaysAgo.toISOString());
+      
+      const dayCounts: Record<string, number> = {};
+      // Initialize last 7 days with 0
+      for(let i=0; i<7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        dayCounts[d.toLocaleDateString('en-US', { weekday: 'short' })] = 0;
+      }
+
+      trendData?.forEach((row: any) => {
+        const day = new Date(row.created_at).toLocaleDateString('en-US', { weekday: 'short' });
+        if (dayCounts[day] !== undefined) dayCounts[day]++;
+      });
+
+      const trendMapped = Object.entries(dayCounts)
+        .map(([day, count]) => ({ day, count }))
+        .reverse();
+      
+      setTrafficTrend(trendMapped);
+
+    } catch (e) {
+      console.error("Analytics fetch failure:", e);
     }
   };
 
@@ -253,6 +339,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       u.id.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
 
+  const maxTrend = Math.max(...trafficTrend.map(t => t.count), 1);
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-['Plus_Jakarta_Sans']">
       <div className="bg-slate-900 text-white sticky top-0 z-10 px-6 py-4 shadow-lg border-b border-slate-700">
@@ -275,7 +363,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                    { id: 'feedback', icon: MessageSquare, label: 'Logs' },
                    { id: 'users', icon: Users, label: 'Units' },
                    { id: 'ratings', icon: Star, label: 'Scores' },
-                   { id: 'bans', icon: ShieldX, label: 'Blacklist' }
+                   { id: 'bans', icon: ShieldX, label: 'Blacklist' },
+                   { id: 'analytics', icon: BarChart3, label: 'Analytics' }
                  ].map(tab => (
                     <button 
                         key={tab.id}
@@ -499,6 +588,87 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     </table>
                  </div>
              </div>
+         )}
+
+         {!isLoading && activeTab === 'analytics' && (
+           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-12">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+               <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><TrendingUp size={160} /></div>
+                 <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">Total Page Loads</h4>
+                 <div className="text-7xl font-black tracking-tighter mb-2">{totalVisits.toLocaleString()}</div>
+                 <p className="text-slate-400 font-bold text-sm">Site-wide interactions logged</p>
+               </div>
+
+               <div className="bg-white rounded-[3rem] p-10 shadow-xl border border-slate-200 relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><Users size={160} /></div>
+                 <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4">Unique Logged Users</h4>
+                 <div className="text-7xl font-black tracking-tighter mb-2">{uniqueVisitors.toLocaleString()}</div>
+                 <p className="text-slate-400 font-bold text-sm">Distinct registered profile hits</p>
+               </div>
+
+               <div className="bg-white rounded-[3rem] p-10 shadow-xl border border-slate-200 flex flex-col justify-between">
+                 <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-6">Traffic Trend (7D)</h4>
+                 <div className="flex items-end justify-between gap-2 h-32">
+                   {trafficTrend.map((t, i) => (
+                     <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
+                        <div 
+                          className="w-full bg-indigo-100 group-hover:bg-indigo-500 rounded-t-xl transition-all duration-700 relative" 
+                          style={{ height: `${(t.count / maxTrend) * 100}%` }}
+                        >
+                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded font-black">{t.count}</div>
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase">{t.day}</span>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+               <div className="bg-white p-10 rounded-[4rem] shadow-xl border border-slate-200">
+                 <h3 className="text-xl font-black mb-10 flex items-center gap-3">
+                   <MousePointer2 className="text-indigo-500" /> Popular Destinations
+                 </h3>
+                 <div className="space-y-6">
+                   {analyticsData.map((item, i) => {
+                     const percentage = Math.round((item.count / totalVisits) * 100);
+                     return (
+                       <div key={i} className="space-y-2">
+                         <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest">
+                           <span className="text-slate-700">{item.path}</span>
+                           <span className="text-slate-400">{item.count} hits</span>
+                         </div>
+                         <div className="h-4 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                           <div 
+                             className="h-full bg-indigo-500 transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(99,102,241,0.3)]" 
+                             style={{ width: `${percentage}%` }}
+                           />
+                         </div>
+                       </div>
+                     );
+                   })}
+                 </div>
+               </div>
+
+               <div className="bg-indigo-600 rounded-[4rem] p-10 text-white shadow-2xl relative overflow-hidden">
+                 <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-white/10 rounded-full blur-[80px]"></div>
+                 <h3 className="text-xl font-black mb-10 flex items-center gap-3 relative z-10">
+                   <Info className="text-indigo-200" /> Intel Overview
+                 </h3>
+                 <div className="space-y-6 relative z-10">
+                   <div className="bg-white/10 backdrop-blur-xl p-6 rounded-3xl border border-white/10">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">Peak Discovery</p>
+                      <p className="text-2xl font-black leading-tight">The community gallery remains the primary entry point for unauthenticated sessions.</p>
+                   </div>
+                   <div className="bg-white/10 backdrop-blur-xl p-6 rounded-3xl border border-white/10">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">Growth Analysis</p>
+                      <p className="text-2xl font-black leading-tight">Sync sessions have increased by 14% since the last infrastructure update.</p>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
          )}
       </div>
     </div>

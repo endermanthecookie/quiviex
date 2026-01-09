@@ -18,6 +18,7 @@ import { Auth } from './components/Auth';
 import { LandingPage } from './components/LandingPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { UsernameSetup } from './components/UsernameSetup';
+import { NotFoundPage } from './components/NotFoundPage';
 import { THEMES } from './constants';
 import { NotificationToast } from './components/NotificationToast';
 import { FeedbackModal } from './components/FeedbackModal';
@@ -25,7 +26,7 @@ import { LegalModal } from './components/LegalModal';
 import { exportQuizToQZX, exportAllQuizzesToZip } from './services/exportService';
 import { supabase, checkSupabaseConnection } from './services/supabase';
 
-type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin' | 'onboarding';
+type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin' | 'onboarding' | 'not_found';
 
 const DEFAULT_STATS: UserStats = {
   quizzesCreated: 0,
@@ -63,22 +64,50 @@ export default function App() {
     handleUrlRouting();
   }, []);
 
+  // Analytics Tracking Effect
+  useEffect(() => {
+    const trackView = async () => {
+      try {
+        await supabase.from('site_analytics').insert({
+          path: view,
+          user_id: user?.id || null,
+          is_guest: !user,
+          user_agent: window.navigator.userAgent
+        });
+      } catch (e) {
+        // Silently fail to not interrupt user experience
+      }
+    };
+    trackView();
+  }, [view, user?.id]);
+
   const handleUrlRouting = async () => {
-      const path = window.location.pathname.replace('/', '');
+      // Split path and filter out empty segments to handle trailing slashes and multiple slashes
+      const segments = window.location.pathname.split('/').filter(Boolean);
+      const path = segments[0] || '';
       
-      // Explicit /login route handler
-      if (path === 'login') {
+      // Root landing or internal server index
+      if (path === '' || path === 'index.html') return;
+
+      // Whitelist of valid state-based routes to allow reloads/direct navigation
+      const validStates = ['home', 'community', 'leaderboard', 'achievements', 'history', 'settings', 'focus', 'admin'];
+      if (validStates.includes(path)) {
+          setView(path as ViewState);
+          return;
+      }
+
+      // Explicit auth/utility routes
+      if (path === 'login' || path === 'auth') {
           setView('auth');
           return;
       }
 
-      // Fast Join Code screen at /code
-      if (path === 'code') {
+      if (path === 'code' || path === 'join') {
           setView('join_pin');
           return;
       }
 
-      // Multiplayer PIN routing (direct PIN links)
+      // Multiplayer PIN routing (direct PIN links) - Must be exactly 6 digits
       if (path.length === 6 && /^\d+$/.test(path)) {
           const { data: room } = await supabase.from('rooms').select('*').eq('pin', path).eq('status', 'waiting').single();
           if (room) {
@@ -87,8 +116,12 @@ export default function App() {
                   status: room.status as any, currentQuestionIndex: room.current_question_index, createdAt: room.created_at
               });
               setView('multiplayer_lobby');
+              return;
           }
       }
+
+      // If we got here and path isn't empty, it's an unrecognized route
+      setView('not_found');
   };
 
   const fetchAchievementDefinitions = async () => {
@@ -143,9 +176,10 @@ export default function App() {
         setUser(null);
         setNotifications([]);
         setIsLoading(false);
-        const path = window.location.pathname.replace('/', '');
-        if (path !== 'login' && path !== 'code') {
-          const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin'];
+        const segments = window.location.pathname.split('/').filter(Boolean);
+        const path = segments[0] || '';
+        if (path !== 'login' && path !== 'code' && path !== 'auth') {
+          const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found'];
           if (!publicViews.includes(view)) {
               setView('landing');
           }
@@ -185,8 +219,10 @@ export default function App() {
         setUser(userData);
         fetchQuizzes(userId);
         
-        // OAuth Onboarding: If user has a default auto-generated username or none, force onboarding popup
-        const isDefaultUsername = !data.username || data.username.startsWith('user_') || data.username === email.split('@')[0];
+        // Refined Onboarding Check: Only force onboarding if the username is missing or a placeholder 'user_' 
+        // We removed the email prefix check because that's a valid intentional username choice for email signups.
+        const isDefaultUsername = !data.username || data.username.startsWith('user_');
+        
         if (isDefaultUsername) {
             setView('onboarding');
         } else if (['landing', 'auth', 'onboarding'].includes(view)) {
@@ -304,7 +340,7 @@ export default function App() {
       if (dbError) return <div className="p-20 text-center text-red-500 font-bold">{dbError}</div>;
       if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse text-2xl tracking-tighter">Quiviex...</div>;
       
-      const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin'];
+      const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found'];
       if (!user && !publicViews.includes(view)) {
           return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onJoinGame={() => setView('join_pin')} onShowLegal={(type) => setActiveLegalModal(type)} />;
       }
@@ -326,6 +362,7 @@ export default function App() {
           case 'community': return <CommunityPage user={user} onBack={() => user ? setView('home') : setView('landing')} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
           case 'admin': return <AdminDashboard onBack={() => setView('home')} />;
           case 'landing': return <LandingPage onGetStarted={() => setView('auth')} onExplore={() => setView('community')} onJoinGame={() => setView('join_pin')} onShowLegal={(type) => setActiveLegalModal(type)} />;
+          case 'not_found': return <NotFoundPage onGoHome={() => setView(user ? 'home' : 'landing')} />; // Render 404
           default: return <div className="p-20 text-center font-bold">Initializing...</div>;
       }
   };

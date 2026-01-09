@@ -23,6 +23,7 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
   const quizDataRef = useRef<Quiz | null>(null);
   const isHost = user?.id === room.hostId;
 
+  // Use a stable ID for guests to prevent duplication on refresh
   const getPersistentGuestId = () => {
     let gid = sessionStorage.getItem('qx_guest_id');
     if (!gid) {
@@ -101,8 +102,11 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
 
       await fetchParticipants();
 
-      if (user && !hasJoined) {
-          handleJoin(user.username);
+      // Automatically join if logged in or if username was provided in JoinPinPage
+      const prefilledName = sessionStorage.getItem('qx_temp_username');
+      if ((user || prefilledName) && !hasJoined) {
+          handleJoin(user?.username || prefilledName || '');
+          if (prefilledName) sessionStorage.removeItem('qx_temp_username');
       }
       
       setIsLoading(false);
@@ -139,6 +143,7 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       setTimeout(() => setCopied(false), 2000);
   };
 
+  // Explicitly filter out the host from the list of players
   const displayPlayers = participants.filter(p => p.id !== room.hostId);
 
   return (
