@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Feedback } from '../types';
-import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash, Search, Info, Mail, Ban, Unlock, BarChart3, TrendingUp, MousePointer2 } from 'lucide-react';
+import { User, Feedback, Quiz } from '../types';
+import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash, Search, Info, Mail, Ban, Unlock, BarChart3, TrendingUp, MousePointer2, Eye, Filter, Check, AlertTriangle } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 interface AdminDashboardProps {
   onBack: () => void;
+  onEditQuiz: (quiz: Quiz) => void;
 }
 
 interface BannedEmail {
@@ -34,13 +35,15 @@ interface TrafficTrend {
   count: number;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'feedback' | 'users' | 'bans' | 'ratings' | 'analytics'>('feedback');
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQuiz }) => {
+  const [activeTab, setActiveTab] = useState<'feedback' | 'users' | 'bans' | 'ratings' | 'analytics' | 'soft_filter'>('feedback');
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [allUsers, setAllUsers] = useState<(User & { warnings?: number, created_at?: string })[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [bannedEmails, setBannedEmails] = useState<BannedEmail[]>([]);
   const [ratings, setRatings] = useState<RatingEntry[]>([]);
+  const [softFilterQuizzes, setSoftFilterQuizzes] = useState<Quiz[]>([]);
+  
   const [analyticsData, setAnalyticsData] = useState<AnalyticsStat[]>([]);
   const [trafficTrend, setTrafficTrend] = useState<TrafficTrend[]>([]);
   const [totalVisits, setTotalVisits] = useState(0);
@@ -49,6 +52,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [missingTables, setMissingTables] = useState<string[]>([]);
   
   const [processingId, setProcessingId] = useState<string | number | null>(null);
+  
+  // Reject Modal State
+  const [rejectQuiz, setRejectQuiz] = useState<Quiz | null>(null);
+  const [rejectStrike, setRejectStrike] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -68,6 +75,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             await fetchRatings();
         } else if (activeTab === 'analytics') {
             await fetchAnalytics();
+        } else if (activeTab === 'soft_filter') {
+            await fetchSoftFilterQuizzes();
         }
     } catch (e) {
         console.error("Fetch data error:", e);
@@ -76,12 +85,97 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     }
   };
 
+  const fetchSoftFilterQuizzes = async () => {
+      try {
+          const { data, error } = await supabase
+              .from('quizzes')
+              .select('*')
+              .eq('is_sensitive', true)
+              .order('created_at', { ascending: false });
+
+          if (error) {
+              if (error.code === '42P01') setMissingTables(prev => [...prev, 'quizzes']);
+              if (error.code === '42703') setMissingTables(prev => [...prev, 'column is_sensitive']);
+              throw error;
+          }
+
+          if (data) {
+              const mapped: Quiz[] = data.map((q: any) => ({
+                  id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
+                  theme: q.theme, customTheme: q.custom_theme, shuffleQuestions: q.shuffle_questions, backgroundMusic: q.background_music, visibility: q.visibility,
+                  isSensitive: q.is_sensitive,
+                  creatorUsername: q.username_at_creation, // Assuming this might be available or we just don't have it here without join
+                  stats: { views: q.views || 0, plays: q.plays || 0, avgRating: 0, totalRatings: 0 }
+              }));
+              setSoftFilterQuizzes(mapped);
+          }
+      } catch (e: any) {
+          console.error("Error fetching sensitive quizzes:", e);
+      }
+  };
+
+  const handleAllowQuiz = async (quiz: Quiz) => {
+      setProcessingId(quiz.id);
+      try {
+          // 1. Remove Sensitive Flag
+          await supabase.from('quizzes').update({ is_sensitive: false }).eq('id', quiz.id);
+          
+          // 2. Notify User
+          await supabase.from('notifications').insert({
+              user_id: quiz.userId,
+              title: 'Quiz Approved',
+              message: `Your quiz "${quiz.title}" has been reviewed and cleared. It is now fully visible in the community.`,
+              type: 'info',
+              is_read: false
+          });
+
+          setSoftFilterQuizzes(prev => prev.filter(q => q.id !== quiz.id));
+      } catch (e: any) {
+          alert("Error allowing quiz: " + e.message);
+      } finally {
+          setProcessingId(null);
+      }
+  };
+
+  const handleRejectConfirm = async () => {
+      if (!rejectQuiz) return;
+      setProcessingId(rejectQuiz.id);
+      try {
+          // 1. Delete Quiz
+          await supabase.from('quizzes').delete().eq('id', rejectQuiz.id);
+
+          // 2. Issue Strike if selected
+          let strikeMsg = "";
+          if (rejectStrike) {
+              const { data: profile } = await supabase.from('profiles').select('warnings').eq('user_id', rejectQuiz.userId).single();
+              const newWarnings = (profile?.warnings || 0) + 1;
+              await supabase.from('profiles').update({ warnings: newWarnings }).eq('user_id', rejectQuiz.userId);
+              strikeMsg = ` You have been issued a strike (${newWarnings}/3).`;
+          }
+
+          // 3. Notify User
+          await supabase.from('notifications').insert({
+              user_id: rejectQuiz.userId,
+              title: 'Quiz Removed',
+              message: `Your quiz "${rejectQuiz.title}" violated our content guidelines and has been removed.${strikeMsg}`,
+              type: 'system',
+              is_read: false
+          });
+
+          setSoftFilterQuizzes(prev => prev.filter(q => q.id !== rejectQuiz.id));
+          setRejectQuiz(null);
+          setRejectStrike(false);
+      } catch (e: any) {
+          alert("Error rejecting quiz: " + e.message);
+      } finally {
+          setProcessingId(null);
+      }
+  };
+
   const fetchAnalytics = async () => {
     try {
-      // Fetch path distribution
       const { data: pathData, error: pathError } = await supabase.rpc('get_path_analytics');
       
-      // Fallback if RPC doesn't exist yet: use manual query
       if (pathError) {
         const { data: manualPath, error: manualError } = await supabase
           .from('site_analytics')
@@ -107,15 +201,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         setTotalVisits(pathData?.reduce((acc: number, curr: any) => acc + curr.count, 0) || 0);
       }
 
-      // Fetch unique visitors count
-      const { data: uniqueData } = await supabase
-        .from('site_analytics')
-        .select('user_id', { count: 'exact', head: true });
-      // This is a rough estimation since many users are null (guests)
       const { count: uniqueIdCount } = await supabase.from('site_analytics').select('user_id', { count: 'exact', head: true }).not('user_id', 'is', null);
       setUniqueVisitors(uniqueIdCount || 0);
 
-      // Fetch Traffic Trend (Last 7 Days)
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       
@@ -125,7 +213,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         .gte('created_at', sevenDaysAgo.toISOString());
       
       const dayCounts: Record<string, number> = {};
-      // Initialize last 7 days with 0
       for(let i=0; i<7; i++) {
         const d = new Date();
         d.setDate(d.getDate() - i);
@@ -343,6 +430,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-['Plus_Jakarta_Sans']">
+      
+      {/* Reject Quiz Modal */}
+      {rejectQuiz && (
+          <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 animate-in zoom-in border-4 border-rose-100">
+                  <div className="flex flex-col items-center text-center mb-6">
+                      <div className="bg-rose-100 p-4 rounded-full mb-4 text-rose-600">
+                          <Trash2 size={32} />
+                      </div>
+                      <h3 className="text-2xl font-black text-rose-950 mb-2">Delete Content?</h3>
+                      <p className="text-slate-500 font-bold">You are about to permanently remove "{rejectQuiz.title}". This cannot be undone.</p>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-8">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={rejectStrike} 
+                            onChange={(e) => setRejectStrike(e.target.checked)}
+                            className="w-5 h-5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                          />
+                          <span className="font-black text-sm text-slate-700 uppercase tracking-wide">Issue Guideline Strike</span>
+                      </label>
+                  </div>
+
+                  <div className="flex gap-3">
+                      <button onClick={() => setRejectQuiz(null)} className="flex-1 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
+                      <button onClick={handleRejectConfirm} className="flex-1 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black uppercase tracking-widest shadow-lg click-scale">Confirm</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       <div className="bg-slate-900 text-white sticky top-0 z-10 px-6 py-4 shadow-lg border-b border-slate-700">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -358,18 +478,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               <button onClick={fetchData} className={`p-2 rounded-full hover:bg-slate-800 transition-colors ${isLoading ? 'animate-spin' : ''}`}>
                   <RefreshCw size={20} />
               </button>
-              <div className="flex bg-slate-800 rounded-xl p-1">
+              <div className="flex bg-slate-800 rounded-xl p-1 overflow-x-auto">
                  {[
                    { id: 'feedback', icon: MessageSquare, label: 'Logs' },
                    { id: 'users', icon: Users, label: 'Units' },
                    { id: 'ratings', icon: Star, label: 'Scores' },
                    { id: 'bans', icon: ShieldX, label: 'Blacklist' },
-                   { id: 'analytics', icon: BarChart3, label: 'Analytics' }
+                   { id: 'analytics', icon: BarChart3, label: 'Analytics' },
+                   { id: 'soft_filter', icon: Filter, label: 'Filtered' }
                  ].map(tab => (
                     <button 
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)} 
-                        className={`px-5 py-2.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-slate-600 text-white shadow-inner' : 'text-slate-500 hover:text-white'}`}
+                        className={`px-5 py-2.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id ? 'bg-slate-600 text-white shadow-inner' : 'text-slate-500 hover:text-white'}`}
                     >
                         <tab.icon size={16} /> {tab.label}
                     </button>
@@ -399,6 +520,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
              </div>
          )}
 
+         {/* SOFT FILTER SECTION */}
+         {!isLoading && activeTab === 'soft_filter' && (
+             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                 <div className="flex items-center gap-3 mb-2">
+                     <AlertCircle className="text-amber-500" size={32} />
+                     <h2 className="text-3xl font-black tracking-tight text-slate-900">Content Review <span className="text-slate-400 ml-2">({softFilterQuizzes.length})</span></h2>
+                 </div>
+                 <div className="bg-white rounded-[3rem] shadow-xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase text-[10px] font-black tracking-[0.3em]">
+                            <tr>
+                                <th className="p-6 pl-10">Flagged Module</th>
+                                <th className="p-6">Author UUID</th>
+                                <th className="p-6">Date Flagged</th>
+                                <th className="p-6 text-right pr-10">Moderation</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {softFilterQuizzes.map(q => (
+                                <tr key={q.id} className="hover:bg-amber-50/30 transition-colors">
+                                    <td className="p-6 pl-10">
+                                        <div className="font-black text-slate-900">{q.title}</div>
+                                        <div className="flex gap-2 mt-1">
+                                            <span className="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black uppercase tracking-widest border border-amber-200">Soft Filter</span>
+                                            <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold uppercase">{q.questions.length} Qs</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-6">
+                                        <code className="text-xs bg-slate-100 px-2 py-1 rounded text-indigo-600 font-bold block w-fit mb-1">{q.userId.substring(0, 12)}...</code>
+                                        {q.creatorUsername && <span className="text-xs font-bold text-slate-500">@{q.creatorUsername}</span>}
+                                    </td>
+                                    <td className="p-6 text-slate-400 text-xs font-bold">{new Date(q.createdAt).toLocaleDateString()}</td>
+                                    <td className="p-6 pr-10 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button 
+                                                title="Open in Creator" 
+                                                onClick={() => onEditQuiz(q)} 
+                                                className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-500 hover:text-white transition-all click-scale shadow-sm"
+                                            >
+                                                <Eye size={18} />
+                                            </button>
+                                            <button 
+                                                title="Allow (Clear Flag)" 
+                                                onClick={() => handleAllowQuiz(q)} 
+                                                className="p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-500 hover:text-white transition-all click-scale shadow-sm"
+                                            >
+                                                <Check size={18} />
+                                            </button>
+                                            <button 
+                                                title="Reject (Delete)" 
+                                                onClick={() => setRejectQuiz(q)} 
+                                                className="p-3 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all click-scale shadow-sm"
+                                            >
+                                                <X size={18} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {softFilterQuizzes.length === 0 && (
+                                <tr><td colSpan={4} className="p-20 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">No flagged content pending review.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                 </div>
+             </div>
+         )}
+
+         {/* EXISTING TABS */}
          {!isLoading && activeTab === 'users' && (
              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
                 <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-200">

@@ -92,7 +92,7 @@ export const generateImageForQuestion = async (text: string, prefs: UserPreferen
             method: "POST",
             headers,
             body: JSON.stringify({
-                model: "dall-e-3",
+                model: "dall-e-2",
                 prompt: `Educational illustration (Safe for work, no violence): ${text}`,
                 n: 1,
                 size: "1024x1024"

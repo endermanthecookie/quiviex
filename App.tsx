@@ -313,7 +313,7 @@ export default function App() {
           case 'focus': return <FocusMode user={user!} quizzes={quizzes} onBack={() => setView('home')} onStartQuiz={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
           case 'settings': return <SettingsPage user={user!} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user!, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} onDeleteAccount={() => {}} />;
           case 'community': return <CommunityPage user={user} onBack={() => { if (user) { setView('home'); safePushState('/'); } else { setView('landing'); safePushState('/'); } }} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} initialQuizId={initialCommunityQuizId} />;
-          case 'admin': return <AdminDashboard onBack={() => setView('home')} />;
+          case 'admin': return <AdminDashboard onBack={() => setView('home')} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} />;
           case 'landing': return <LandingPage 
             onGetStarted={() => { safePushState('/login'); setView('auth'); }} 
             onExplore={() => { safePushState('/community'); setView('community'); }} 

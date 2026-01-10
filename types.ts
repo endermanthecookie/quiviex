@@ -118,6 +118,7 @@ export interface Quiz {
   visibility?: QuizVisibility; 
   creatorUsername?: string;
   creatorAvatarUrl?: string;
+  isSensitive?: boolean;
   stats?: {
     views: number;
     plays: number;

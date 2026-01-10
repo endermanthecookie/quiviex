@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Quiz, User } from '../types';
-import { X, Play, Share2, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock, Heart, Loader2, Star } from 'lucide-react';
+import { X, Play, Share2, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock, Heart, Loader2, Star, AlertTriangle } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { StarRating } from './StarRating';
 import { CommentSection } from './CommentSection';
@@ -91,9 +91,14 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
             <div className="flex flex-col md:flex-row gap-12">
                 <div className="flex-1 space-y-8">
                     <div>
-                        <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center gap-3 mb-4 flex-wrap">
                              <span className="bg-indigo-600 text-white text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full">Repository Detail</span>
                              <div className="flex items-center gap-1.5 text-slate-400 font-bold text-sm"><Calendar size={14} /> {new Date(quiz.createdAt).toLocaleDateString()}</div>
+                             {quiz.isSensitive && (
+                                <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border border-amber-200 flex items-center gap-1">
+                                    <AlertTriangle size={10} /> potential bad things
+                                </span>
+                             )}
                         </div>
                         <h2 className="text-4xl sm:text-5xl font-black text-slate-900 leading-tight tracking-tighter mb-6">{quiz.title}</h2>
                         

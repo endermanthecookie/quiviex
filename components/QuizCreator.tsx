@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2, Info, RefreshCw, Type, ListOrdered, Layers, Sliders, AlignLeft, CheckSquare, Brackets } from 'lucide-react';
 import { Quiz, Question, QuestionType, User, CustomTheme, QuizVisibility } from '../types';
-import { COLORS, TUTORIAL_STEPS, THEMES, BANNED_WORDS } from '../constants';
+import { COLORS, TUTORIAL_STEPS, THEMES, BANNED_WORDS, SOFT_FILTER_WORDS } from '../constants';
 import { TutorialWidget } from './TutorialWidget';
 import { ValidationModal } from './ValidationModal';
 import { ImageSelectionModal } from './ImageSelectionModal';
@@ -105,6 +105,22 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       });
   };
 
+  const scanForSoftFilterWords = (text: string): string[] => {
+      if (!text) return [];
+      const normalized = text.toLowerCase();
+      if (text.startsWith('data:image')) return [];
+      return SOFT_FILTER_WORDS.filter(word => {
+          if (!word) return false;
+          try {
+              const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const regex = /^[a-z0-9]+$/i.test(word) ? new RegExp(`\\b${escapedWord}\\b`, 'i') : new RegExp(escapedWord, 'i');
+              return regex.test(normalized);
+          } catch (e) {
+              return normalized.includes(word.toLowerCase());
+          }
+      });
+  };
+
   const performModerationCheck = async (): Promise<boolean> => {
       let detected: Set<string> = new Set();
       scanForBannedWords(quizTitle).forEach(w => detected.add(w));
@@ -164,11 +180,18 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   };
 
   const handleFinalizeSave = (visibility: QuizVisibility) => {
+    // Check for soft filter words to flag content
+    let isSensitive = false;
+    const allText = [quizTitle, ...questions.map(q => q.question + ' ' + q.options.join(' ') + ' ' + (q.explanation || ''))].join(' ');
+    const detectedSoft = scanForSoftFilterWords(allText);
+    if (detectedSoft.length > 0) isSensitive = true;
+
     onSave({
       id: initialQuiz?.id || Date.now(),
       userId: currentUser.id, title: quizTitle, questions: questions.filter(q => q.question.trim()),
       createdAt: initialQuiz?.createdAt || new Date().toISOString(),
-      theme: quizTheme, customTheme, shuffleQuestions, backgroundMusic: bgMusic, visibility
+      theme: quizTheme, customTheme, shuffleQuestions, backgroundMusic: bgMusic, visibility,
+      isSensitive
     });
     setShowSaveOptionsModal(false);
   };
@@ -292,6 +315,17 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                     <div className="bg-rose-50 border-2 border-rose-100 p-8 rounded-[2.5rem] mb-10">
                         <p className="text-rose-600 font-black text-2xl uppercase tracking-widest">{showModerationAlert.isSudo ? 'SUDO OVERRIDE' : 'STRIKE ISSUED'}</p>
                         <p className="text-sm font-bold text-rose-400 mt-2">Warnings Remaining: {showModerationAlert.isSudo ? '∞' : showModerationAlert.warningsRemaining}</p>
+                        
+                        {showModerationAlert.detected.length > 0 && (
+                            <div className="mt-6 text-left bg-white/60 p-4 rounded-xl border border-rose-100">
+                                <p className="text-rose-800 font-bold text-xs uppercase mb-2">Detected Violations:</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {showModerationAlert.detected.map((word, idx) => (
+                                        <span key={idx} className="bg-rose-200 text-rose-800 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wide border border-rose-300/50">{word}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <button onClick={() => setShowModerationAlert(null)} className="w-full bg-slate-900 text-white py-6 rounded-[1.5rem] font-black uppercase tracking-widest click-scale">Close and Fix</button>
                 </div>

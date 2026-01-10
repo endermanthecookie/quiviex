@@ -8,19 +8,56 @@ export const COLORS: ColorTheme[] = [
 ];
 
 export const BANNED_WORDS = [
-    "hate", "hatred", "hateful", "violence", "violent", "kill", "killing", "killer", "murder", "murdered", "murdering", "dead", "death", "die", "dying", "attack", "assault", "beat", "beating", "abuse", "abusive", "harassment", "harass", "bully", "bullying", "threaten", "threat", "terror", "terrorist", "terrorism", "bomb", "bombing", "explode", "explosion", "weapon", "gun", "knife", "stabbing", "shoot", "shooting", "war", "genocide", "massacre",
-    "racist", "racism", "sexist", "sexism", "homophobic", "transphobic", "discrimination", "discriminate", "prejudice", "bigotry", "bigot", "slur", "insult", "offensive", "demeaning", "degrading", "mock", "humiliation", "hatecrime",
-    "blood", "bloody", "gore", "gory", "guts", "organs", "dismember", "decapitate", "corpse", "skull", "bones", "torture", "tortured", "mutilate", "brutal", "brutality",
-    "sexual", "sexually", "sx", "sxy", "nude", "nudity", "naked", "porn", "pornography", "adult", "explicit", "fetish", "kink", "arousal", "seductive", "lust", "rape", "r*pist", "molest", "molestation", "incest",
-    "drug", "drugs", "cocaine", "heroin", "meth", "fentanyl", "weed", "marijuana", "cannabis", "LSD", "ecstasy", "overdose", "addicted", "addiction", "alcohol", "drunk", "drinking", "vape", "vaping", "cigarette", "smoking",
-    "curse", "cuss", "swearing", "profanity", "vulgar", "obscene", "f***", "fing", "s", "a**", "a******", "b****", "d***", "p***", "btch", "sht", "m***********",
-    "scam", "scamming", "fraud", "fraudulent", "fake", "phishing", "hack", "hacking", "hacked", "exploit", "exploitative", "malware", "virus", "spyware", "keylogger", "piracy", "pirated", "cracked", "illegal", "unlawfully",
-    "lie", "lying", "liar", "misinformation", "disinformation", "hoax", "misleading", "deception", "deceptive", "fakefacts", "conspiracy", "brainwash", "propaganda",
-    "copyrighted", "plagiarize", "plagiarism", "stolen", "theft", "stealing", "ripped", "copied", "unauthorized", "bootleg",
-    "spam", "spamming", "clickbait", "loweffort", "repetitive", "flood", "botted", "bottling", "engagementbait",
-    "selfharm", "suicide", "suicidal", "cut", "cutting", "hang", "hanging", "choke", "choking",
-    "blackmail", "extort", "extortion", "doxx", "doxxing", "leak", "leaked", "invasion", "stalk", "stalking",
-    "offensivecontent", "disturbing", "shock", "shockvalue", "shockbait", "nsfw", "notsafeforwork"
+    "rape", "rapist", "r*pist", "incest",
+"terrorism", "terrorist",
+"genocide", "massacre",
+"suicide", "suicidal", "selfharm",
+"childporn", "cp",
+
+"kill", "killing", "killer",
+"murder", "murdered", "murdering",
+"attack", "assault", "beat", "beating",
+"weapon", "gun", "knife", "stabbing",
+"shoot", "shooting",
+"war", "bomb", "bombing", "explosion",
+
+"hate", "hatred", "hateful",
+"racist", "racism",
+"sexist", "sexism",
+"homophobic", "transphobic",
+"discrimination", "discriminate",
+"bully", "bullying",
+"harass", "harassment",
+"threat", "threaten",
+"slur", "bigot", "bigotry",
+
+"drug", "drugs",
+"cocaine", "heroin", "meth", "fentanyl",
+"weed", "marijuana", "cannabis",
+"lsd", "ecstasy",
+"alcohol", "drunk",
+"vape", "vaping",
+"cigarette", "smoking",
+"overdose", "addiction", "addicted",
+
+"sexual", "sexually",
+"nude", "nudity", "naked",
+"adult", "suggestive", "seductive"
+];
+
+export const SOFT_FILTER_WORDS = [
+    "dead", "death", "die", "dying",
+    "blood", "bloody",
+    "cut", "cutting",
+    "mock", "insult",
+    "fake", "scam",
+    "hack", "hacking", "hacked",
+    "lie", "lying", "liar",
+    "misinformation", "disinformation",
+    "copyrighted", "stolen", "stealing",
+    "spam", "spamming",
+    "clickbait",
+    "nsfw"
 ];
 
 export const AI_MODELS = {
@@ -29,7 +66,7 @@ export const AI_MODELS = {
     { id: 'gpt-4o', name: 'GPT-4o (Smartest)' }
   ],
   image: [
-    { id: 'dall-e-3', name: 'DALL-E 3 (High Quality)' },
+    { id: 'dall-e-2', name: 'DALL-E 2 (Standard)' },
     { id: 'black-forest-labs-flux-pro', name: 'Flux Pro (Photoreal)' }
   ],
   providers: [

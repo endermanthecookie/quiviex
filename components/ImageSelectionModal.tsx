@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, Upload, Link, Image as ImageIcon, Sparkles, Loader2, Monitor, Smartphone, Square, AlertCircle } from 'lucide-react';
 import { generateImageForQuestion } from '../services/aiService';
@@ -90,7 +89,7 @@ export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSele
           {[
             { id: 'upload', icon: Upload, label: 'Upload' },
             { id: 'url', icon: Link, label: 'URL' },
-            { id: 'generate', icon: Sparkles, label: 'DALL-E 3 AI' }
+            { id: 'generate', icon: Sparkles, label: 'DALL-E 2 AI' }
           ].map(tab => (
              <button
                 key={tab.id}
@@ -150,7 +149,7 @@ export const ImageSelectionModal: React.FC<ImageSelectionModalProps> = ({ onSele
                 <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-2">
                     <p className="text-indigo-800 text-sm font-medium flex gap-2">
                         <Sparkles size={16} className="mt-0.5" />
-                        DALL-E 3 will generate a custom masterpiece for you.
+                        DALL-E 2 will generate a custom masterpiece for you.
                     </p>
                 </div>
                 

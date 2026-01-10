@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Quiz, User, Question } from '../types';
-import { ArrowLeft, User as UserIcon, Globe, Play, Sparkles, Search, Loader2, Heart, Eye } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Globe, Play, Sparkles, Search, Loader2, Heart, Eye, AlertTriangle } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { QuizDetailsModal } from './QuizDetailsModal';
 import { THEMES } from '../constants';
@@ -45,6 +45,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
               const mapped: Quiz = {
                   id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
                   theme: q.theme, creatorUsername: q.username_at_creation || 'Community Architect', creatorAvatarUrl: q.avatar_url_at_creation,
+                  isSensitive: q.is_sensitive,
                   stats: { views: isStaff ? 0 : (q.views || 0), likes: 0, avgRating: 4.5, totalRatings: 10, plays: q.plays || 0 }
               };
               setSelectedQuiz(mapped);
@@ -69,6 +70,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
             return {
                 id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
                 theme: q.theme, creatorUsername: q.username_at_creation || 'Quiviex Team', creatorAvatarUrl: q.avatar_url_at_creation,
+                isSensitive: q.is_sensitive,
                 stats: { 
                     views: isStaff ? 0 : (q.views || 0), 
                     likes: 0, 
@@ -141,11 +143,16 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                   {filteredQuizzes.map((quiz) => (
                       <div key={quiz.id} onClick={() => setSelectedQuiz(quiz)} className="group bg-white rounded-[3.5rem] p-8 hover:shadow-2xl transition-all duration-500 border border-slate-100 relative cursor-pointer hover-lift">
                           <div className={`h-48 rounded-[2.5rem] bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-8 p-8 flex flex-col justify-between overflow-hidden shadow-xl group-hover:scale-[1.02] transition-transform`}>
-                                <div className="flex justify-between items-start">
-                                    <div className="flex gap-1">
+                                <div className="flex justify-between items-start flex-wrap gap-2">
+                                    <div className="flex gap-1 flex-wrap">
                                         {quiz.userId === '00000000-0000-0000-0000-000000000000' && <span className="bg-yellow-400 text-black text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg border border-white/20">Verified</span>}
                                         <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-white/10">{quiz.questions.length} UNITS</span>
                                     </div>
+                                    {quiz.isSensitive && (
+                                        <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border border-amber-200 flex items-center gap-1 shadow-lg">
+                                            <AlertTriangle size={10} /> potential bad things
+                                        </span>
+                                    )}
                                 </div>
                                 <h3 className="text-2xl font-black text-white line-clamp-2 leading-tight drop-shadow-md">
                                     {getHighlightedText(quiz.title, searchQuery)}
