@@ -255,6 +255,22 @@ export default function App() {
     }
   };
 
+  // Feature: Remix/Fork Quiz
+  const handleRemixQuiz = (quiz: Quiz) => {
+      // Create a copy of the quiz, stripped of ID/User info, ready for the creator
+      const remixedQuiz: Quiz = {
+          ...quiz,
+          id: Date.now(), // Temp ID
+          title: `Remix: ${quiz.title}`,
+          userId: user?.id || '',
+          visibility: 'private',
+          questions: quiz.questions.map(q => ({...q})), // Deep copy questions
+          createdAt: new Date().toISOString()
+      };
+      setActiveQuiz(remixedQuiz);
+      setView('create');
+  };
+
   const persistUser = async (updatedUser: User) => {
     setUser(updatedUser);
     try {
@@ -312,7 +328,7 @@ export default function App() {
           case 'history': return <HistoryPage user={user!} onBack={() => setView('home')} />;
           case 'focus': return <FocusMode user={user!} quizzes={quizzes} onBack={() => setView('home')} onStartQuiz={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
           case 'settings': return <SettingsPage user={user!} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user!, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} onDeleteAccount={() => {}} />;
-          case 'community': return <CommunityPage user={user} onBack={() => { if (user) { setView('home'); safePushState('/'); } else { setView('landing'); safePushState('/'); } }} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} initialQuizId={initialCommunityQuizId} />;
+          case 'community': return <CommunityPage user={user} onBack={() => { if (user) { setView('home'); safePushState('/'); } else { setView('landing'); safePushState('/'); } }} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} initialQuizId={initialCommunityQuizId} onRemixQuiz={handleRemixQuiz} />;
           case 'admin': return <AdminDashboard onBack={() => setView('home')} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} />;
           case 'landing': return <LandingPage 
             onGetStarted={() => { safePushState('/login'); setView('auth'); }} 

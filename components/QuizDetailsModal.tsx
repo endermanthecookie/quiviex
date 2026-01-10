@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Quiz, User } from '../types';
-import { X, Play, Share2, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock, Heart, Loader2, Star, AlertTriangle } from 'lucide-react';
+import { X, Play, Share2, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock, Heart, Loader2, Star, AlertTriangle, GitFork, Printer } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { StarRating } from './StarRating';
 import { CommentSection } from './CommentSection';
@@ -10,9 +10,10 @@ interface QuizDetailsModalProps {
   user: User | null;
   onClose: () => void;
   onPlay: (quiz: Quiz) => void;
+  onRemix?: (quiz: Quiz) => void;
 }
 
-export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, onClose, onPlay }) => {
+export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, onClose, onPlay, onRemix }) => {
   const [stats, setStats] = useState({ 
     views: quiz.stats?.views || 0, 
     avgRating: quiz.stats?.avgRating || 0, 
@@ -64,6 +65,127 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(`${window.location.origin}/community/${quiz.id}`);
     alert("Copy Link Success!");
+  };
+
+  const handlePrint = () => {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return alert("Popup blocked.");
+      
+      const renderQuestionContent = (q: any) => {
+          if (q.type === 'matching' || q.type === 'ordering') {
+              return `<div style="padding: 15px; background: #f8f8f8; border: 1px dashed #ccc; text-align: center; font-style: italic; font-size: 12px; color: #666;">This question type (${q.type}) requires interactive elements and is not supported in print format.</div>`;
+          }
+          if (q.type === 'fill-in-the-blank') {
+              return `<div class="q-text">${q.question.replace(/\[\s*\]/g, '_______________')}</div>`;
+          }
+          if (q.type === 'text-input') {
+              return `
+                <div class="q-text">${q.question}</div>
+                <div style="margin-top: 40px; border-bottom: 2px solid #000; height: 30px; width: 100%; opacity: 0.3;"></div>
+              `;
+          }
+          if (q.type === 'slider') {
+               return `
+                <div class="q-text">${q.question}</div>
+                <div style="margin-top: 25px; font-weight: bold; text-align: center; font-size: 14px;">
+                    ${q.options[0]} &mdash;&mdash;&mdash; <span style="display: inline-block; border-bottom: 2px solid #000; width: 100px; margin: 0 10px;">&nbsp;</span> &mdash;&mdash;&mdash; ${q.options[1]}
+                </div>
+              `;
+          }
+          // Multiple Choice / True False
+          return `
+            <div class="q-text">${q.question}</div>
+            <ul class="opt-list">
+                ${q.options.map((o: string) => `<li class="opt"><span class="checkbox"></span> ${o}</li>`).join('')}
+            </ul>
+          `;
+      };
+
+      const renderAnswer = (q: any) => {
+          if (q.type === 'matching' || q.type === 'ordering') return 'N/A (Interactive)';
+          if (q.type === 'multiple-choice' || q.type === 'true-false') return q.options[q.correctAnswer];
+          if (q.type === 'slider') return q.correctAnswer;
+          return q.correctAnswer;
+      };
+
+      const content = `
+        <html>
+        <head>
+            <title>${quiz.title} - Printable</title>
+            <style>
+                body { font-family: sans-serif; padding: 40px; color: black; background: white; }
+                
+                .name-section { font-size: 24px; font-weight: bold; margin-bottom: 40px; font-family: sans-serif; }
+                
+                h1 { border-bottom: none; padding-bottom: 5px; margin-bottom: 5px; font-size: 28px; text-transform: uppercase; letter-spacing: 1px; }
+                .meta { font-size: 12px; color: #555; margin-bottom: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+                
+                .q-block { margin-bottom: 30px; page-break-inside: avoid; border-bottom: 4px solid #000; padding-bottom: 30px; }
+                .q-num { font-weight: 800; margin-bottom: 12px; font-size: 14px; color: #333; text-transform: uppercase; background: #eee; display: inline-block; padding: 4px 8px; border-radius: 4px; }
+                .q-text { font-size: 18px; font-weight: 600; margin-bottom: 15px; line-height: 1.4; }
+                
+                .opt-list { padding-left: 0; list-style: none; margin: 0; }
+                .opt { margin-bottom: 12px; font-size: 16px; display: flex; align-items: center; }
+                
+                .checkbox {
+                    display: inline-block;
+                    width: 24px;
+                    height: 24px;
+                    border: 3px solid #000;
+                    border-radius: 6px;
+                    background: white;
+                    margin-right: 15px;
+                    flex-shrink: 0;
+                }
+                
+                .img-container { max-width: 300px; margin-top: 15px; border: 1px solid #eee; margin-bottom: 15px; border-radius: 8px; overflow: hidden; }
+                img { width: 100%; height: auto; display: block; }
+                
+                .page-break { page-break-before: always; }
+                .answer-key-header { margin-bottom: 30px; border-bottom: 3px solid #000; padding-bottom: 10px; }
+                .answer-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+                .answer-row:last-child { border-bottom: none; }
+                .answer-q { font-weight: bold; width: 100px; }
+                .answer-val { flex-1; text-align: right; font-weight: 600; }
+                
+                @media print {
+                    .page-break { page-break-before: always; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="name-section">Name: ......................................................................</div>
+            
+            <h1>${quiz.title}</h1>
+            <div class="meta">Created by @${quiz.creatorUsername || 'User'} • ${quiz.questions.length} Questions</div>
+            ${quiz.questions.map((q, i) => `
+                <div class="q-block">
+                    <div class="q-num">Question ${i + 1}</div>
+                    ${q.image ? `<div class="img-container"><img src="${q.image}" /></div>` : ''}
+                    ${renderQuestionContent(q)}
+                </div>
+            `).join('')}
+            
+            <div class="page-break"></div>
+            
+            <div class="answer-key-header">
+                <h1 style="border: none; padding: 0; margin: 0;">Answer Key</h1>
+                <div style="font-size: 14px; margin-top: 5px; color: #555;">${quiz.title}</div>
+            </div>
+            
+            ${quiz.questions.map((q, i) => `
+                <div class="answer-row">
+                    <div class="answer-q">Question ${i + 1}</div>
+                    <div class="answer-val">${renderAnswer(q)}</div>
+                </div>
+            `).join('')}
+            
+            <script>window.print();</script>
+        </body>
+        </html>
+      `;
+      printWindow.document.write(content);
+      printWindow.document.close();
   };
 
   return (
@@ -131,20 +253,32 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
                         </div>
                     </div>
 
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 flex-wrap">
                         {user ? (
-                            <button onClick={() => onPlay(quiz)} className="flex-1 bg-slate-900 hover:bg-black text-white py-6 rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all click-scale shadow-2xl"><Play size={24} fill="currentColor" /> Play Module</button>
+                            <button onClick={() => onPlay(quiz)} className="flex-1 min-w-[200px] bg-slate-900 hover:bg-black text-white py-5 rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all click-scale shadow-2xl"><Play size={24} fill="currentColor" /> Play</button>
                         ) : (
                             <div className="flex-1 bg-slate-100 border-2 border-dashed border-slate-200 p-8 rounded-[2rem] text-center">
                                 <Lock size={28} className="mx-auto text-slate-300 mb-4" />
                                 <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">Sign in to initialize synchronization</p>
                             </div>
                         )}
+                        
+                        {user && onRemix && (
+                            <button onClick={() => onRemix(quiz)} className="px-6 py-5 bg-indigo-50 border-2 border-indigo-100 hover:bg-indigo-100 hover:border-indigo-200 text-indigo-700 rounded-3xl flex items-center justify-center gap-2 transition-all click-scale" title="Remix this Quiz">
+                                <GitFork size={20} />
+                            </button>
+                        )}
+                        
+                        <button onClick={handlePrint} className="px-6 py-5 bg-slate-50 border-2 border-slate-100 hover:bg-slate-100 text-slate-600 rounded-3xl flex items-center justify-center gap-2 transition-all click-scale" title="Print Quiz">
+                            <Printer size={20} />
+                        </button>
+
                         <button 
-                          className="px-10 bg-white border-2 border-slate-100 text-slate-500 hover:text-indigo-600 rounded-3xl flex items-center justify-center gap-3 transition-all click-scale font-black text-xs uppercase tracking-widest" 
+                          className="px-6 py-5 bg-white border-2 border-slate-100 text-slate-500 hover:text-indigo-600 rounded-3xl flex items-center justify-center gap-2 transition-all click-scale" 
                           onClick={handleCopyLink}
+                          title="Copy Link"
                         >
-                          <Share2 size={20} /> Copy Link
+                          <Share2 size={20} />
                         </button>
                     </div>
                 </div>

@@ -20,9 +20,36 @@ export const generateQuizWithAI = async (
         ? "https://models.github.ai/inference/chat/completions"
         : "https://api.openai.com/v1/chat/completions";
 
-    const prompt = `Generate a ${difficulty} quiz about ${topic} with ${count} questions. 
-    The quiz type is ${quizType}. Provide the output as a JSON object with 'title' and 'questions' array. 
-    Each question object must have 'question', 'options' (array of 4 strings), 'correctAnswer' (index 0-3), and 'explanation'.
+    const typeInstruction = quizType === 'mixed' 
+        ? "Use a variety of these types: multiple-choice, true-false, fill-in-the-blank, ordering, matching, text-input, slider."
+        : `Use only the '${quizType}' question type.`;
+
+    const prompt = `Generate a ${difficulty} quiz about "${topic}" with ${count} questions.
+    ${typeInstruction}
+    
+    Output a JSON object with this structure:
+    {
+      "title": "Quiz Title",
+      "questions": [
+        {
+          "type": "string",
+          "question": "string",
+          "options": ["string", ...],
+          "correctAnswer": "mixed",
+          "explanation": "string"
+        }
+      ]
+    }
+
+    Schema Rules by Type:
+    1. multiple-choice: 'options' has 4 strings. 'correctAnswer' is index (0-3).
+    2. true-false: 'options' is ["True", "False"]. 'correctAnswer' is index (0 or 1).
+    3. ordering: 'options' has 4 items in CORRECT sequence. 'correctAnswer' is null.
+    4. matching: 'options' has 8 strings representing 4 pairs: [Key1, Value1, Key2, Value2, Key3, Value3, Key4, Value4]. 'correctAnswer' is null.
+    5. fill-in-the-blank: 'question' text must contain "[ ]" as placeholder. 'options' has 4 strings (1 correct, 3 distractors). 'correctAnswer' is the index of the correct string in options.
+    6. text-input: 'options' is []. 'correctAnswer' is the correct string answer.
+    7. slider: 'options' is ["min", "max", "step", "unit_label"]. 'correctAnswer' is the target number.
+
     IMPORTANT SAFETY: Ensure all content is educational and safe for all ages. Strictly AVOID violence, weapons, drugs, hate speech, or explicit themes. Do not use words that could trigger safety filters.`;
 
     const response = await fetch(endpoint, {
@@ -51,8 +78,10 @@ export const generateQuizWithAI = async (
         questions: (result.questions || []).map((q: any) => ({
             ...q,
             image: '',
-            type: 'multiple-choice',
-            timeLimit: 20
+            type: ['multiple-choice', 'true-false', 'text-input', 'ordering', 'matching', 'slider', 'fill-in-the-blank'].includes(q.type) ? q.type : 'multiple-choice',
+            timeLimit: 20,
+            options: q.options || [],
+            correctAnswer: q.correctAnswer
         }))
     };
 };

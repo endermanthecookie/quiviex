@@ -10,11 +10,12 @@ interface CommunityPageProps {
   onBack: () => void;
   onPlayQuiz: (quiz: Quiz) => void;
   initialQuizId?: number | null;
+  onRemixQuiz?: (quiz: Quiz) => void;
 }
 
 type SortOption = 'newest' | 'trending';
 
-export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPlayQuiz, initialQuizId }) => {
+export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPlayQuiz, initialQuizId, onRemixQuiz }) => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,7 +111,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
   return (
     <div className="min-h-screen bg-[#f1f5f9] view-transition pb-20">
       {selectedQuiz && (
-        <QuizDetailsModal quiz={selectedQuiz} user={user} onClose={() => setSelectedQuiz(null)} onPlay={(q) => onPlayQuiz(q)} />
+        <QuizDetailsModal 
+            quiz={selectedQuiz} 
+            user={user} 
+            onClose={() => setSelectedQuiz(null)} 
+            onPlay={(q) => onPlayQuiz(q)} 
+            onRemix={onRemixQuiz}
+        />
       )}
 
       <header className="glass backdrop-blur-md border-b border-white/40 sticky top-0 z-40 px-6 py-6 flex items-center justify-between">

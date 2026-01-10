@@ -3,6 +3,7 @@ import { Quiz, Question, Room, User } from '../types';
 import { Logo } from './Logo';
 import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { sfx } from '../services/soundService';
 
 interface QuizTakerProps {
   quiz: Quiz;
@@ -88,7 +89,18 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       startTimeRef.current = Date.now();
       setTempInput('');
       setTempSlider(q.type === 'slider' ? parseInt(q.options[0]) || 0 : 50);
-      setTempOrder(q.type === 'ordering' ? Array.from({length: q.options.length}, (_, i) => i) : []);
+      
+      if (q.type === 'ordering') {
+          const indices = Array.from({length: q.options.length}, (_, i) => i);
+          // Shuffle indices so it's not pre-solved
+          for (let i = indices.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [indices[i], indices[j]] = [indices[j], indices[i]];
+          }
+          setTempOrder(indices);
+      } else {
+          setTempOrder([]);
+      }
       
       if (q.type === 'matching') {
           const pairs = [];
@@ -181,6 +193,10 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
         }
     }
     
+    // Play SFX
+    if (isCorrect) sfx.play('correct');
+    else sfx.play('wrong');
+
     const pointsGained = calculatePoints(isCorrect, timeTaken, currentQuestion.timeLimit, multiplier);
     setSessionPoints(prev => prev + pointsGained);
     setStreak(prev => isCorrect ? prev + 1 : 0);
@@ -205,6 +221,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   };
 
   const nextQuestion = () => {
+      sfx.play('click');
       setShowExplanation(false);
       setIsCorrectFeedback(null);
       setFeedbackMessage(null);
@@ -214,6 +231,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
         initializeQuestionState(shuffledQuestions[nextIndex]);
         setTimerActive(true);
       } else {
+        sfx.play('complete');
         const finalAnswers = new Array(quiz.questions.length).fill(-1);
         userAnswersRef.current.forEach((ans, idx) => {
             finalAnswers[shuffledQuestions[idx].originalIndex] = ans;

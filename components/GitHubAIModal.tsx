@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { X, Sparkles, Loader2, PlusCircle, Image as ImageIcon } from 'lucide-react';
+import { X, Sparkles, Loader2, PlusCircle, Image as ImageIcon, Layers } from 'lucide-react';
 import { Question, User } from '../types';
 import { generateQuizWithAI } from '../services/githubAI';
 import { generateImageForQuestion } from '../services/aiService';
@@ -109,10 +108,10 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div className="space-y-4">
                 <label className="text-sm font-black text-slate-400 uppercase tracking-widest ml-1">Difficulty</label>
-                <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer">
+                <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer">
                   <option value="easy">Easy</option>
                   <option value="medium">Medium</option>
                   <option value="hard">Hard</option>
@@ -120,10 +119,23 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
               </div>
               <div className="space-y-4">
                 <label className="text-sm font-black text-slate-400 uppercase tracking-widest ml-1">Questions</label>
-                <select value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer">
+                <select value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer">
                   <option value={5}>5 Questions</option>
                   <option value={10}>10 Questions</option>
                   <option value={15}>15 Questions</option>
+                </select>
+              </div>
+              <div className="space-y-4">
+                <label className="text-sm font-black text-slate-400 uppercase tracking-widest ml-1">Style</label>
+                <select value={quizType} onChange={(e) => setQuizType(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-black text-slate-800 uppercase tracking-widest text-xs focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer">
+                  <option value="mixed">Mixed</option>
+                  <option value="multiple-choice">Choice</option>
+                  <option value="true-false">True/False</option>
+                  <option value="fill-in-the-blank">Blanks</option>
+                  <option value="matching">Matching</option>
+                  <option value="ordering">Ordering</option>
+                  <option value="text-input">Typing</option>
+                  <option value="slider">Slider</option>
                 </select>
               </div>
             </div>
@@ -145,12 +157,24 @@ export const GitHubAIModal: React.FC<GitHubAIModalProps> = ({ onGenerate, onClos
             </div>
             <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
               {generatedData?.questions.map((q, idx) => (
-                <div key={idx} className="p-8 rounded-[2.5rem] border-2 bg-white border-slate-100 hover:border-indigo-100 transition-all shadow-sm">
+                <div key={idx} className="p-8 rounded-[2.5rem] border-2 bg-white border-slate-100 hover:border-indigo-100 transition-all shadow-sm group">
+                  <div className="flex justify-between mb-4">
+                      <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200">{q.type}</span>
+                  </div>
                   <p className="font-bold text-slate-800 text-xl mb-6 italic">"{q.question}"</p>
                   <div className="flex flex-wrap gap-3">
-                    {q.options.map((o, i) => (
-                      <span key={i} className={`text-[10px] px-5 py-2.5 rounded-full font-black uppercase tracking-widest ${i === q.correctAnswer ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}>{o}</span>
-                    ))}
+                    {q.type === 'matching' ? (
+                        <span className="text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">Matching Pairs Configured</span>
+                    ) : q.type === 'slider' ? (
+                        <div className="flex gap-2">
+                            <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded">Min: {q.options[0]}</span>
+                            <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded">Max: {q.options[1]}</span>
+                        </div>
+                    ) : (
+                        q.options.map((o, i) => (
+                        <span key={i} className={`text-[10px] px-5 py-2.5 rounded-full font-black uppercase tracking-widest ${i === q.correctAnswer ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}>{o}</span>
+                        ))
+                    )}
                   </div>
                 </div>
               ))}
