@@ -120,8 +120,17 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
             onClearAll={onClearNotifications} 
           />
 
-          <button onClick={onViewSettings} title="Settings" className="p-3 bg-white border border-slate-100 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-purple-600 shadow-sm click-scale"><Settings size={20} /></button>
-          <button onClick={onLogout} title="Sign Out" className="p-3 bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-500 rounded-2xl transition-all click-scale shadow-sm"><LogOut size={20} /></button>
+          <button onClick={onOpenFeedback} title="Send Feedback" className="p-3 bg-white border border-slate-100 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-indigo-600 shadow-sm click-scale">
+            <MessageSquare size={20} />
+          </button>
+
+          <button onClick={onViewSettings} title="Settings" className="p-3 bg-white border border-slate-100 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-purple-600 shadow-sm click-scale">
+            <Settings size={20} />
+          </button>
+          
+          <button onClick={onLogout} title="Sign Out" className="p-3 bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-500 rounded-2xl transition-all click-scale shadow-sm">
+            <LogOut size={20} />
+          </button>
         </div>
       </header>
 

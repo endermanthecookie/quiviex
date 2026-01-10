@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Quiz, User, Question } from '../types';
-import { ArrowLeft, Globe, Eye, Heart, Sparkles, Search, Loader2 } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Globe, Play, Sparkles, Search, Loader2, Heart, Eye } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { QuizDetailsModal } from './QuizDetailsModal';
 import { THEMES } from '../constants';
@@ -41,10 +41,11 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
       try {
           const { data: q } = await supabase.from('quizzes').select('*').eq('id', id).single();
           if (q) {
+              const isStaff = q.user_id === '00000000-0000-0000-0000-000000000000';
               const mapped: Quiz = {
                   id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
                   theme: q.theme, creatorUsername: q.username_at_creation || 'Community Architect', creatorAvatarUrl: q.avatar_url_at_creation,
-                  stats: { views: q.views || 0, likes: 0, avgRating: 4.5, totalRatings: 10, plays: q.plays || 0 }
+                  stats: { views: isStaff ? 0 : (q.views || 0), likes: 0, avgRating: 4.5, totalRatings: 10, plays: q.plays || 0 }
               };
               setSelectedQuiz(mapped);
           }
@@ -63,11 +64,20 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
         const { data: dbQuizzes, error } = await query.limit(40);
         if (error) throw error;
 
-        const mapped: Quiz[] = (dbQuizzes || []).map((q: any) => ({
-            id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
-            theme: q.theme, creatorUsername: q.username_at_creation || 'Quiviex Team', creatorAvatarUrl: q.avatar_url_at_creation,
-            stats: { views: q.views || 0, likes: 0, avgRating: 4.5, totalRatings: 10, plays: q.plays || 0 }
-        }));
+        const mapped: Quiz[] = (dbQuizzes || []).map((q: any) => {
+            const isStaff = q.user_id === '00000000-0000-0000-0000-000000000000';
+            return {
+                id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
+                theme: q.theme, creatorUsername: q.username_at_creation || 'Quiviex Team', creatorAvatarUrl: q.avatar_url_at_creation,
+                stats: { 
+                    views: isStaff ? 0 : (q.views || 0), 
+                    likes: 0, 
+                    avgRating: 4.5, 
+                    totalRatings: 10, 
+                    plays: q.plays || 0 
+                }
+            };
+        });
 
         setQuizzes(mapped);
     } catch (error) {
@@ -78,6 +88,22 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
   };
 
   const filteredQuizzes = quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const getHighlightedText = (text: string, highlight: string) => {
+    if (!highlight.trim()) return text;
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return (
+        <span>
+            {parts.map((part, i) => 
+                part.toLowerCase() === highlight.toLowerCase() ? (
+                    <span key={i} className="bg-yellow-400 text-slate-900 px-1 rounded shadow-sm">{part}</span>
+                ) : (
+                    part
+                )
+            )}
+        </span>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] view-transition pb-20">
@@ -121,7 +147,9 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                                         <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-white/10">{quiz.questions.length} UNITS</span>
                                     </div>
                                 </div>
-                                <h3 className="text-2xl font-black text-white line-clamp-2 leading-tight drop-shadow-md">{quiz.title}</h3>
+                                <h3 className="text-2xl font-black text-white line-clamp-2 leading-tight drop-shadow-md">
+                                    {getHighlightedText(quiz.title, searchQuery)}
+                                </h3>
                           </div>
                           <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">

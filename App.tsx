@@ -249,6 +249,22 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
+  const handleFeedbackSubmit = async (feedback: Feedback) => {
+    try {
+        const { error } = await supabase.from('feedback').insert({
+            user_id: feedback.userId,
+            username: feedback.username,
+            type: feedback.type,
+            content: feedback.content,
+            status: feedback.status
+        });
+        if (error) throw error;
+    } catch (e: any) {
+        console.error("Feedback submission error:", e);
+        throw e;
+    }
+  };
+
   const renderContent = () => {
       if (dbError) return <div className="p-20 text-center text-red-500 font-bold">{dbError}</div>;
       if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse text-2xl tracking-tighter">Quiviex...</div>;
@@ -285,7 +301,7 @@ export default function App() {
   return (
     <div className={`min-h-screen transition-all duration-500 bg-gradient-to-br ${theme.gradient} ${theme.text}`}>
         <NotificationToast title={notification?.title || ''} message={notification?.message || ''} isVisible={showNotification} onClose={() => setShowNotification(false)} />
-        {showFeedbackModal && user && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} onSubmit={async (f) => {}} />}
+        {showFeedbackModal && user && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} onSubmit={handleFeedbackSubmit} />}
         {activeLegalModal && <LegalModal type={activeLegalModal} onClose={() => setActiveLegalModal(null)} />}
         <div key={view} className="view-transition">
           {renderContent()}

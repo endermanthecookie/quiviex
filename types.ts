@@ -1,8 +1,8 @@
 
 export type QuestionType = 'multiple-choice' | 'true-false' | 'text-input' | 'ordering' | 'fill-in-the-blank' | 'matching' | 'slider';
 export type QuizVisibility = 'public' | 'unlisted' | 'private';
+export type AIMode = '1' | '2' | '3'; // 1: GH Only, 2: OAI Full, 3: Hybrid
 
-/* Added missing type used in constants.ts */
 export interface ColorTheme {
   bg: string;
   hover: string;
@@ -10,7 +10,6 @@ export interface ColorTheme {
   text: string;
 }
 
-/* Added missing type used in constants.ts */
 export interface TutorialStep {
   title: string;
   content: string;
@@ -18,7 +17,6 @@ export interface TutorialStep {
   showTokenActions?: boolean;
 }
 
-/* Added missing type used in notification components and App.tsx */
 export interface QXNotification {
   id: string;
   userId: string;
@@ -29,7 +27,6 @@ export interface QXNotification {
   createdAt: string;
 }
 
-/* Added missing type used in feedback components and App.tsx */
 export interface Feedback {
   id: string;
   userId: string;
@@ -49,7 +46,7 @@ export interface UserStats {
   studySessions: number;
   aiQuizzesGenerated: number;
   aiImagesGenerated: number;
-  totalPoints: number; // New: Cumulative points for ranking
+  totalPoints: number;
 }
 
 export interface Achievement {
@@ -69,6 +66,7 @@ export interface UserPreferences {
   openaiKey?: string;
   aiTextProvider?: 'github' | 'openai';
   aiImageProvider?: 'github' | 'openai';
+  aiMode?: AIMode;
   appTheme?: string;
   customThemeData?: CustomTheme; 
 }
@@ -85,7 +83,6 @@ export interface User {
   history: QuizResult[];
   preferences?: UserPreferences;
   savedQuizIds: number[]; 
-  // warnings count for moderation strikes to fix App.tsx type error
   warnings: number;
 }
 
@@ -99,12 +96,13 @@ export interface Room {
     createdAt: string;
 }
 
+// Added Participant interface to resolve missing exported member error in MultiplayerLobby.tsx
 export interface Participant {
-    id: string;
-    username: string;
-    score: number;
-    isHost: boolean;
-    lastActive: string;
+  id: string;
+  username: string;
+  score: number;
+  isHost: boolean;
+  lastActive?: string;
 }
 
 export interface Quiz {
@@ -135,7 +133,7 @@ export interface QuizResult {
   quizTitle: string;
   date: string;
   score: number;
-  points?: number; // New: Points earned in session
+  points?: number;
   totalQuestions: number;
   answers: (number | string | number[])[]; 
 }

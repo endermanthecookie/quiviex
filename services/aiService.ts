@@ -1,14 +1,22 @@
-
 import { Question, UserPreferences } from '../types';
 
 /**
- * AI Services implemented using Standard REST APIs (GitHub / OpenAI).
- * No Gemini SDK references.
+ * AI Services respecting 3 Protocols:
+ * Mode 1: GH Text Only (Images disabled)
+ * Mode 2: OAI Full (Text + DALL-E)
+ * Mode 3: Hybrid (GH Text + OAI Images)
  */
 
-const getAuthHeaders = (prefs: UserPreferences | undefined, mode: 'text' | 'image') => {
-    const provider = mode === 'text' ? (prefs?.aiTextProvider || 'github') : (prefs?.aiImageProvider || 'openai');
-    const token = provider === 'github' ? (prefs?.githubToken || '') : (prefs?.openaiKey || '');
+const getAuthHeaders = (prefs: UserPreferences | undefined, type: 'text' | 'image') => {
+    const mode = prefs?.aiMode || '1';
+    let token = '';
+
+    if (type === 'text') {
+        const useOpenAI = mode === '2';
+        token = useOpenAI ? (prefs?.openaiKey || '') : (prefs?.githubToken || '');
+    } else {
+        token = prefs?.openaiKey || '';
+    }
     
     return {
         "Content-Type": "application/json",
@@ -16,45 +24,23 @@ const getAuthHeaders = (prefs: UserPreferences | undefined, mode: 'text' | 'imag
     };
 };
 
-const getEndpoint = (prefs: UserPreferences | undefined, mode: 'text' | 'image') => {
-    const provider = mode === 'text' ? (prefs?.aiTextProvider || 'github') : (prefs?.aiImageProvider || 'openai');
-    if (mode === 'text') {
-        return provider === 'github' 
-            ? "https://models.github.ai/inference/chat/completions"
-            : "https://api.openai.com/v1/chat/completions";
+const getEndpoint = (prefs: UserPreferences | undefined, type: 'text' | 'image') => {
+    const mode = prefs?.aiMode || '1';
+    if (type === 'text') {
+        const useOpenAI = mode === '2';
+        return useOpenAI 
+            ? "https://api.openai.com/v1/chat/completions"
+            : "https://models.github.ai/inference/chat/completions";
     } else {
         return "https://api.openai.com/v1/images/generations";
     }
 };
 
-export const generateFocusSession = async (inputData: { mistakes: any[], recentTopics: string[] }, prefs: UserPreferences | undefined) => {
-    const headers = getAuthHeaders(prefs, 'text');
-    const endpoint = getEndpoint(prefs, 'text');
-    const model = prefs?.textModel || 'gpt-4o-mini';
-
-    const prompt = `Analyze these quiz mistakes: ${JSON.stringify(inputData.mistakes)} from these topics: ${JSON.stringify(inputData.recentTopics)}.
-    Provide a short analytical encouraging message (one sentence) and 5 multiple-choice questions to address the weaknesses.
-    Return STRICT JSON object: {"analysis": "string", "questions": [{"question": "str", "options": ["str", "str", "str", "str"], "correctAnswer": 0, "explanation": "str"}]}`;
-
-    const response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-            messages: [{ role: "user", content: prompt }],
-            model: model,
-            response_format: { type: "json_object" }
-        })
-    });
-
-    if (!response.ok) throw new Error("AI provider rejected the request. Check your API key in settings.");
-    const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
-};
-
 export const generateQuizFromImage = async (imageBase64: string, difficulty: string, count: number, prefs: UserPreferences | undefined): Promise<{ title: string, questions: Question[] }> => {
     const headers = getAuthHeaders(prefs, 'text');
     const endpoint = getEndpoint(prefs, 'text');
-    const model = 'gpt-4o-mini'; // Always use vision-capable mini for speed
+    const mode = prefs?.aiMode || '1';
+    const model = mode === '2' ? 'gpt-4o-mini' : 'gpt-4o-mini';
 
     const prompt = `Generate a ${difficulty} quiz with ${count} questions based on this image. 
     Return a JSON object with a 'title' and 'questions' array. 
@@ -78,7 +64,7 @@ export const generateQuizFromImage = async (imageBase64: string, difficulty: str
         })
     });
 
-    if (!response.ok) throw new Error("Visual analysis failed. Ensure you have a valid token in AI Settings.");
+    if (!response.ok) throw new Error("Visual analysis failed. Check API configuration for Mode " + mode);
     const data = await response.json();
     const result = JSON.parse(data.choices[0].message.content);
 
@@ -94,8 +80,8 @@ export const generateQuizFromImage = async (imageBase64: string, difficulty: str
 };
 
 export const generateImageForQuestion = async (text: string, prefs: UserPreferences | undefined): Promise<string | null> => {
-    const provider = prefs?.aiImageProvider || 'openai';
-    if (provider === 'github') return null; 
+    const mode = prefs?.aiMode || '1';
+    if (mode === '1') return null; // Image generation disabled in Mode 1
 
     const headers = getAuthHeaders(prefs, 'image');
     const endpoint = getEndpoint(prefs, 'image');
@@ -106,7 +92,7 @@ export const generateImageForQuestion = async (text: string, prefs: UserPreferen
             headers,
             body: JSON.stringify({
                 model: "dall-e-3",
-                prompt: `A clear educational illustration for: ${text}`,
+                prompt: `Educational illustration: ${text}`,
                 n: 1,
                 size: "1024x1024"
             })
@@ -118,4 +104,29 @@ export const generateImageForQuestion = async (text: string, prefs: UserPreferen
     } catch (e) {
         return null;
     }
+};
+
+export const generateFocusSession = async (inputData: { mistakes: any[], recentTopics: string[] }, prefs: UserPreferences | undefined) => {
+    const headers = getAuthHeaders(prefs, 'text');
+    const endpoint = getEndpoint(prefs, 'text');
+    const mode = prefs?.aiMode || '1';
+    const model = mode === '2' ? 'gpt-4o-mini' : 'gpt-4o-mini';
+
+    const prompt = `Analyze these mistakes: ${JSON.stringify(inputData.mistakes)} from topics: ${JSON.stringify(inputData.recentTopics)}.
+    Provide 5 multiple-choice questions to address the weaknesses.
+    Return JSON: {"analysis": "str", "questions": [{"question": "str", "options": ["str", "str", "str", "str"], "correctAnswer": 0, "explanation": "str"}]}`;
+
+    const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+            messages: [{ role: "user", content: prompt }],
+            model,
+            response_format: { type: "json_object" }
+        })
+    });
+
+    if (!response.ok) throw new Error("AI provider error in Mode " + mode);
+    const data = await response.json();
+    return JSON.parse(data.choices[0].message.content);
 };
