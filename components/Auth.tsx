@@ -85,6 +85,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
     try {
       const finalEmail = isUnder13 ? `${username.toLowerCase()}@u13.quiviex.internal` : email.trim();
       
+      // Check for ban
+      const { data: banEntry } = await supabase.from('banned_emails').select('reason').eq('email', finalEmail).maybeSingle();
+      if (banEntry) {
+          throw new Error(`User has been banned: ${banEntry.reason}`);
+      }
+
       const { error: signupError } = await supabase.auth.signUp({ 
         email: finalEmail, 
         password,
@@ -123,6 +129,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
         if (profileError || !data?.email) throw new Error('Account not found.');
         loginEmail = data.email;
       }
+
+      // Check for ban
+      const { data: banEntry } = await supabase.from('banned_emails').select('reason').eq('email', loginEmail).maybeSingle();
+      if (banEntry) {
+          throw new Error(`User has been banned: ${banEntry.reason}`);
+      }
+
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
       if (signInError) throw signInError;
     } catch (err: any) {
