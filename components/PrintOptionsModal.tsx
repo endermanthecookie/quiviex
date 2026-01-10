@@ -29,8 +29,10 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
           if (q.type === 'slider') {
                return `
                 <div class="q-text">${q.question}</div>
-                <div style="margin-top: 25px; font-weight: bold; text-align: center; font-size: 14px;">
-                    ${q.options[0]} &mdash;&mdash;&mdash; <span style="display: inline-block; border-bottom: 2px solid #000; width: 100px; margin: 0 10px;">&nbsp;</span> &mdash;&mdash;&mdash; ${q.options[1]}
+                <div style="margin-top: 30px; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 14px; gap: 15px;">
+                    <span style="white-space: nowrap;">Min. ${q.options[0]}</span>
+                    <div style="flex: 1; height: 6px; background: black; border-radius: 4px;"></div>
+                    <span style="white-space: nowrap;">Max. ${q.options[1]}</span>
                 </div>
               `;
           }
@@ -45,10 +47,17 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
 
       const renderAnswer = (q: any) => {
           if (q.type === 'matching' || q.type === 'ordering') return 'N/A (Interactive)';
-          if (q.type === 'multiple-choice' || q.type === 'true-false') return q.options[q.correctAnswer];
-          if (q.type === 'slider') return q.correctAnswer;
+          if (q.type === 'multiple-choice' || q.type === 'true-false' || q.type === 'fill-in-the-blank') return q.options[q.correctAnswer];
+          if (q.type === 'slider') return `${q.correctAnswer} (Min: ${q.options[0]}, Max: ${q.options[1]})`;
+          if (q.type === 'text-input') return q.correctAnswer;
           return q.correctAnswer;
       };
+
+      const brandingHtml = `
+        <h5 style="margin: 8px 0 20px 0; font-weight: 500; font-size: 12px; color: #64748b; font-family: sans-serif; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+            Made with Quiviex. Make your own quiz at <u style="color: #4f46e5; text-decoration-color: #4f46e5;">quiviex.vercel.app</u>
+        </h5>
+      `;
 
       let bodyContent = '';
 
@@ -57,6 +66,7 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
             <div class="name-section">Name: ......................................................................</div>
             
             <h1>${quiz.title}</h1>
+            ${brandingHtml}
             <div class="meta">Created by @${quiz.creatorUsername || 'User'} • ${quiz.questions.length} Questions</div>
             ${quiz.questions.map((q, i) => `
                 <div class="q-block">
@@ -70,7 +80,8 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
           bodyContent = `
             <div class="answer-key-header">
                 <h1 style="border: none; padding: 0; margin: 0;">Answer Key</h1>
-                <div style="font-size: 14px; margin-top: 5px; color: #555;">${quiz.title}</div>
+                <div style="font-size: 16px; font-weight: bold; margin-top: 5px; color: #333;">${quiz.title}</div>
+                ${brandingHtml}
             </div>
             
             ${quiz.questions.map((q, i) => `
@@ -89,9 +100,9 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
             <style>
                 body { font-family: sans-serif; padding: 40px; color: black; background: white; }
                 
-                .name-section { font-size: 24px; font-weight: bold; margin-bottom: 40px; font-family: sans-serif; }
+                .name-section { font-size: 24px; font-weight: bold; margin-bottom: 30px; font-family: sans-serif; }
                 
-                h1 { border-bottom: none; padding-bottom: 5px; margin-bottom: 5px; font-size: 28px; text-transform: uppercase; letter-spacing: 1px; }
+                h1 { border-bottom: none; padding-bottom: 0px; margin-bottom: 0px; font-size: 28px; text-transform: uppercase; letter-spacing: 1px; line-height: 1.2; }
                 .meta { font-size: 12px; color: #555; margin-bottom: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
                 
                 .q-block { margin-bottom: 30px; page-break-inside: avoid; border-bottom: 4px solid #000; padding-bottom: 30px; }
@@ -115,7 +126,7 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
                 .img-container { max-width: 300px; margin-top: 15px; border: 1px solid #eee; margin-bottom: 15px; border-radius: 8px; overflow: hidden; }
                 img { width: 100%; height: auto; display: block; }
                 
-                .answer-key-header { margin-bottom: 30px; border-bottom: 3px solid #000; padding-bottom: 10px; }
+                .answer-key-header { margin-bottom: 30px; padding-bottom: 10px; }
                 .answer-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; font-size: 14px; }
                 .answer-row:last-child { border-bottom: none; }
                 .answer-q { font-weight: bold; width: 100px; }
