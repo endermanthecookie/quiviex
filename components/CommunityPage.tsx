@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Quiz, User, Question } from '../types';
-import { ArrowLeft, User as UserIcon, Globe, Play, Sparkles, Search, Loader2, Heart, Eye, AlertTriangle, Printer } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Globe, Play, Sparkles, Search, Loader2, Heart, Eye, AlertTriangle, Printer, Lock, X, ChevronDown } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { QuizDetailsModal } from './QuizDetailsModal';
 import { THEMES } from '../constants';
@@ -18,12 +18,17 @@ type SortOption = 'newest' | 'trending';
 
 export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPlayQuiz, initialQuizId, onRemixQuiz }) => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [printingQuiz, setPrintingQuiz] = useState<Quiz | null>(null);
+  const [showAuthAlert, setShowAuthAlert] = useState(false);
   const [staffId, setStaffId] = useState<string | null>(null);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
   // 1. Fetch Staff ID (First User) on Mount
   useEffect(() => {
@@ -35,10 +40,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
       fetchStaffId();
   }, []);
 
-  // 2. Fetch Quizzes only after Staff ID is known
+  // 2. Initial Fetch when Staff ID is ready or sort changes
   useEffect(() => {
     if (staffId) {
-        fetchCommunityQuizzes();
+        setQuizzes([]);
+        setCurrentPage(0);
+        setHasMore(true);
+        fetchCommunityQuizzes(0);
     }
   }, [sortBy, staffId]);
 
@@ -79,60 +87,79 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
       }
   };
 
-  const fetchCommunityQuizzes = async () => {
+  const fetchCommunityQuizzes = async (page: number) => {
     setIsLoading(true);
     try {
+        const from = page * 10;
+        const to = from + 9;
+
         let query = supabase.from('quizzes').select('*').eq('visibility', 'public');
         if (sortBy === 'newest') query = query.order('created_at', { ascending: false });
         else if (sortBy === 'trending') query = query.order('views', { ascending: false }); 
         
-        const { data: dbQuizzes, error } = await query.limit(40);
+        const { data: dbQuizzes, error } = await query.range(from, to);
         if (error) throw error;
 
-        const userIds = Array.from(new Set(dbQuizzes?.map((q: any) => q.user_id) || []));
-        const { data: profiles } = await supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', userIds);
-        
-        const profileMap = new Map();
-        profiles?.forEach((p: any) => profileMap.set(p.user_id, p));
-
-        const mapped: Quiz[] = (dbQuizzes || []).map((q: any) => {
-            const isStaff = q.user_id === staffId;
-            const profile = profileMap.get(q.user_id);
+        if (!dbQuizzes || dbQuizzes.length === 0) {
+            setHasMore(false);
+            if (page === 0) setQuizzes([]);
+        } else {
+            const userIds = Array.from(new Set(dbQuizzes.map((q: any) => q.user_id) || []));
+            const { data: profiles } = await supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', userIds);
             
-            // STRICT OVERRIDE: If it's the Admin ID, force "Quiviex Team"
-            const creatorName = isStaff ? 'Quiviex Team' : (profile?.username || q.username_at_creation || 'Unknown');
-            const creatorAvatar = isStaff ? null : (profile?.avatar_url || q.avatar_url_at_creation);
+            const profileMap = new Map();
+            profiles?.forEach((p: any) => profileMap.set(p.user_id, p));
 
-            return {
-                id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
-                theme: q.theme, 
-                creatorUsername: creatorName, 
-                creatorAvatarUrl: creatorAvatar,
-                isSensitive: q.is_sensitive,
-                stats: { 
-                    views: isStaff ? 0 : (q.views || 0), 
-                    likes: 0, 
-                    avgRating: 4.5, 
-                    totalRatings: 10, 
-                    plays: q.plays || 0 
+            const mapped: Quiz[] = dbQuizzes.map((q: any) => {
+                const isStaff = q.user_id === staffId;
+                const profile = profileMap.get(q.user_id);
+                
+                const creatorName = isStaff ? 'Quiviex Team' : (profile?.username || q.username_at_creation || 'Unknown');
+                const creatorAvatar = isStaff ? null : (profile?.avatar_url || q.avatar_url_at_creation);
+
+                return {
+                    id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
+                    theme: q.theme, 
+                    creatorUsername: creatorName, 
+                    creatorAvatarUrl: creatorAvatar,
+                    isSensitive: q.is_sensitive,
+                    stats: { 
+                        views: isStaff ? 0 : (q.views || 0), 
+                        likes: 0, 
+                        avgRating: 4.5, 
+                        totalRatings: 10, 
+                        plays: q.plays || 0 
+                    }
+                };
+            });
+
+            // Filter out "Draft" or incomplete official quizzes (less than 7 questions)
+            const filtered = mapped.filter(q => {
+                if (q.userId === staffId) {
+                    return q.questions.length >= 7;
                 }
-            };
-        });
+                return true;
+            });
 
-        // Filter out "Draft" or incomplete official quizzes (less than 7 questions)
-        const filtered = mapped.filter(q => {
-            if (q.userId === staffId) {
-                return q.questions.length >= 7;
+            if (page === 0) {
+                setQuizzes(filtered);
+            } else {
+                setQuizzes(prev => [...prev, ...filtered]);
             }
-            return true;
-        });
 
-        setQuizzes(filtered);
+            if (dbQuizzes.length < 10) setHasMore(false);
+        }
     } catch (error) {
         console.error("Fetch Error:", error);
     } finally {
         setIsLoading(false);
     }
+  };
+
+  const handleLoadMore = () => {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchCommunityQuizzes(nextPage);
   };
 
   const filteredQuizzes = quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -159,7 +186,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
         <QuizDetailsModal 
             quiz={selectedQuiz} 
             user={user} 
-            onClose={() => { setSelectedQuiz(null); fetchCommunityQuizzes(); }} 
+            onClose={() => { setSelectedQuiz(null); fetchCommunityQuizzes(0); }} 
             onPlay={(q) => onPlayQuiz(q)} 
             onRemix={onRemixQuiz}
         />
@@ -170,6 +197,24 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
             quiz={printingQuiz} 
             onClose={() => setPrintingQuiz(null)} 
         />
+      )}
+
+      {showAuthAlert && (
+        <div className="fixed inset-0 bg-black/80 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl relative animate-in zoom-in border-4 border-slate-100 text-center">
+                <button onClick={() => setShowAuthAlert(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                    <X size={20} />
+                </button>
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-100">
+                    <Lock size={32} />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">Access Restricted</h3>
+                <p className="text-slate-500 font-bold text-sm mb-6">Please sign in or create an account to print this document.</p>
+                <button onClick={() => setShowAuthAlert(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-colors shadow-lg click-scale">
+                    Understood
+                </button>
+            </div>
+        </div>
       )}
 
       <header className="glass backdrop-blur-md border-b border-white/40 sticky top-0 z-40 px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -196,7 +241,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
       </header>
 
       <div className="max-w-7xl mx-auto p-4 sm:p-10">
-          {isLoading ? (
+          {isLoading && currentPage === 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10">
                   {[...Array(6)].map((_, i) => <div key={i} className="bg-white rounded-[3rem] h-64 animate-pulse border border-slate-100"></div>)}
               </div>
@@ -209,7 +254,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                                      <button onClick={(e) => { 
                                          e.stopPropagation(); 
                                          if (!user) {
-                                             alert("Please sign in or create an account to print quizzes.");
+                                             setShowAuthAlert(true);
                                              return;
                                          }
                                          setPrintingQuiz(quiz); 
@@ -250,7 +295,20 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
               </div>
           )}
           
-          {!isLoading && filteredQuizzes.length === 0 && (
+          {hasMore && (
+              <div className="flex justify-center mt-12 mb-8">
+                  <button 
+                      onClick={handleLoadMore} 
+                      disabled={isLoading}
+                      className="px-12 py-4 bg-white border-2 border-indigo-100 hover:border-indigo-300 text-indigo-600 font-black rounded-2xl shadow-sm hover:shadow-lg transition-all click-scale flex items-center gap-2 uppercase tracking-widest text-xs disabled:opacity-50"
+                  >
+                      {isLoading ? <Loader2 className="animate-spin" size={18} /> : <ChevronDown size={18} />}
+                      Load More Modules
+                  </button>
+              </div>
+          )}
+          
+          {!isLoading && filteredQuizzes.length === 0 && currentPage === 0 && (
               <div className="col-span-full py-40 text-center">
                   <Globe size={80} className="mx-auto text-slate-200 mb-6 animate-pulse" />
                   <h3 className="text-2xl font-black text-slate-400 uppercase tracking-widest">No Matches Found</h3>

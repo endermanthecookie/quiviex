@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap, Clock, History, Printer } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap, Clock, History, Printer, ChevronDown } from 'lucide-react';
 import { Quiz, User as UserType, QXNotification } from '../types';
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
@@ -60,15 +60,27 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'my' | 'saved'>('my');
   const [searchQuery, setSearchQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(10);
   const [pendingQuizPlay, setPendingQuizPlay] = useState<Quiz | null>(null);
   const [printingQuiz, setPrintingQuiz] = useState<Quiz | null>(null);
 
-  const displayedQuizzes = (activeTab === 'my' ? quizzes : savedQuizzes)
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [activeTab, searchQuery]);
+
+  const allFilteredQuizzes = (activeTab === 'my' ? quizzes : savedQuizzes)
     .filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const displayedQuizzes = allFilteredQuizzes.slice(0, visibleCount);
+  const hasMore = allFilteredQuizzes.length > visibleCount;
 
   const latestResult = user.history && user.history.length > 0 ? user.history[user.history.length - 1] : null;
 
   const isSudo = user.email === 'sudo@quiviex.com';
+
+  const handleLoadMore = () => {
+    setVisibleCount(prev => prev + 10);
+  };
 
   return (
     <div className="min-h-screen pb-20 bg-[#f1f5f9]">
@@ -259,6 +271,18 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
             </div>
           ))}
         </div>
+
+        {hasMore && (
+            <div className="flex justify-center mt-12 mb-8">
+                <button 
+                    onClick={handleLoadMore} 
+                    className="px-12 py-4 bg-white border-2 border-indigo-100 hover:border-indigo-300 text-indigo-600 font-black rounded-2xl shadow-sm hover:shadow-lg transition-all click-scale flex items-center gap-2 uppercase tracking-widest text-xs"
+                >
+                    <ChevronDown size={18} />
+                    Load More Modules
+                </button>
+            </div>
+        )}
       </main>
     </div>
   );

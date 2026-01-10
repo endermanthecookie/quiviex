@@ -135,7 +135,33 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
         </head>
         <body>
             ${bodyContent}
-            <script>window.print();</script>
+            <script>
+                window.onload = function() {
+                    // Failsafe: Automatically close the window after 1.5 minutes (90000ms)
+                    setTimeout(function() {
+                        window.close();
+                    }, 90000);
+
+                    // Slight delay to ensure all styles/images are rendered
+                    setTimeout(function() {
+                        window.print();
+                        
+                        // Handler for browsers that support it (Firefox, IE)
+                        window.onafterprint = function() {
+                            window.close();
+                        };
+
+                        // Fallback logic for Chrome/Safari where print() is blocking
+                        // This code typically runs after the print dialog is closed in those browsers
+                        if (document.hasFocus()) {
+                            window.close();
+                        } else {
+                            // If window lost focus (e.g. print dialog open), wait for it to return
+                            window.onfocus = function() { window.close(); }
+                        }
+                    }, 500);
+                };
+            </script>
         </body>
         </html>
       `;

@@ -26,6 +26,7 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
   const [isLiked, setIsLiked] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'comments'>('overview');
   const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [showAuthAlert, setShowAuthAlert] = useState(false);
 
   const isOwner = user ? quiz.userId === user.id : false;
 
@@ -71,7 +72,7 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
 
   const handlePrint = () => {
       if (!user) {
-          alert("Please sign in or create an account to print this quiz.");
+          setShowAuthAlert(true);
           return;
       }
       setShowPrintOptions(true);
@@ -79,6 +80,24 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
+      {showAuthAlert && (
+        <div className="fixed inset-0 bg-black/80 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl relative animate-in zoom-in border-4 border-slate-100 text-center">
+                <button onClick={() => setShowAuthAlert(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                    <X size={20} />
+                </button>
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-100">
+                    <Lock size={32} />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">Access Restricted</h3>
+                <p className="text-slate-500 font-bold text-sm mb-6">Please sign in or create an account to print this document.</p>
+                <button onClick={() => setShowAuthAlert(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-colors shadow-lg click-scale">
+                    Understood
+                </button>
+            </div>
+        </div>
+      )}
+
       {showPrintOptions && (
           <PrintOptionsModal quiz={quiz} onClose={() => setShowPrintOptions(false)} />
       )}
