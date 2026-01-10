@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2, Info, RefreshCw, Type, ListOrdered, Layers, Sliders, AlignLeft, CheckSquare } from 'lucide-react';
+import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2, Info, RefreshCw, Type, ListOrdered, Layers, Sliders, AlignLeft, CheckSquare, Brackets } from 'lucide-react';
 import { Quiz, Question, QuestionType, User, CustomTheme, QuizVisibility } from '../types';
 import { COLORS, TUTORIAL_STEPS, THEMES, BANNED_WORDS } from '../constants';
 import { TutorialWidget } from './TutorialWidget';
@@ -38,14 +38,19 @@ const DEFAULT_QUESTION: Question = {
 };
 
 const TYPE_CONFIG = [
-    { id: 'multiple-choice', label: 'Choice', icon: CheckSquare },
-    { id: 'true-false', label: 'T / F', icon: ShieldCheck },
-    { id: 'text-input', label: 'Written', icon: Type },
-    { id: 'ordering', label: 'Order', icon: ListOrdered },
-    { id: 'matching', label: 'Match', icon: Layers },
-    { id: 'slider', label: 'Slider', icon: Sliders },
-    { id: 'fill-in-the-blank', label: 'Blank', icon: AlignLeft }
+    { id: 'multiple-choice', label: 'Choice', icon: CheckSquare, gradient: 'from-blue-500 to-indigo-600', shadow: 'shadow-blue-500/40', ring: 'ring-blue-200' },
+    { id: 'true-false', label: 'True/False', icon: ShieldCheck, gradient: 'from-rose-500 to-pink-600', shadow: 'shadow-rose-500/40', ring: 'ring-rose-200' },
+    { id: 'text-input', label: 'Type', icon: Type, gradient: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/40', ring: 'ring-emerald-200' },
+    { id: 'ordering', label: 'Order', icon: ListOrdered, gradient: 'from-orange-500 to-amber-600', shadow: 'shadow-orange-500/40', ring: 'ring-orange-200' },
+    { id: 'matching', label: 'Match', icon: Layers, gradient: 'from-purple-500 to-violet-600', shadow: 'shadow-purple-500/40', ring: 'ring-purple-200' },
+    { id: 'slider', label: 'Slider', icon: Sliders, gradient: 'from-cyan-500 to-blue-600', shadow: 'shadow-cyan-500/40', ring: 'ring-cyan-200' },
+    { id: 'fill-in-the-blank', label: 'Blanks', icon: AlignLeft, gradient: 'from-fuchsia-500 to-purple-600', shadow: 'shadow-fuchsia-500/40', ring: 'ring-fuchsia-200' }
 ];
+
+const isImage = (url: string) => {
+    if (!url) return false;
+    return url.startsWith('data:image') || /\.(jpeg|jpg|gif|png|webp)$/i.test(url) || url.startsWith('https://images.unsplash.com');
+};
 
 export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUser, onSave, onExit, startWithTutorial, onTutorialComplete, onStatUpdate, onOpenSettings, onRefreshProfile }) => {
   const [quizTitle, setQuizTitle] = useState('');
@@ -64,6 +69,12 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   const [showModerationAlert, setShowModerationAlert] = useState<{detected: string[], warningsRemaining: number, isSudo: boolean} | null>(null);
   const [showTerminalBanAlert, setShowTerminalBanAlert] = useState(false);
   const [isProcessingModeration, setIsProcessingModeration] = useState(false);
+  
+  // Drag state for reordering options
+  const [draggedOptionIndex, setDraggedOptionIndex] = useState<number | null>(null);
+  
+  // Image selection for Match type
+  const [activeMatchIndex, setActiveMatchIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (initialQuiz) {
@@ -79,6 +90,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   const scanForBannedWords = (text: string): string[] => {
       if (!text) return [];
       const normalized = text.toLowerCase();
+      if (text.startsWith('data:image')) return []; // Skip base64 images
       return BANNED_WORDS.filter(word => {
           if (!word) return false;
           try {
@@ -183,10 +195,24 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
           let options = [...q.options];
           let correct = q.correctAnswer;
           
-          if (type === 'true-false') { options = ['True', 'False']; correct = 0; }
-          else if (type === 'slider') { options = ['0', '100', '1', 'Value']; correct = 50; }
-          else if (type === 'text-input' || type === 'fill-in-the-blank') { options = []; correct = ''; }
-          else { 
+          if (type === 'true-false') { 
+              options = ['True', 'False']; 
+              correct = 0; 
+          } else if (type === 'slider') { 
+              options = ['0', '100', '1', 'Value']; 
+              correct = 50; 
+          } else if (type === 'text-input') { 
+              options = []; 
+              correct = ''; 
+          } else if (type === 'matching') {
+              // Prepare for 4 pairs (8 slots: even=left, odd=right)
+              options = ['', '', '', '', '', '', '', ''];
+              correct = null;
+          } else if (type === 'fill-in-the-blank') {
+              options = ['', '', '', ''];
+              correct = 0; // Index of correct dragged item
+          } else { 
+              // Multiple Choice, Ordering
               if (options.length < 4) options = ['', '', '', '']; 
               if (typeof correct !== 'number') correct = 0; 
           }
@@ -196,10 +222,59 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       });
   };
 
+  const handleOptionDragStart = (index: number) => {
+    setDraggedOptionIndex(index);
+  };
+
+  const handleOptionDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedOptionIndex === null || draggedOptionIndex === index) return;
+    
+    const newOptions = [...currentQ.options];
+    const draggedItem = newOptions[draggedOptionIndex];
+    newOptions.splice(draggedOptionIndex, 1);
+    newOptions.splice(index, 0, draggedItem);
+    
+    // Update state immediately for visual feedback
+    updateQuestion('options', newOptions);
+    setDraggedOptionIndex(index);
+  };
+
+  const insertBlank = () => {
+      const textarea = document.getElementById('question-textarea') as HTMLTextAreaElement;
+      if (textarea) {
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const text = currentQ.question;
+          const newText = text.substring(0, start) + '[ ]' + text.substring(end);
+          updateQuestion('question', newText);
+          setTimeout(() => {
+              textarea.focus();
+              textarea.setSelectionRange(start + 3, start + 3);
+          }, 0);
+      } else {
+          updateQuestion('question', currentQ.question + ' [ ]');
+      }
+  };
+
   const currentQ = questions[currentQuestionIndex] || DEFAULT_QUESTION;
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] relative overflow-hidden font-['Plus_Jakarta_Sans']">
+        {activeMatchIndex !== null && (
+            <ImageSelectionModal
+                onSelect={(url) => {
+                    const newOpts = [...currentQ.options];
+                    newOpts[activeMatchIndex] = url;
+                    updateQuestion('options', newOpts);
+                    setActiveMatchIndex(null);
+                }}
+                onClose={() => setActiveMatchIndex(null)}
+                onAiUsed={() => onStatUpdate('ai_img')}
+                preferences={currentUser.preferences}
+            />
+        )}
+
         {showModerationAlert && (
             <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-4">
                 <div className="bg-white rounded-[3.5rem] shadow-2xl max-w-xl w-full p-12 text-center animate-in zoom-in">
@@ -248,12 +323,46 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                 <button onClick={handleInitiateSave} disabled={isProcessingModeration} className="bg-slate-950 hover:bg-black text-white font-black px-10 py-4 rounded-full shadow-xl transition-all active:scale-95 disabled:opacity-50 uppercase text-xs tracking-[0.2em]">{isProcessingModeration ? <Loader2 className="animate-spin" size={18} /> : 'Save Quiz'}</button>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-12 flex flex-col items-center">
-                <div className="w-full max-w-5xl animate-in fade-in duration-500">
-                    <div className="bg-white border-2 border-slate-100 p-2 rounded-full mb-8 shadow-xl flex items-center justify-between max-w-3xl mx-auto">
-                        {TYPE_CONFIG.map(t => (
-                            <button key={t.id} onClick={() => handleTypeChange(t.id as QuestionType)} className={`flex items-center gap-2 px-6 py-3 rounded-full transition-all click-scale ${currentQ.type === t.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-600/80 hover:bg-slate-50 hover:text-slate-900'}`}><t.icon size={16} /><span className="text-[10px] font-black uppercase tracking-widest">{t.label}</span></button>
-                        ))}
+            <div className="flex-1 overflow-y-auto p-8 sm:p-12 flex flex-col items-center">
+                <div className="w-full max-w-6xl animate-in fade-in duration-500">
+                    
+                    {/* Modern Card Question Type Selector */}
+                    <div className="w-full mb-10">
+                        <div className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 custom-scrollbar snap-x">
+                            {TYPE_CONFIG.map(t => {
+                                const isActive = currentQ.type === t.id;
+                                return (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => handleTypeChange(t.id as QuestionType)}
+                                        className={`
+                                            relative group flex-shrink-0 flex flex-col items-center justify-center gap-3 
+                                            w-28 h-28 rounded-3xl transition-all duration-300 snap-center
+                                            ${isActive 
+                                                ? `bg-gradient-to-br ${t.gradient} text-white scale-110 shadow-2xl ${t.shadow} z-10` 
+                                                : 'bg-white text-slate-400 hover:bg-slate-50 hover:scale-105 border-2 border-slate-100 hover:border-slate-200 shadow-sm'
+                                            }
+                                        `}
+                                    >
+                                        <div className={`
+                                            p-3 rounded-2xl transition-colors shadow-inner
+                                            ${isActive ? 'bg-white/20' : 'bg-slate-100 group-hover:bg-white'}
+                                        `}>
+                                            <t.icon size={24} className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-700'} />
+                                        </div>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-white' : 'text-slate-500'}`}>
+                                            {t.label}
+                                        </span>
+                                        
+                                        {isActive && (
+                                            <div className="absolute -bottom-3 bg-white text-slate-900 text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-slate-100">
+                                                ACTIVE
+                                            </div>
+                                        )}
+                                    </button>
+                                )
+                            })}
+                        </div>
                     </div>
 
                     <div className="bg-white rounded-[4rem] shadow-2xl border border-white p-12 sm:p-20 relative min-h-[600px]">
@@ -263,18 +372,107 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                         </div>
 
                         <div className="space-y-16">
-                            <div className="p-10 bg-slate-50 rounded-[3rem] border-[3px] border-slate-100 group focus-within:border-indigo-200 focus-within:bg-white transition-all shadow-inner">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Question Text</label>
-                                <textarea value={currentQ.question} onChange={(e) => updateQuestion('question', e.target.value)} placeholder="Type your question here..." className="w-full text-3xl sm:text-4xl font-black bg-transparent border-none p-0 focus:ring-0 placeholder-slate-200 resize-none min-h-[120px] text-slate-800" rows={3} />
+                            <div className="p-10 bg-slate-50 rounded-[3rem] border-[3px] border-slate-100 group focus-within:border-indigo-200 focus-within:bg-white transition-all shadow-inner relative">
+                                <label className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+                                    <span>Question Text</span>
+                                    {currentQ.type === 'fill-in-the-blank' && (
+                                        <button onClick={insertBlank} className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100">
+                                            <Brackets size={14} /> Insert Blank [ ]
+                                        </button>
+                                    )}
+                                </label>
+                                <textarea id="question-textarea" value={currentQ.question} onChange={(e) => updateQuestion('question', e.target.value)} placeholder="Type your question here..." className="w-full text-3xl sm:text-4xl font-black bg-transparent border-none p-0 focus:ring-0 placeholder-slate-200 resize-none min-h-[120px] text-slate-800" rows={3} />
                             </div>
 
                             <div className="animate-in slide-in-from-bottom-4 duration-500">
-                                {currentQ.type === 'multiple-choice' || currentQ.type === 'ordering' || currentQ.type === 'matching' ? (
+                                {currentQ.type === 'multiple-choice' || currentQ.type === 'fill-in-the-blank' ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         {currentQ.options.map((opt, i) => (
                                             <div key={i} className="flex items-center gap-5 group">
-                                                <button onClick={() => currentQ.type === 'multiple-choice' && updateQuestion('correctAnswer', i)} className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all border-4 font-black text-xl flex-shrink-0 ${currentQ.type === 'multiple-choice' ? (currentQ.correctAnswer === i ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg scale-110' : 'bg-slate-50 text-slate-300 border-slate-100 hover:border-slate-200') : 'bg-slate-100 text-slate-400 border-slate-200'}`}>{currentQ.type === 'matching' ? (i % 2 === 0 ? Math.floor(i/2)+1 : String.fromCharCode(65 + Math.floor(i/2))) : i + 1}</button>
-                                                <div className="flex-1 p-5 bg-slate-50 rounded-[2rem] border-[3px] border-slate-100 focus-within:border-indigo-200 transition-all"><input type="text" value={opt} onChange={(e) => { const newOpts = [...currentQ.options]; newOpts[i] = e.target.value; updateQuestion('options', newOpts); }} placeholder={currentQ.type === 'matching' ? (i % 2 === 0 ? "Side A" : "Side B") : "Option..."} className="w-full bg-transparent border-none p-0 focus:ring-0 font-bold text-slate-700" /></div>
+                                                <button onClick={() => updateQuestion('correctAnswer', i)} className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all border-4 font-black text-xl flex-shrink-0 ${currentQ.correctAnswer === i ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg scale-110' : 'bg-slate-50 text-slate-300 border-slate-100 hover:border-slate-200'}`}>{i + 1}</button>
+                                                <div className="flex-1 p-5 bg-slate-50 rounded-[2rem] border-[3px] border-slate-100 focus-within:border-indigo-200 transition-all"><input type="text" value={opt} onChange={(e) => { const newOpts = [...currentQ.options]; newOpts[i] = e.target.value; updateQuestion('options', newOpts); }} placeholder="Option..." className="w-full bg-transparent border-none p-0 focus:ring-0 font-bold text-slate-700" /></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : currentQ.type === 'matching' ? (
+                                    <div className="space-y-4">
+                                        <p className="text-center text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Define Matching Pairs</p>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {Array.from({ length: 4 }).map((_, i) => (
+                                                <div key={i} className="flex flex-col md:flex-row gap-4 p-4 border-2 border-dashed border-slate-200 rounded-3xl items-center hover:border-indigo-200 transition-all">
+                                                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold flex-shrink-0">{i+1}</div>
+                                                    <div className="flex-1 w-full bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-sm">
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Prompt</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={currentQ.options[i * 2] || ''} 
+                                                            onChange={(e) => { const o = [...currentQ.options]; o[i * 2] = e.target.value; updateQuestion('options', o); }} 
+                                                            placeholder="Left Side Item"
+                                                            className="w-full font-bold text-slate-800 bg-transparent border-none p-0 focus:ring-0" 
+                                                        />
+                                                    </div>
+                                                    <div className="text-slate-300 hidden md:block"><ArrowRight size={20} /></div>
+                                                    <div className="text-slate-300 md:hidden"><ArrowDown size={20} /></div>
+                                                    <div className="flex-1 w-full bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-sm relative group/match">
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Match</label>
+                                                        {isImage(currentQ.options[i * 2 + 1] || '') ? (
+                                                            <div className="relative w-full h-12 group/img">
+                                                                <img src={currentQ.options[i * 2 + 1]} alt="Match" className="w-full h-full object-contain rounded-lg" />
+                                                                <button 
+                                                                    onClick={() => { const o = [...currentQ.options]; o[i * 2 + 1] = ''; updateQuestion('options', o); }}
+                                                                    className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover/img:opacity-100 transition-opacity"
+                                                                >
+                                                                    <X size={12} />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex gap-2 items-center">
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={currentQ.options[i * 2 + 1] || ''} 
+                                                                    onChange={(e) => { const o = [...currentQ.options]; o[i * 2 + 1] = e.target.value; updateQuestion('options', o); }} 
+                                                                    placeholder="Right Side Item"
+                                                                    className="flex-1 font-bold text-slate-800 bg-transparent border-none p-0 focus:ring-0 min-w-0" 
+                                                                />
+                                                                <button 
+                                                                    onClick={() => setActiveMatchIndex(i * 2 + 1)}
+                                                                    className="p-1.5 bg-indigo-50 text-indigo-500 rounded-lg hover:bg-indigo-100 transition-colors"
+                                                                    title="Add Image"
+                                                                >
+                                                                    <ImageIcon size={16} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : currentQ.type === 'ordering' ? (
+                                    <div className="flex flex-col gap-3 max-w-2xl mx-auto">
+                                        <p className="text-center text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Drag to set correct order</p>
+                                        {currentQ.options.map((opt, i) => (
+                                            <div 
+                                                key={i} 
+                                                draggable="true"
+                                                onDragStart={() => handleOptionDragStart(i)}
+                                                onDragOver={(e) => handleOptionDragOver(e, i)}
+                                                onDragEnd={() => setDraggedOptionIndex(null)}
+                                                className={`flex items-center gap-4 p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm transition-all ${draggedOptionIndex === i ? 'opacity-50 scale-95 border-indigo-300 border-dashed' : 'hover:border-indigo-200 hover:shadow-md'}`}
+                                            >
+                                                <div className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600">
+                                                    <GripVertical size={24} />
+                                                </div>
+                                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-black text-slate-500 text-sm">
+                                                    {i + 1}
+                                                </div>
+                                                <input 
+                                                    type="text" 
+                                                    value={opt} 
+                                                    onChange={(e) => { const newOpts = [...currentQ.options]; newOpts[i] = e.target.value; updateQuestion('options', newOpts); }} 
+                                                    placeholder={`Step ${i + 1}`} 
+                                                    className="flex-1 bg-transparent font-bold text-lg text-slate-800 focus:outline-none placeholder-slate-300" 
+                                                />
                                             </div>
                                         ))}
                                     </div>
@@ -284,10 +482,26 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                                             <button key={label} onClick={() => updateQuestion('correctAnswer', i)} className={`p-12 rounded-[3rem] border-4 font-black text-3xl transition-all click-scale ${currentQ.correctAnswer === i ? 'bg-indigo-600 border-indigo-400 text-white shadow-2xl scale-105' : 'bg-slate-50 border-slate-100 text-slate-300 hover:border-indigo-100'}`}>{label}</button>
                                         ))}
                                     </div>
-                                ) : currentQ.type === 'text-input' || currentQ.type === 'fill-in-the-blank' ? (
+                                ) : currentQ.type === 'text-input' ? (
                                     <div className="p-10 bg-indigo-50 border-4 border-indigo-100 rounded-[3rem]"><label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4 ml-2">Correct Answer</label><input type="text" value={currentQ.correctAnswer as string} onChange={(e) => updateQuestion('correctAnswer', e.target.value)} placeholder="Type the answer..." className="w-full bg-white border-none rounded-2xl p-6 text-2xl font-black text-slate-800 focus:ring-4 focus:ring-indigo-200 transition-all shadow-sm" /></div>
                                 ) : currentQ.type === 'slider' ? (
-                                    <div className="bg-slate-50 border-4 border-slate-100 p-12 rounded-[3rem] space-y-12"><div className="flex justify-between items-center px-4"><div className="text-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Min</p><input type="number" value={currentQ.options[0]} onChange={(e) => { const o = [...currentQ.options]; o[0] = e.target.value; updateQuestion('options', o); }} className="w-20 bg-white p-3 rounded-xl font-black text-center border-2 border-slate-100" /></div><div className="text-center"><p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2">Target</p><div className="text-5xl font-black text-indigo-600">{currentQ.correctAnswer}</div></div><div className="text-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Max</p><input type="number" value={currentQ.options[1]} onChange={(e) => { const o = [...currentQ.options]; o[1] = e.target.value; updateQuestion('options', o); }} className="w-20 bg-white p-3 rounded-xl font-black text-center border-2 border-slate-100" /></div></div><input type="range" min={currentQ.options[0]} max={currentQ.options[1]} step={currentQ.options[2]} value={currentQ.correctAnswer as number} onChange={(e) => updateQuestion('correctAnswer', parseInt(e.target.value))} className="w-full h-4 bg-indigo-200 rounded-full appearance-none cursor-pointer accent-indigo-600" /></div>
+                                    <div className="bg-slate-50 border-4 border-slate-100 p-12 rounded-[3rem] space-y-12">
+                                        <div className="flex justify-between items-center px-4">
+                                            <div className="text-center">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Min</p>
+                                                <input type="number" value={currentQ.options[0]} onChange={(e) => { const o = [...currentQ.options]; o[0] = e.target.value; updateQuestion('options', o); }} className="w-20 bg-white p-3 rounded-xl font-black text-center border-2 border-slate-100 text-slate-900" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2">Target</p>
+                                                <div className="text-5xl font-black text-indigo-600">{currentQ.correctAnswer}</div>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Max</p>
+                                                <input type="number" value={currentQ.options[1]} onChange={(e) => { const o = [...currentQ.options]; o[1] = e.target.value; updateQuestion('options', o); }} className="w-20 bg-white p-3 rounded-xl font-black text-center border-2 border-slate-100 text-slate-900" />
+                                            </div>
+                                        </div>
+                                        <input type="range" min={currentQ.options[0]} max={currentQ.options[1]} step={currentQ.options[2]} value={currentQ.correctAnswer as number} onChange={(e) => updateQuestion('correctAnswer', parseInt(e.target.value))} className="w-full h-4 bg-indigo-200 rounded-full appearance-none cursor-pointer accent-indigo-600" />
+                                    </div>
                                 ) : null}
                             </div>
 
