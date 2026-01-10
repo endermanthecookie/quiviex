@@ -1,4 +1,3 @@
-
 import { Question, UserPreferences } from '../types';
 
 /**
@@ -23,7 +22,8 @@ export const generateQuizWithAI = async (
 
     const prompt = `Generate a ${difficulty} quiz about ${topic} with ${count} questions. 
     The quiz type is ${quizType}. Provide the output as a JSON object with 'title' and 'questions' array. 
-    Each question object must have 'question', 'options' (array of 4 strings), 'correctAnswer' (index 0-3), and 'explanation'.`;
+    Each question object must have 'question', 'options' (array of 4 strings), 'correctAnswer' (index 0-3), and 'explanation'.
+    IMPORTANT SAFETY: Ensure all content is educational and safe for all ages. Strictly AVOID violence, weapons, drugs, hate speech, or explicit themes. Do not use words that could trigger safety filters.`;
 
     const response = await fetch(endpoint, {
         method: "POST",

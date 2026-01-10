@@ -69,6 +69,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   const [showModerationAlert, setShowModerationAlert] = useState<{detected: string[], warningsRemaining: number, isSudo: boolean} | null>(null);
   const [showTerminalBanAlert, setShowTerminalBanAlert] = useState(false);
   const [isProcessingModeration, setIsProcessingModeration] = useState(false);
+  const [isAiGenerated, setIsAiGenerated] = useState(false);
   
   // Drag state for reordering options
   const [draggedOptionIndex, setDraggedOptionIndex] = useState<number | null>(null);
@@ -84,6 +85,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       setCustomTheme(initialQuiz.customTheme);
       setShuffleQuestions(initialQuiz.shuffleQuestions || false);
       setBgMusic(initialQuiz.backgroundMusic || '');
+      setIsAiGenerated(false); // Reset on edit load
     }
   }, [initialQuiz]);
 
@@ -113,6 +115,13 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       });
 
       if (detected.size > 0) {
+          // If content is from AI, we do NOT issue a strike. We just warn and block save.
+          if (isAiGenerated) {
+              setValidationErrors(Array.from(detected).map(w => `• AI Safety Filter: Found word "${w}". Please remove or edit this content.`));
+              setShowValidationModal(true);
+              return false;
+          }
+
           setIsProcessingModeration(true);
           const isSudo = currentUser.email === 'sudo@quiviex.com';
           try {
@@ -297,8 +306,22 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                 </div>
             </div>
         )}
+        {showValidationModal && <ValidationModal errors={validationErrors} onClose={() => setShowValidationModal(false)} />}
         {showSaveOptionsModal && <SaveOptionsModal onConfirm={handleFinalizeSave} onCancel={() => setShowSaveOptionsModal(false)} />}
-        {showAIModal && <GitHubAIModal onGenerate={(qs, t) => { setQuestions(prev => [...prev, ...qs]); setQuizTitle(t); }} onClose={() => setShowAIModal(false)} onAiUsed={() => onStatUpdate('ai_quiz')} user={currentUser} />}
+        
+        {showAIModal && (
+            <GitHubAIModal 
+                onGenerate={(qs, t) => { 
+                    setQuestions(prev => [...prev, ...qs]); 
+                    setQuizTitle(t); 
+                    setIsAiGenerated(true); // Flag this quiz as AI generated to prevent strikes
+                }} 
+                onClose={() => setShowAIModal(false)} 
+                onAiUsed={() => onStatUpdate('ai_quiz')} 
+                user={currentUser} 
+            />
+        )}
+        
         {showMusicModal && <MusicSelectionModal currentMusic={bgMusic} onSelect={setBgMusic} onClose={() => setShowMusicModal(false)} />}
         {showThemeEditor && <ThemeEditorModal initialTheme={customTheme} onSave={(t) => { setCustomTheme(t); setShowThemeEditor(false); }} onClose={() => setShowThemeEditor(false)} onAiUsed={() => onStatUpdate('ai_img')} />}
 

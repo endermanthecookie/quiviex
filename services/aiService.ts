@@ -44,7 +44,8 @@ export const generateQuizFromImage = async (imageBase64: string, difficulty: str
 
     const prompt = `Generate a ${difficulty} quiz with ${count} questions based on this image. 
     Return a JSON object with a 'title' and 'questions' array. 
-    Each question should be multiple-choice with 4 'options', 'correctAnswer' index (0-3), and an 'explanation'.`;
+    Each question should be multiple-choice with 4 'options', 'correctAnswer' index (0-3), and an 'explanation'.
+    SAFETY: Ensure content is educational, PG-13, and free of violence, drugs, or hate speech.`;
 
     const response = await fetch(endpoint, {
         method: "POST",
@@ -92,7 +93,7 @@ export const generateImageForQuestion = async (text: string, prefs: UserPreferen
             headers,
             body: JSON.stringify({
                 model: "dall-e-3",
-                prompt: `Educational illustration: ${text}`,
+                prompt: `Educational illustration (Safe for work, no violence): ${text}`,
                 n: 1,
                 size: "1024x1024"
             })
@@ -114,7 +115,8 @@ export const generateFocusSession = async (inputData: { mistakes: any[], recentT
 
     const prompt = `Analyze these mistakes: ${JSON.stringify(inputData.mistakes)} from topics: ${JSON.stringify(inputData.recentTopics)}.
     Provide 5 multiple-choice questions to address the weaknesses.
-    Return JSON: {"analysis": "str", "questions": [{"question": "str", "options": ["str", "str", "str", "str"], "correctAnswer": 0, "explanation": "str"}]}`;
+    Return JSON: {"analysis": "str", "questions": [{"question": "str", "options": ["str", "str", "str", "str"], "correctAnswer": 0, "explanation": "str"}]}
+    SAFETY: Do not generate content that violates safety guidelines.`;
 
     const response = await fetch(endpoint, {
         method: "POST",
