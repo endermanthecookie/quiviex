@@ -34,10 +34,21 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ userId, on
             .order('created_at', { ascending: false });
         
         if (qzErr) throw qzErr;
-        setPublicQuizzes(qz.map((q: any) => ({
+        
+        const mappedQuizzes = qz.map((q: any) => ({
             id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
             theme: q.theme, creatorUsername: prof.username, creatorAvatarUrl: prof.avatar_url
-        })));
+        }));
+
+        // Filter: Quiviex Team quizzes must have >= 7 questions
+        const filteredQuizzes = mappedQuizzes.filter((q: Quiz) => {
+            if (q.userId === '00000000-0000-0000-0000-000000000000') {
+                return q.questions.length >= 7;
+            }
+            return true;
+        });
+
+        setPublicQuizzes(filteredQuizzes);
       } catch (e: any) {
         setError(e.message);
       } finally {

@@ -4,6 +4,7 @@ import { X, Play, Share2, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, 
 import { supabase } from '../services/supabase';
 import { StarRating } from './StarRating';
 import { CommentSection } from './CommentSection';
+import { PrintOptionsModal } from './PrintOptionsModal';
 
 interface QuizDetailsModalProps {
   quiz: Quiz;
@@ -24,6 +25,7 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'comments'>('overview');
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
 
   const isOwner = user ? quiz.userId === user.id : false;
 
@@ -68,128 +70,19 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
   };
 
   const handlePrint = () => {
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) return alert("Popup blocked.");
-      
-      const renderQuestionContent = (q: any) => {
-          if (q.type === 'matching' || q.type === 'ordering') {
-              return `<div style="padding: 15px; background: #f8f8f8; border: 1px dashed #ccc; text-align: center; font-style: italic; font-size: 12px; color: #666;">This question type (${q.type}) requires interactive elements and is not supported in print format.</div>`;
-          }
-          if (q.type === 'fill-in-the-blank') {
-              return `<div class="q-text">${q.question.replace(/\[\s*\]/g, '_______________')}</div>`;
-          }
-          if (q.type === 'text-input') {
-              return `
-                <div class="q-text">${q.question}</div>
-                <div style="margin-top: 40px; border-bottom: 2px solid #000; height: 30px; width: 100%; opacity: 0.3;"></div>
-              `;
-          }
-          if (q.type === 'slider') {
-               return `
-                <div class="q-text">${q.question}</div>
-                <div style="margin-top: 25px; font-weight: bold; text-align: center; font-size: 14px;">
-                    ${q.options[0]} &mdash;&mdash;&mdash; <span style="display: inline-block; border-bottom: 2px solid #000; width: 100px; margin: 0 10px;">&nbsp;</span> &mdash;&mdash;&mdash; ${q.options[1]}
-                </div>
-              `;
-          }
-          // Multiple Choice / True False
-          return `
-            <div class="q-text">${q.question}</div>
-            <ul class="opt-list">
-                ${q.options.map((o: string) => `<li class="opt"><span class="checkbox"></span> ${o}</li>`).join('')}
-            </ul>
-          `;
-      };
-
-      const renderAnswer = (q: any) => {
-          if (q.type === 'matching' || q.type === 'ordering') return 'N/A (Interactive)';
-          if (q.type === 'multiple-choice' || q.type === 'true-false') return q.options[q.correctAnswer];
-          if (q.type === 'slider') return q.correctAnswer;
-          return q.correctAnswer;
-      };
-
-      const content = `
-        <html>
-        <head>
-            <title>${quiz.title} - Printable</title>
-            <style>
-                body { font-family: sans-serif; padding: 40px; color: black; background: white; }
-                
-                .name-section { font-size: 24px; font-weight: bold; margin-bottom: 40px; font-family: sans-serif; }
-                
-                h1 { border-bottom: none; padding-bottom: 5px; margin-bottom: 5px; font-size: 28px; text-transform: uppercase; letter-spacing: 1px; }
-                .meta { font-size: 12px; color: #555; margin-bottom: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-                
-                .q-block { margin-bottom: 30px; page-break-inside: avoid; border-bottom: 4px solid #000; padding-bottom: 30px; }
-                .q-num { font-weight: 800; margin-bottom: 12px; font-size: 14px; color: #333; text-transform: uppercase; background: #eee; display: inline-block; padding: 4px 8px; border-radius: 4px; }
-                .q-text { font-size: 18px; font-weight: 600; margin-bottom: 15px; line-height: 1.4; }
-                
-                .opt-list { padding-left: 0; list-style: none; margin: 0; }
-                .opt { margin-bottom: 12px; font-size: 16px; display: flex; align-items: center; }
-                
-                .checkbox {
-                    display: inline-block;
-                    width: 24px;
-                    height: 24px;
-                    border: 3px solid #000;
-                    border-radius: 6px;
-                    background: white;
-                    margin-right: 15px;
-                    flex-shrink: 0;
-                }
-                
-                .img-container { max-width: 300px; margin-top: 15px; border: 1px solid #eee; margin-bottom: 15px; border-radius: 8px; overflow: hidden; }
-                img { width: 100%; height: auto; display: block; }
-                
-                .page-break { page-break-before: always; }
-                .answer-key-header { margin-bottom: 30px; border-bottom: 3px solid #000; padding-bottom: 10px; }
-                .answer-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; font-size: 14px; }
-                .answer-row:last-child { border-bottom: none; }
-                .answer-q { font-weight: bold; width: 100px; }
-                .answer-val { flex-1; text-align: right; font-weight: 600; }
-                
-                @media print {
-                    .page-break { page-break-before: always; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="name-section">Name: ......................................................................</div>
-            
-            <h1>${quiz.title}</h1>
-            <div class="meta">Created by @${quiz.creatorUsername || 'User'} • ${quiz.questions.length} Questions</div>
-            ${quiz.questions.map((q, i) => `
-                <div class="q-block">
-                    <div class="q-num">Question ${i + 1}</div>
-                    ${q.image ? `<div class="img-container"><img src="${q.image}" /></div>` : ''}
-                    ${renderQuestionContent(q)}
-                </div>
-            `).join('')}
-            
-            <div class="page-break"></div>
-            
-            <div class="answer-key-header">
-                <h1 style="border: none; padding: 0; margin: 0;">Answer Key</h1>
-                <div style="font-size: 14px; margin-top: 5px; color: #555;">${quiz.title}</div>
-            </div>
-            
-            ${quiz.questions.map((q, i) => `
-                <div class="answer-row">
-                    <div class="answer-q">Question ${i + 1}</div>
-                    <div class="answer-val">${renderAnswer(q)}</div>
-                </div>
-            `).join('')}
-            
-            <script>window.print();</script>
-        </body>
-        </html>
-      `;
-      printWindow.document.write(content);
-      printWindow.document.close();
+      if (!user) {
+          alert("Please sign in or create an account to print this quiz.");
+          return;
+      }
+      setShowPrintOptions(true);
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
+      {showPrintOptions && (
+          <PrintOptionsModal quiz={quiz} onClose={() => setShowPrintOptions(false)} />
+      )}
+
       <div className="bg-white rounded-[3.5rem] shadow-2xl max-w-4xl w-full flex flex-col h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20">
         
         <div className="p-8 pb-0 flex justify-between items-start">

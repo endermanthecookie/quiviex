@@ -79,11 +79,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
       </div>
 
       {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-6">
-        <div className="max-w-7xl mx-auto glass rounded-[2.5rem] px-10 py-5 flex items-center justify-between border border-white/10 shadow-2xl backdrop-blur-3xl bg-white/[0.03]">
-          <div className="flex items-center gap-4 group cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
-            <Logo variant="small" className="group-hover:scale-110 transition-transform duration-500 shadow-2xl" />
-            <span className="text-3xl font-black tracking-tighter text-white">Quiviex</span>
+      <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-4 sm:px-6 sm:py-6">
+        <div className="max-w-7xl mx-auto glass rounded-[2rem] sm:rounded-[2.5rem] px-6 sm:px-10 py-4 sm:py-5 flex items-center justify-between border border-white/10 shadow-2xl backdrop-blur-3xl bg-white/[0.03]">
+          <div className="flex items-center gap-3 sm:gap-4 group cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
+            <Logo variant="small" className="group-hover:scale-110 transition-transform duration-500 shadow-2xl w-8 h-8 sm:w-10 sm:h-10" />
+            <span className="text-xl sm:text-3xl font-black tracking-tighter text-white">Quiviex</span>
           </div>
           
           <div className="hidden lg:flex items-center gap-12">
@@ -92,101 +92,101 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
             <button className="text-[11px] font-black text-slate-400 hover:text-purple-400 transition-colors uppercase tracking-[0.3em]">Features</button>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-6">
             <button onClick={onGetStarted} className="hidden sm:block text-[11px] font-black text-slate-400 hover:text-white transition-colors uppercase tracking-[0.3em]">Sign In</button>
-            <button onClick={onGetStarted} className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white px-10 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:shadow-[0_0_50px_rgba(168,85,247,0.5)] transition-all click-scale border border-white/10">Get Started</button>
+            <button onClick={onGetStarted} className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white px-6 sm:px-10 py-2.5 sm:py-3.5 rounded-2xl font-black text-[10px] sm:text-[11px] uppercase tracking-widest hover:shadow-[0_0_50px_rgba(168,85,247,0.5)] transition-all click-scale border border-white/10">Get Started</button>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <main className="pt-64 pb-32 px-6 relative z-10">
+      <main className="pt-32 sm:pt-48 md:pt-64 pb-20 sm:pb-32 px-6 relative z-10">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="inline-flex items-center gap-3 bg-purple-500/10 border border-purple-500/20 px-8 py-3 rounded-full text-purple-400 text-[11px] font-black uppercase tracking-[0.4em] mb-14 shadow-2xl animate-in slide-in-from-top-6 duration-1000">
-            <Sparkles size={16} className="text-yellow-400" /> AI-Powered Learning
+          <div className="inline-flex items-center gap-3 bg-purple-500/10 border border-purple-500/20 px-6 sm:px-8 py-2 sm:py-3 rounded-full text-purple-400 text-[9px] sm:text-[11px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] mb-8 sm:mb-14 shadow-2xl animate-in slide-in-from-top-6 duration-1000">
+            <Sparkles size={14} className="text-yellow-400 sm:w-4 sm:h-4" /> AI-Powered Learning
           </div>
           
-          <h1 className="text-8xl md:text-[13rem] font-black tracking-tighter text-white mb-12 leading-[0.7] filter drop-shadow-[0_0_60px_rgba(168,85,247,0.4)] animate-in fade-in zoom-in-95 duration-1000">
+          <h1 className="text-5xl sm:text-8xl md:text-[11rem] lg:text-[13rem] font-black tracking-tighter text-white mb-8 sm:mb-12 leading-[0.9] sm:leading-[0.7] filter drop-shadow-[0_0_60px_rgba(168,85,247,0.4)] animate-in fade-in zoom-in-95 duration-1000">
             Learn with <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400">Pure Passion.</span>
           </h1>
           
-          <p className="max-w-4xl mx-auto text-2xl text-slate-400 font-medium mb-20 leading-relaxed animate-in slide-in-from-bottom-10 duration-1000">
+          <p className="max-w-4xl mx-auto text-lg sm:text-2xl text-slate-400 font-medium mb-12 sm:mb-20 leading-relaxed animate-in slide-in-from-bottom-10 duration-1000 px-4">
             The ultimate platform for creating, sharing, and mastering any topic. Build custom quizzes in seconds 
             with AI and join a global community of curious minds.
           </p>
 
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-48 animate-in fade-in duration-1000 delay-500">
-            <button onClick={onGetStarted} className="w-full sm:w-auto bg-white text-slate-950 px-12 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(255,255,255,0.15)] hover:bg-purple-50 transition-all flex items-center justify-center gap-4 group click-scale">
-              Start Creating <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6 mb-32 sm:mb-48 animate-in fade-in duration-1000 delay-500 w-full px-4 sm:px-0">
+            <button onClick={onGetStarted} className="w-full md:w-auto bg-white text-slate-950 px-8 sm:px-12 py-5 sm:py-7 rounded-[2rem] sm:rounded-[2.5rem] font-black text-sm sm:text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(255,255,255,0.15)] hover:bg-purple-50 transition-all flex items-center justify-center gap-4 group click-scale">
+              Start Creating <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform sm:w-6 sm:h-6" />
             </button>
-            <button onClick={onExplore} className="w-full sm:w-auto bg-white/10 text-white border border-white/20 px-12 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest hover:bg-white/20 transition-all flex items-center justify-center gap-4 click-scale">
-              <Globe size={24} className="text-indigo-400" /> Browse Gallery
+            <button onClick={onExplore} className="w-full md:w-auto bg-white/10 text-white border border-white/20 px-8 sm:px-12 py-5 sm:py-7 rounded-[2rem] sm:rounded-[2.5rem] font-black text-sm sm:text-base uppercase tracking-widest hover:bg-white/20 transition-all flex items-center justify-center gap-4 click-scale">
+              <Globe size={20} className="text-indigo-400 sm:w-6 sm:h-6" /> Browse Gallery
             </button>
-            <button onClick={onJoinGame} className="w-full sm:w-auto bg-indigo-600 text-white px-12 py-7 rounded-[2.5rem] font-black text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(99,102,241,0.2)] hover:bg-indigo-700 transition-all flex items-center justify-center gap-4 click-scale">
-              <Zap size={24} className="text-yellow-400" /> Join Game
+            <button onClick={onJoinGame} className="w-full md:w-auto bg-indigo-600 text-white px-8 sm:px-12 py-5 sm:py-7 rounded-[2rem] sm:rounded-[2.5rem] font-black text-sm sm:text-base uppercase tracking-widest shadow-[0_20px_80px_rgba(99,102,241,0.2)] hover:bg-indigo-700 transition-all flex items-center justify-center gap-4 click-scale">
+              <Zap size={20} className="text-yellow-400 sm:w-6 sm:h-6" /> Join Game
             </button>
           </div>
 
           {/* Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-48 text-left">
-              <div className="bg-white/[0.02] border border-white/5 p-14 rounded-[5rem] backdrop-blur-3xl hover:border-purple-500/40 transition-all group shadow-[0_30px_100px_rgba(0,0,0,0.6)] relative overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-10 mb-32 sm:mb-48 text-left px-4 sm:px-0">
+              <div className="bg-white/[0.02] border border-white/5 p-8 sm:p-14 rounded-[3rem] sm:rounded-[5rem] backdrop-blur-3xl hover:border-purple-500/40 transition-all group shadow-[0_30px_100px_rgba(0,0,0,0.6)] relative overflow-hidden">
                   <div className="absolute -right-10 -bottom-10 opacity-5 group-hover:opacity-15 transition-opacity"><Zap size={220} /></div>
-                  <div className="w-20 h-20 bg-purple-600/20 rounded-[2rem] flex items-center justify-center text-purple-400 mb-10 group-hover:scale-110 transition-transform group-hover:bg-purple-600/30 border border-purple-500/20"><Zap size={44} /></div>
-                  <h3 className="text-3xl font-black mb-6 tracking-tighter">AI Magic</h3>
-                  <p className="text-slate-400 text-lg font-medium leading-relaxed">Instantly generate complete quizzes from any topic, image, or document using powerful AI models.</p>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-purple-600/20 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center text-purple-400 mb-6 sm:mb-10 group-hover:scale-110 transition-transform group-hover:bg-purple-600/30 border border-purple-500/20"><Zap size={32} className="sm:w-11 sm:h-11" /></div>
+                  <h3 className="text-2xl sm:text-3xl font-black mb-4 sm:mb-6 tracking-tighter">AI Magic</h3>
+                  <p className="text-slate-400 text-base sm:text-lg font-medium leading-relaxed">Instantly generate complete quizzes from any topic, image, or document using powerful AI models.</p>
               </div>
-              <div className="bg-white/[0.02] border border-white/5 p-14 rounded-[5rem] backdrop-blur-3xl hover:border-indigo-500/40 transition-all group shadow-[0_30px_100px_rgba(0,0,0,0.6)] relative overflow-hidden">
+              <div className="bg-white/[0.02] border border-white/5 p-8 sm:p-14 rounded-[3rem] sm:rounded-[5rem] backdrop-blur-3xl hover:border-indigo-500/40 transition-all group shadow-[0_30px_100px_rgba(0,0,0,0.6)] relative overflow-hidden">
                   <div className="absolute -right-10 -bottom-10 opacity-5 group-hover:opacity-15 transition-opacity"><Lock size={220} /></div>
-                  <div className="w-20 h-20 bg-indigo-600/20 rounded-[2rem] flex items-center justify-center text-indigo-400 mb-10 group-hover:scale-110 transition-transform group-hover:bg-indigo-600/30 border border-indigo-500/20"><Lock size={44} /></div>
-                  <h3 className="text-3xl font-black mb-6 tracking-tighter">Private Library</h3>
-                  <p className="text-slate-400 text-lg font-medium leading-relaxed">Keep your studies organized with your own secure collection of quizzes and flashcards.</p>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-indigo-600/20 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center text-indigo-400 mb-6 sm:mb-10 group-hover:scale-110 transition-transform group-hover:bg-indigo-600/30 border border-indigo-500/20"><Lock size={32} className="sm:w-11 sm:h-11" /></div>
+                  <h3 className="text-2xl sm:text-3xl font-black mb-4 sm:mb-6 tracking-tighter">Private Library</h3>
+                  <p className="text-slate-400 text-base sm:text-lg font-medium leading-relaxed">Keep your studies organized with your own secure collection of quizzes and flashcards.</p>
               </div>
-              <div className="bg-white/[0.02] border border-white/5 p-14 rounded-[5rem] backdrop-blur-3xl hover:border-pink-500/40 transition-all group shadow-[0_30px_100px_rgba(0,0,0,0.6)] relative overflow-hidden">
+              <div className="bg-white/[0.02] border border-white/5 p-8 sm:p-14 rounded-[3rem] sm:rounded-[5rem] backdrop-blur-3xl hover:border-pink-500/40 transition-all group shadow-[0_30px_100px_rgba(0,0,0,0.6)] relative overflow-hidden">
                   <div className="absolute -right-10 -bottom-10 opacity-5 group-hover:opacity-15 transition-opacity"><Code size={220} /></div>
-                  <div className="w-20 h-20 bg-pink-600/20 rounded-[2rem] flex items-center justify-center text-pink-400 mb-10 group-hover:scale-110 transition-transform group-hover:bg-pink-600/30 border border-pink-500/20"><Code size={44} /></div>
-                  <h3 className="text-3xl font-black mb-6 tracking-tighter">Custom Style</h3>
-                  <p className="text-slate-400 text-lg font-medium leading-relaxed">Design beautiful quizzes with custom themes, fonts, and background music that match your mood.</p>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-pink-600/20 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center text-pink-400 mb-6 sm:mb-10 group-hover:scale-110 transition-transform group-hover:bg-pink-600/30 border border-pink-500/20"><Code size={32} className="sm:w-11 sm:h-11" /></div>
+                  <h3 className="text-2xl sm:text-3xl font-black mb-4 sm:mb-6 tracking-tighter">Custom Style</h3>
+                  <p className="text-slate-400 text-base sm:text-lg font-medium leading-relaxed">Design beautiful quizzes with custom themes, fonts, and background music that match your mood.</p>
               </div>
           </div>
 
           {/* Testimonials */}
-          <div className="relative max-w-6xl mx-auto mb-48">
-             <div className="text-center mb-20">
-                 <h2 className="text-6xl font-black tracking-tighter text-white mb-6">User Stories</h2>
-                 <p className="text-purple-500 text-sm font-black uppercase tracking-[0.5em]">What our community has to say</p>
+          <div className="relative max-w-6xl mx-auto mb-32 sm:mb-48 px-4 sm:px-0">
+             <div className="text-center mb-12 sm:mb-20">
+                 <h2 className="text-4xl sm:text-6xl font-black tracking-tighter text-white mb-4 sm:mb-6">User Stories</h2>
+                 <p className="text-purple-500 text-xs sm:text-sm font-black uppercase tracking-[0.5em]">What our community has to say</p>
              </div>
              
              {isLoadingTestimonials ? (
-                 <div className="h-[550px] flex items-center justify-center bg-white/[0.01] rounded-[6rem] border border-white/5 animate-pulse">
-                     <Loader2 className="animate-spin text-purple-900" size={80} />
+                 <div className="h-[400px] sm:h-[550px] flex items-center justify-center bg-white/[0.01] rounded-[3rem] sm:rounded-[6rem] border border-white/5 animate-pulse">
+                     <Loader2 className="animate-spin text-purple-900" size={60} />
                  </div>
              ) : (
                  <div className="relative group">
-                     <div className="absolute inset-0 bg-purple-600/25 blur-[160px] opacity-30"></div>
-                     <div className="bg-white/[0.04] backdrop-blur-3xl rounded-[6rem] p-24 shadow-2xl border border-white/10 relative z-10 min-h-[550px] flex flex-col justify-center transition-all duration-1000 hover:bg-white/[0.05]">
+                     <div className="absolute inset-0 bg-purple-600/25 blur-[100px] sm:blur-[160px] opacity-30"></div>
+                     <div className="bg-white/[0.04] backdrop-blur-3xl rounded-[3rem] sm:rounded-[6rem] p-6 sm:p-24 shadow-2xl border border-white/10 relative z-10 min-h-[450px] sm:min-h-[550px] flex flex-col justify-center transition-all duration-1000 hover:bg-white/[0.05]">
                          <div className="max-w-4xl mx-auto text-center animate-in fade-in slide-in-from-bottom-12 duration-1000" key={slideIdx}>
-                             <div className="flex justify-center gap-2.5 mb-14">
+                             <div className="flex justify-center gap-1.5 sm:gap-2.5 mb-8 sm:mb-14">
                                  {[...Array(10)].map((_, i) => (
-                                     <Star key={i} size={32} className={`${i < testimonials[slideIdx].rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-800'}`} />
+                                     <Star key={i} size={20} className={`sm:w-8 sm:h-8 ${i < testimonials[slideIdx].rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-800'}`} />
                                  ))}
                              </div>
-                             <p className="text-5xl sm:text-7xl font-black text-white leading-[1] tracking-tighter italic mb-16">
+                             <p className="text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter italic mb-8 sm:mb-16 break-words px-2">
                                  "{testimonials[slideIdx].review}"
                              </p>
-                             <div className="flex flex-col items-center gap-8">
-                                 <div className="w-28 h-28 rounded-[2.5rem] bg-gradient-to-br from-purple-500 via-indigo-600 to-fuchsia-600 overflow-hidden p-2 shadow-[0_0_60px_rgba(168,85,247,0.5)]">
-                                     <div className="w-full h-full bg-[#05010d] rounded-[1.8rem] flex items-center justify-center overflow-hidden">
+                             <div className="flex flex-col items-center gap-6 sm:gap-8">
+                                 <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-[2rem] sm:rounded-[2.5rem] bg-gradient-to-br from-purple-500 via-indigo-600 to-fuchsia-600 overflow-hidden p-1.5 sm:p-2 shadow-[0_0_60px_rgba(168,85,247,0.5)]">
+                                     <div className="w-full h-full bg-[#05010d] rounded-[1.5rem] sm:rounded-[1.8rem] flex items-center justify-center overflow-hidden">
                                          {testimonials[slideIdx].avatar_url ? (
                                              <img src={testimonials[slideIdx].avatar_url} className="w-full h-full object-cover" />
                                          ) : (
-                                             <UserIcon size={54} className="text-purple-400" />
+                                             <UserIcon size={32} className="text-purple-400 sm:w-12 sm:h-12" />
                                          )}
                                      </div>
                                  </div>
                                  <div>
-                                     <p className="text-4xl font-black text-white tracking-tighter">@{testimonials[slideIdx].username}</p>
-                                     <p className="text-[12px] font-black text-purple-500 uppercase tracking-[0.5em] mt-3">Verified Quiviex User</p>
+                                     <p className="text-2xl sm:text-4xl font-black text-white tracking-tighter">@{testimonials[slideIdx].username}</p>
+                                     <p className="text-[10px] sm:text-[12px] font-black text-purple-500 uppercase tracking-[0.5em] mt-2 sm:mt-3">Verified Quiviex User</p>
                                  </div>
                              </div>
                          </div>
@@ -194,9 +194,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
                  </div>
              )}
 
-             <div className="mt-20 flex justify-center gap-5">
+             <div className="mt-12 sm:mt-20 flex justify-center gap-3 sm:gap-5">
                 {testimonials.map((_, i) => (
-                    <button key={i} onClick={() => setSlideIdx(i)} className={`h-3 rounded-full transition-all duration-1000 ${slideIdx === i ? 'bg-purple-500 w-28 shadow-[0_0_25px_rgba(168,85,247,0.7)]' : 'bg-slate-800 w-6 hover:bg-slate-700'}`}></button>
+                    <button key={i} onClick={() => setSlideIdx(i)} className={`h-2 sm:h-3 rounded-full transition-all duration-1000 ${slideIdx === i ? 'bg-purple-500 w-16 sm:w-28 shadow-[0_0_25px_rgba(168,85,247,0.7)]' : 'bg-slate-800 w-4 sm:w-6 hover:bg-slate-700'}`}></button>
                 ))}
              </div>
           </div>
@@ -204,67 +204,67 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
       </main>
 
       {/* Powered By Section */}
-      <section className="py-48 border-t border-white/10 relative bg-black/60">
+      <section className="py-24 sm:py-48 border-t border-white/10 relative bg-black/60">
         <div className="max-w-7xl mx-auto px-6 text-center">
-          <h2 className="text-[13px] font-black uppercase text-purple-600 tracking-[0.8em] mb-28 opacity-80">Empowered By Technology</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-20 items-center justify-center opacity-40 grayscale hover:grayscale-0 transition-all duration-1000">
-             <div className="flex flex-col items-center gap-8 group">
-                 <div className="bg-white/5 p-12 rounded-[3.5rem] border border-white/5 group-hover:border-white/20 transition-all shadow-2xl"><Github size={72} className="text-white" /></div>
-                 <span className="font-black text-3xl text-white tracking-tighter">GitHub Models</span>
+          <h2 className="text-[11px] sm:text-[13px] font-black uppercase text-purple-600 tracking-[0.6em] sm:tracking-[0.8em] mb-16 sm:mb-28 opacity-80">Empowered By Technology</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 sm:gap-20 items-center justify-center opacity-40 grayscale hover:grayscale-0 transition-all duration-1000">
+             <div className="flex flex-col items-center gap-6 sm:gap-8 group">
+                 <div className="bg-white/5 p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] border border-white/5 group-hover:border-white/20 transition-all shadow-2xl"><Github size={48} className="text-white sm:w-[72px] sm:h-[72px]" /></div>
+                 <span className="font-black text-xl sm:text-3xl text-white tracking-tighter">GitHub Models</span>
              </div>
-             <div className="flex flex-col items-center gap-8 group">
-                 <div className="bg-white/5 p-12 rounded-[3.5rem] border border-white/5 group-hover:border-emerald-500/40 transition-all shadow-2xl"><Database size={72} className="text-emerald-500" /></div>
-                 <span className="font-black text-3xl text-white tracking-tighter">Supabase</span>
+             <div className="flex flex-col items-center gap-6 sm:gap-8 group">
+                 <div className="bg-white/5 p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] border border-white/5 group-hover:border-emerald-500/40 transition-all shadow-2xl"><Database size={48} className="text-emerald-500 sm:w-[72px] sm:h-[72px]" /></div>
+                 <span className="font-black text-xl sm:text-3xl text-white tracking-tighter">Supabase</span>
              </div>
-             <div className="flex flex-col items-center gap-8 group">
-                 <div className="bg-white/5 p-12 rounded-[3.5rem] border border-white/5 group-hover:border-purple-500/40 transition-all shadow-2xl"><Brain size={72} className="text-purple-400" /></div>
-                 <span className="font-black text-3xl text-white tracking-tighter">OpenAI Core</span>
+             <div className="flex flex-col items-center gap-6 sm:gap-8 group">
+                 <div className="bg-white/5 p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] border border-white/5 group-hover:border-purple-500/40 transition-all shadow-2xl"><Brain size={48} className="text-purple-400 sm:w-[72px] sm:h-[72px]" /></div>
+                 <span className="font-black text-xl sm:text-3xl text-white tracking-tighter">OpenAI Core</span>
              </div>
-             <div className="flex flex-col items-center gap-8 group">
-                 <div className="bg-white/5 p-12 rounded-[3.5rem] border border-white/5 group-hover:border-orange-500/40 transition-all shadow-2xl"><Mail size={72} className="text-orange-400" /></div>
-                 <span className="font-black text-3xl text-white tracking-tighter">Resend MTA</span>
+             <div className="flex flex-col items-center gap-6 sm:gap-8 group">
+                 <div className="bg-white/5 p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] border border-white/5 group-hover:border-orange-500/40 transition-all shadow-2xl"><Mail size={48} className="text-orange-400 sm:w-[72px] sm:h-[72px]" /></div>
+                 <span className="font-black text-xl sm:text-3xl text-white tracking-tighter">Resend MTA</span>
              </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#030108] text-white py-48 px-6 border-t border-white/10 relative z-10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-32">
-          <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-lg">
-            <div className="flex items-center gap-6 mb-12">
-              <Logo variant="medium" className="shadow-[0_0_60px_rgba(168,85,247,0.4)]" />
-              <span className="text-6xl font-black tracking-tighter">Quiviex</span>
+      <footer className="bg-[#030108] text-white py-24 sm:py-48 px-6 border-t border-white/10 relative z-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-16 sm:gap-32">
+          <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-lg mx-auto md:mx-0">
+            <div className="flex items-center gap-4 sm:gap-6 mb-8 sm:mb-12">
+              <Logo variant="medium" className="shadow-[0_0_60px_rgba(168,85,247,0.4)] w-12 h-12 sm:w-16 sm:h-16" />
+              <span className="text-4xl sm:text-6xl font-black tracking-tighter">Quiviex</span>
             </div>
-            <p className="text-slate-500 font-bold leading-relaxed text-2xl">
+            <p className="text-slate-500 font-bold leading-relaxed text-lg sm:text-2xl">
                 Redefining the way you learn, quiz, and study. Beautifully designed for a world-class educational experience.
             </p>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-28">
-            <div className="flex flex-col gap-10">
-              <span className="text-[13px] font-black uppercase tracking-[0.5em] text-purple-600">Product</span>
-              <button onClick={() => onGetStarted()} className="text-left font-bold text-slate-400 hover:text-white transition-colors text-xl">Dashboard</button>
-              <button onClick={() => onGetStarted()} className="text-left font-bold text-slate-400 hover:text-white transition-colors text-xl">AI Creator</button>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-12 sm:gap-28 text-center sm:text-left">
+            <div className="flex flex-col gap-6 sm:gap-10">
+              <span className="text-[11px] sm:text-[13px] font-black uppercase tracking-[0.5em] text-purple-600">Product</span>
+              <button onClick={() => onGetStarted()} className="font-bold text-slate-400 hover:text-white transition-colors text-lg sm:text-xl">Dashboard</button>
+              <button onClick={() => onGetStarted()} className="font-bold text-slate-400 hover:text-white transition-colors text-lg sm:text-xl">AI Creator</button>
             </div>
-            <div className="flex flex-col gap-10">
-              <span className="text-[13px] font-black uppercase tracking-[0.5em] text-purple-600">Explore</span>
-              <button onClick={onExplore} className="text-left font-bold text-slate-400 hover:text-white transition-colors text-xl">Library</button>
-              <button onClick={() => onGetStarted()} className="text-left font-bold text-slate-400 hover:text-white transition-colors text-xl">Achievements</button>
+            <div className="flex flex-col gap-6 sm:gap-10">
+              <span className="text-[11px] sm:text-[13px] font-black uppercase tracking-[0.5em] text-purple-600">Explore</span>
+              <button onClick={onExplore} className="font-bold text-slate-400 hover:text-white transition-colors text-lg sm:text-xl">Library</button>
+              <button onClick={() => onGetStarted()} className="font-bold text-slate-400 hover:text-white transition-colors text-lg sm:text-xl">Achievements</button>
             </div>
-            <div className="flex flex-col gap-10">
-              <span className="text-[13px] font-black uppercase tracking-[0.5em] text-purple-600">Legal</span>
-              <button onClick={() => onShowLegal?.('guidelines')} className="text-left font-bold text-slate-400 hover:text-white transition-colors text-xl">Guidelines</button>
-              <button onClick={() => onShowLegal?.('privacy')} className="text-left font-bold text-slate-400 hover:text-white transition-colors text-xl">Privacy</button>
-              <button onClick={() => onShowLegal?.('terms')} className="text-left font-bold text-slate-400 hover:text-white transition-colors text-xl">Terms</button>
+            <div className="flex flex-col gap-6 sm:gap-10 col-span-2 sm:col-span-1">
+              <span className="text-[11px] sm:text-[13px] font-black uppercase tracking-[0.5em] text-purple-600">Legal</span>
+              <button onClick={() => onShowLegal?.('guidelines')} className="font-bold text-slate-400 hover:text-white transition-colors text-lg sm:text-xl">Guidelines</button>
+              <button onClick={() => onShowLegal?.('privacy')} className="font-bold text-slate-400 hover:text-white transition-colors text-lg sm:text-xl">Privacy</button>
+              <button onClick={() => onShowLegal?.('terms')} className="font-bold text-slate-400 hover:text-white transition-colors text-lg sm:text-xl">Terms</button>
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto border-t border-white/5 mt-48 pt-24 flex flex-col md:flex-row justify-between items-center gap-12">
-            <p className="text-slate-600 text-sm font-bold uppercase tracking-[0.4em]">&copy; 2026 Quiviex Learning Labs.</p>
-            <div className="flex gap-14 opacity-40">
-                <Github size={32} className="hover:text-purple-400 cursor-pointer transition-all hover:scale-125" />
-                <Globe size={32} className="hover:text-purple-400 cursor-pointer transition-all hover:scale-125" />
+        <div className="max-w-7xl mx-auto border-t border-white/5 mt-24 sm:mt-48 pt-12 sm:pt-24 flex flex-col md:flex-row justify-between items-center gap-8 sm:gap-12">
+            <p className="text-slate-600 text-xs sm:text-sm font-bold uppercase tracking-[0.4em]">&copy; 2026 Quiviex Learning Labs.</p>
+            <div className="flex gap-10 sm:gap-14 opacity-40">
+                <Github size={28} className="hover:text-purple-400 cursor-pointer transition-all hover:scale-125 sm:w-8 sm:h-8" />
+                <Globe size={28} className="hover:text-purple-400 cursor-pointer transition-all hover:scale-125 sm:w-8 sm:h-8" />
             </div>
         </div>
       </footer>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Feedback, Quiz } from '../types';
 import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash, Search, Info, Mail, Ban, Unlock, BarChart3, TrendingUp, MousePointer2, Eye, Filter, Check, AlertTriangle } from 'lucide-react';
@@ -464,21 +463,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQu
       )}
 
       <div className="bg-slate-900 text-white sticky top-0 z-10 px-6 py-4 shadow-lg border-b border-slate-700">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-              <ArrowLeft size={24} />
-            </button>
-            <div className="flex items-center gap-2">
-               <Shield className="text-rose-500" size={28} />
-               <h1 className="text-2xl font-black tracking-tight">Admin Control</h1>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
+            <div className="flex items-center gap-4">
+                <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <ArrowLeft size={24} />
+                </button>
+                <div className="flex items-center gap-2">
+                <Shield className="text-rose-500" size={28} />
+                <h1 className="text-2xl font-black tracking-tight">Admin Control</h1>
+                </div>
             </div>
+            {/* Mobile Refresh Button - visible only on small screens */}
+            <button onClick={fetchData} className="md:hidden p-2 rounded-full hover:bg-slate-800 transition-colors">
+                <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
+            </button>
           </div>
-          <div className="flex items-center gap-4">
-              <button onClick={fetchData} className={`p-2 rounded-full hover:bg-slate-800 transition-colors ${isLoading ? 'animate-spin' : ''}`}>
-                  <RefreshCw size={20} />
+          
+          <div className="flex items-center gap-4 w-full md:w-auto overflow-hidden">
+              <button onClick={fetchData} className="hidden md:block p-2 rounded-full hover:bg-slate-800 transition-colors">
+                  <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
               </button>
-              <div className="flex bg-slate-800 rounded-xl p-1 overflow-x-auto">
+              <div className="flex bg-slate-800 rounded-xl p-1 overflow-x-auto w-full md:w-auto custom-scrollbar">
                  {[
                    { id: 'feedback', icon: MessageSquare, label: 'Logs' },
                    { id: 'users', icon: Users, label: 'Units' },
@@ -490,7 +496,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQu
                     <button 
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)} 
-                        className={`px-5 py-2.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id ? 'bg-slate-600 text-white shadow-inner' : 'text-slate-500 hover:text-white'}`}
+                        className={`px-5 py-2.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${activeTab === tab.id ? 'bg-slate-600 text-white shadow-inner' : 'text-slate-500 hover:text-white'}`}
                     >
                         <tab.icon size={16} /> {tab.label}
                     </button>

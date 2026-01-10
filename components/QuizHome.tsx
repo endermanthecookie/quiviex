@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap, Clock, History } from 'lucide-react';
+import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap, Clock, History, Printer } from 'lucide-react';
 import { Quiz, User as UserType, QXNotification } from '../types';
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
 import { PlaySelectionModal } from './PlaySelectionModal';
+import { PrintOptionsModal } from './PrintOptionsModal';
 
 interface QuizHomeProps {
   quizzes: Quiz[];
@@ -60,6 +61,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
   const [activeTab, setActiveTab] = useState<'my' | 'saved'>('my');
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingQuizPlay, setPendingQuizPlay] = useState<Quiz | null>(null);
+  const [printingQuiz, setPrintingQuiz] = useState<Quiz | null>(null);
 
   const displayedQuizzes = (activeTab === 'my' ? quizzes : savedQuizzes)
     .filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -76,6 +78,13 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
           onSolo={(q) => { setPendingQuizPlay(null); onStartQuiz(q); }}
           onMultiplayer={(q) => { setPendingQuizPlay(null); onHostSession(q); }}
           onClose={() => setPendingQuizPlay(null)}
+        />
+      )}
+
+      {printingQuiz && (
+        <PrintOptionsModal 
+            quiz={printingQuiz} 
+            onClose={() => setPrintingQuiz(null)} 
         />
       )}
 
@@ -227,6 +236,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
             <div key={quiz.id} className="group bg-white rounded-[3rem] p-8 hover:shadow-2xl transition-all duration-500 flex flex-col relative border border-slate-100 hover-lift">
                 <div className={`h-52 rounded-[2.5rem] bg-gradient-to-br from-indigo-500 to-purple-600 mb-10 p-8 flex flex-col justify-between overflow-hidden relative shadow-lg group-hover:shadow-indigo-100 transition-all duration-500`}>
                     <div className="absolute top-0 right-0 p-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 z-20">
+                       <button onClick={(e) => { e.stopPropagation(); setPrintingQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40 transition-colors" title="Print"><Printer size={18} /></button>
                        <button onClick={(e) => { e.stopPropagation(); onEditQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40 transition-colors" title="Edit Quiz"><Edit2 size={18} /></button>
                        <button onClick={(e) => { e.stopPropagation(); onDeleteQuiz(quiz.id); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-rose-500 transition-colors" title="Delete"><Trash2 size={18} /></button>
                     </div>
