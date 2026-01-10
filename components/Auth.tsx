@@ -85,8 +85,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
     try {
       const finalEmail = isUnder13 ? `${username.toLowerCase()}@u13.quiviex.internal` : email.trim();
       
-      // Check for ban
-      const { data: banEntry } = await supabase.from('banned_emails').select('reason').eq('email', finalEmail).maybeSingle();
+      // Check for ban (case insensitive)
+      const { data: banEntry } = await supabase.from('banned_emails').select('reason').ilike('email', finalEmail).maybeSingle();
       if (banEntry) {
           throw new Error(`User has been banned: ${banEntry.reason}`);
       }
@@ -112,6 +112,16 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
         setSuccessMsg("Check your email for confirmation!");
       }
     } catch (err: any) {
+      // If user already registered, check if they are banned one more time (in case first check failed due to race/caching)
+      if (err.message?.includes('registered')) {
+          try {
+              const { data: banRetry } = await supabase.from('banned_emails').select('reason').ilike('email', isUnder13 ? `${username.toLowerCase()}@u13.quiviex.internal` : email.trim()).maybeSingle();
+              if (banRetry) {
+                  setError(`User has been banned: ${banRetry.reason}`);
+                  return;
+              }
+          } catch (_) {}
+      }
       setError(err.message || "Registration failed.");
     } finally {
       setIsLoading(false);
@@ -130,8 +140,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
         loginEmail = data.email;
       }
 
-      // Check for ban
-      const { data: banEntry } = await supabase.from('banned_emails').select('reason').eq('email', loginEmail).maybeSingle();
+      // Check for ban (case insensitive)
+      const { data: banEntry } = await supabase.from('banned_emails').select('reason').ilike('email', loginEmail).maybeSingle();
       if (banEntry) {
           throw new Error(`User has been banned: ${banEntry.reason}`);
       }
