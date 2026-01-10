@@ -233,7 +233,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
                           <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                   <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-100">
-                                      {quiz.creatorAvatarUrl ? <img src={quiz.creatorAvatarUrl} className="w-full h-full object-cover" alt="" /> : <div className="font-black text-slate-300">{quiz.creatorUsername.charAt(0)}</div>}
+                                      {quiz.creatorAvatarUrl ? <img src={quiz.creatorAvatarUrl} className="w-full h-full object-cover" alt="" /> : <div className="font-black text-slate-300">{(quiz.creatorUsername || 'U').charAt(0)}</div>}
                                   </div>
                                   <div>
                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Architect</p>
