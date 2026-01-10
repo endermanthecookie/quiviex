@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Quiz, QuizResult, User, UserStats, Achievement, Feedback, QXNotification, Room } from './types';
 import { QuizHome } from './components/QuizHome';
 import { QuizCreator } from './components/QuizCreator';
@@ -334,6 +335,7 @@ export default function App() {
         <div key={view} className="view-transition">
           {renderContent()}
         </div>
+        <SpeedInsights />
     </div>
   );
 }
