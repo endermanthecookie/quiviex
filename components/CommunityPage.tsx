@@ -40,15 +40,19 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
       fetchStaffId();
   }, []);
 
-  // 2. Initial Fetch when Staff ID is ready or sort changes
+  // 2. Initial Fetch when Staff ID is ready or sort/search changes
   useEffect(() => {
     if (staffId) {
-        setQuizzes([]);
-        setCurrentPage(0);
-        setHasMore(true);
-        fetchCommunityQuizzes(0);
+        const delayDebounceFn = setTimeout(() => {
+            setQuizzes([]);
+            setCurrentPage(0);
+            setHasMore(true);
+            fetchCommunityQuizzes(0);
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
     }
-  }, [sortBy, staffId]);
+  }, [sortBy, staffId, searchQuery]);
 
   useEffect(() => {
       if (initialQuizId && staffId) {
@@ -94,6 +98,11 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
         const to = from + 9;
 
         let query = supabase.from('quizzes').select('*').eq('visibility', 'public');
+        
+        if (searchQuery.trim()) {
+            query = query.ilike('title', `%${searchQuery.trim()}%`);
+        }
+
         if (sortBy === 'newest') query = query.order('created_at', { ascending: false });
         else if (sortBy === 'trending') query = query.order('views', { ascending: false }); 
         
@@ -161,8 +170,6 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
       setCurrentPage(nextPage);
       fetchCommunityQuizzes(nextPage);
   };
-
-  const filteredQuizzes = quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const getHighlightedText = (text: string, highlight: string) => {
     if (!highlight.trim()) return text;
@@ -247,7 +254,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
               </div>
           ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10 stagger-in">
-                  {filteredQuizzes.map((quiz) => (
+                  {quizzes.map((quiz) => (
                       <div key={quiz.id} onClick={() => setSelectedQuiz(quiz)} className="group bg-white rounded-[3rem] sm:rounded-[3.5rem] p-6 sm:p-8 hover:shadow-2xl transition-all duration-500 border border-slate-100 relative cursor-pointer hover-lift">
                           <div className={`h-40 sm:h-48 rounded-[2rem] sm:rounded-[2.5rem] bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-6 sm:mb-8 p-6 sm:p-8 flex flex-col justify-between overflow-hidden relative shadow-xl group-hover:scale-[1.02] transition-transform`}>
                                 <div className="absolute top-4 right-4 z-20">
@@ -308,7 +315,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, onBack, onPl
               </div>
           )}
           
-          {!isLoading && filteredQuizzes.length === 0 && currentPage === 0 && (
+          {!isLoading && quizzes.length === 0 && currentPage === 0 && (
               <div className="col-span-full py-40 text-center">
                   <Globe size={80} className="mx-auto text-slate-200 mb-6 animate-pulse" />
                   <h3 className="text-2xl font-black text-slate-400 uppercase tracking-widest">No Matches Found</h3>

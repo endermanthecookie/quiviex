@@ -382,7 +382,7 @@ export default function App() {
         {showShortcutsModal && <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
         
         <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} onNavigate={handleCommandNavigate} />
-        {user && view !== 'take' && <PomodoroWidget stopAudio={view === 'focus' || view === 'take'} />}
+        {user && view !== 'take' && <PomodoroWidget stopAudio={view === 'focus'} />}
 
         <div key={view} className="view-transition">
           {renderContent()}
