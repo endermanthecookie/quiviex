@@ -173,11 +173,11 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       setIsStarting(true);
       
       try {
-          // Start game AND clear PIN to prevent late joins (effectively deleting the code)
-          // The subscription will detect the status change and trigger onStart for everyone
+          // Start game. We DO NOT set pin to null because the DB has a not-null constraint.
+          // Changing status to 'playing' is sufficient to prevent new joins in JoinPinPage.
           const { error } = await supabase
             .from('rooms')
-            .update({ status: 'playing', pin: null })
+            .update({ status: 'playing' })
             .eq('id', room.id);
             
           if (error) throw error;
