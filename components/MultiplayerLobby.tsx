@@ -121,18 +121,49 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       
       const userId = user?.id || getPersistentGuestId();
       
-      const { error } = await supabase.from('room_participants').upsert({
-          room_id: room.id,
-          user_id: userId,
-          username: trimmedName,
-          score: 0
-      }, { onConflict: 'room_id, user_id' });
-      
-      if (!error) {
-          setHasJoined(true);
-          fetchParticipants();
-      } else {
-          console.error("Join error:", error);
+      // FIX: Manually check existence to avoid 42P10 error if unique constraint is missing in DB
+      try {
+          // 1. Check if participant already exists
+          const { data: existing, error: fetchError } = await supabase
+              .from('room_participants')
+              .select('id')
+              .eq('room_id', room.id)
+              .eq('user_id', userId)
+              .maybeSingle();
+
+          if (fetchError && fetchError.code !== 'PGRST116') {
+              console.error("Participant check error:", fetchError);
+          }
+
+          if (existing) {
+              setHasJoined(true);
+              fetchParticipants();
+              return;
+          }
+
+          // 2. Insert if not found
+          const { error: insertError } = await supabase.from('room_participants').insert({
+              room_id: room.id,
+              user_id: userId,
+              username: trimmedName,
+              score: 0
+          });
+          
+          if (insertError) {
+              console.error("Join insert error:", insertError);
+              // Handle duplicate key error gracefully (23505) just in case race condition
+              if (insertError.code === '23505') {
+                  setHasJoined(true);
+                  fetchParticipants();
+              } else {
+                  alert("Could not join lobby. Please try again.");
+              }
+          } else {
+              setHasJoined(true);
+              fetchParticipants();
+          }
+      } catch (err) {
+          console.error("Join exception:", err);
       }
   };
 
