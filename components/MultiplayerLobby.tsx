@@ -105,15 +105,18 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       // Automatically join if logged in or if username was provided in JoinPinPage
       const prefilledName = sessionStorage.getItem('qx_temp_username');
       if ((user || prefilledName) && !hasJoined) {
-          handleJoin(user?.username || prefilledName || '');
+          handleJoin(null, user?.username || prefilledName || '');
           if (prefilledName) sessionStorage.removeItem('qx_temp_username');
       }
       
       setIsLoading(false);
   };
 
-  const handleJoin = async (name: string) => {
-      const trimmedName = name.trim();
+  const handleJoin = async (e: React.FormEvent | null, nameOverride?: string) => {
+      if (e) e.preventDefault();
+      const nameToUse = nameOverride !== undefined ? nameOverride : tempUsername;
+      const trimmedName = nameToUse.trim();
+      
       if (!trimmedName || trimmedName.length < 2) return;
       
       const userId = user?.id || getPersistentGuestId();
@@ -128,12 +131,15 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       if (!error) {
           setHasJoined(true);
           fetchParticipants();
+      } else {
+          console.error("Join error:", error);
       }
   };
 
   const handleStartSession = async () => {
       if (!isHost) return;
-      await supabase.from('rooms').update({ status: 'playing' }).eq('id', room.id);
+      // Start game AND clear PIN to prevent late joins (effectively deleting the code)
+      await supabase.from('rooms').update({ status: 'playing', pin: null }).eq('id', room.id);
   };
 
   const handleCopyLink = () => {
@@ -252,7 +258,7 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                     <div className="bg-indigo-600 rounded-[3rem] p-10 shadow-2xl animate-in zoom-in duration-500 border border-indigo-400 relative overflow-hidden">
                         <div className="absolute top-[-20%] right-[-20%] w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                         <h3 className="text-2xl font-black mb-6 tracking-tight relative z-10">Enter Name</h3>
-                        <div className="space-y-4 relative z-10">
+                        <form onSubmit={(e) => handleJoin(e)} className="space-y-4 relative z-10">
                             <input 
                                 type="text" 
                                 placeholder="Your display name..." 
@@ -262,13 +268,13 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                                 maxLength={15}
                             />
                             <button 
-                                onClick={() => handleJoin(tempUsername)}
+                                type="submit"
                                 disabled={tempUsername.trim().length < 2}
                                 className="w-full bg-white text-indigo-600 py-5 rounded-2xl font-black text-lg shadow-xl click-scale uppercase tracking-widest disabled:opacity-50 transition-all"
                             >
                                 Join Game
                             </button>
-                        </div>
+                        </form>
                     </div>
                 )}
 

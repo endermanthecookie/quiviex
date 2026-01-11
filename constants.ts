@@ -137,9 +137,7 @@ export const THEMES: Record<string, { label: string; gradient: string; text: str
 export const DEFAULT_MUSIC_TRACKS = [
   { id: 'none', label: 'No Music', url: '' },
   { id: 'chill', label: 'Chill Lo-Fi', url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112762.mp3' },
-  { id: 'upbeat', label: 'Upbeat Pop', url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=upbeat-1-29008.mp3' },
-  { id: 'suspense', label: 'Clockwork Tension', url: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_0782fa9838.mp3?filename=clockwork-104975.mp3' },
-  { id: 'epic', label: 'Epic Battle', url: 'https://cdn.pixabay.com/download/audio/2022/10/25/audio_5502c40c81.mp3?filename=action-rock-124971.mp3' }
+  { id: 'upbeat', label: 'Upbeat Pop', url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=upbeat-1-29008.mp3' }
 ];
 
 export const TUTORIAL_STEPS: TutorialStep[] = [

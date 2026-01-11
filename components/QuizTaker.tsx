@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Quiz, Question, Room, User } from '../types';
 import { Logo } from './Logo';
-import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame, X, MousePointerClick } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { sfx } from '../services/soundService';
 
@@ -67,6 +67,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   // Drag States
   const [draggedOrderIndex, setDraggedOrderIndex] = useState<number | null>(null);
   const [draggedMatchItem, setDraggedMatchItem] = useState<string | null>(null);
+  const [selectedMatchItem, setSelectedMatchItem] = useState<string | null>(null); // For tap-to-select
   const [draggedBlankOptionIndex, setDraggedBlankOptionIndex] = useState<number | null>(null);
   
   // Voice Input
@@ -158,6 +159,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               [matches[i], matches[j]] = [matches[j], matches[i]];
           }
           setShuffledMatches(matches);
+          setSelectedMatchItem(null);
       }
 
       if (q.type === 'fill-in-the-blank') {
@@ -323,17 +325,37 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       setDraggedOrderIndex(index);
   };
 
-  const handleMatchDragStart = (item: string) => setDraggedMatchItem(item);
+  // Improved Matching Logic (supports tap-to-select)
+  const handleMatchSelect = (item: string) => {
+      // If tapping same item, deselect
+      if (selectedMatchItem === item) {
+          setSelectedMatchItem(null);
+          return;
+      }
+      setSelectedMatchItem(item);
+  };
+
+  const handleMatchDragStart = (item: string) => {
+      setDraggedMatchItem(item);
+      setSelectedMatchItem(item);
+  };
+
   const handleMatchDrop = (index: number) => {
-      if (draggedMatchItem) {
+      // Use either the dragged item OR the currently selected item (for tap support)
+      const itemToPlace = draggedMatchItem || selectedMatchItem;
+      
+      if (itemToPlace) {
           setMatchingState(prev => {
               const next = [...prev];
-              const existingIdx = next.findIndex(p => p.right === draggedMatchItem);
+              // Remove if already placed elsewhere
+              const existingIdx = next.findIndex(p => p.right === itemToPlace);
               if (existingIdx !== -1) next[existingIdx].right = null;
-              next[index].right = draggedMatchItem;
+              // Place in new spot
+              next[index].right = itemToPlace;
               return next;
           });
           setDraggedMatchItem(null);
+          setSelectedMatchItem(null);
       }
   };
 
@@ -429,10 +451,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
                       <div className="flex flex-wrap justify-center gap-4">
                           {currentQuestion.options.map((opt, i) => {
-                              // If options are consumable (one-to-one mapping), hide used options
-                              // const isUsed = blankAnswers.includes(i); 
-                              // For now, let's assume multiple usage is allowed or user manages it. 
-                              // Standard behavior often allows reuse or just dragging.
                               return (
                                   <div 
                                     key={i}
@@ -457,23 +475,26 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                       {/* Drop Zones (Left) */}
                       <div className="flex-1 space-y-4 w-full">
                           {matchingState.map((pair, idx) => (
-                              <div key={idx} className="flex items-center gap-4 bg-black/20 p-4 rounded-3xl border border-white/10">
+                              <div key={idx} className={`flex items-center gap-4 p-4 rounded-3xl border transition-colors ${selectedMatchItem && !pair.right ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-black/20 border-white/10'}`}>
                                   <div className="flex-1 p-4 bg-white/10 rounded-2xl font-bold text-center border border-white/5">{pair.left}</div>
                                   <div className="text-white/30"><CornerDownRight size={24} /></div>
                                   <div 
                                     onDragOver={(e) => e.preventDefault()}
                                     onDrop={() => handleMatchDrop(idx)}
                                     onClick={() => {
-                                        // Click to clear
                                         if (pair.right) {
+                                            // Click to clear
                                             setMatchingState(prev => {
                                                 const n = [...prev];
                                                 n[idx].right = null;
                                                 return n;
                                             })
+                                        } else if (selectedMatchItem) {
+                                            // Click to place
+                                            handleMatchDrop(idx);
                                         }
                                     }}
-                                    className={`flex-1 p-4 rounded-2xl font-bold text-center border-2 border-dashed transition-all cursor-pointer min-h-[64px] flex items-center justify-center overflow-hidden ${pair.right ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg' : 'bg-white/5 border-white/20 hover:bg-white/10'}`}
+                                    className={`flex-1 p-4 rounded-2xl font-bold text-center border-2 border-dashed transition-all cursor-pointer min-h-[64px] flex items-center justify-center overflow-hidden ${pair.right ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg' : selectedMatchItem ? 'bg-indigo-500/20 border-indigo-400/50 animate-pulse' : 'bg-white/5 border-white/20 hover:bg-white/10'}`}
                                   >
                                       {pair.right ? (
                                           isImage(pair.right) ? (
@@ -481,7 +502,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                                           ) : (
                                               pair.right
                                           )
-                                      ) : <span className="text-xs uppercase tracking-widest opacity-30">Drop Here</span>}
+                                      ) : <span className="text-xs uppercase tracking-widest opacity-30">{selectedMatchItem ? 'Tap to Place' : 'Drop Here'}</span>}
                                   </div>
                               </div>
                           ))}
@@ -489,23 +510,26 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
                       {/* Draggables Pool (Right) */}
                       <div className="w-full md:w-64 bg-white/10 p-6 rounded-[2.5rem] border border-white/10 min-h-[300px]">
-                          <p className="text-center text-[10px] font-black uppercase tracking-widest opacity-50 mb-4">Drag to Match</p>
+                          <p className="text-center text-[10px] font-black uppercase tracking-widest opacity-50 mb-4">Tap or Drag to Match</p>
                           <div className="flex flex-col gap-3">
                               {shuffledMatches.map((item, i) => {
                                   const isPlaced = matchingState.some(p => p.right === item);
                                   if (isPlaced) return null;
+                                  const isSelected = selectedMatchItem === item;
                                   return (
                                       <div 
                                         key={i}
                                         draggable="true"
                                         onDragStart={() => handleMatchDragStart(item)}
-                                        className="p-3 bg-white text-slate-900 rounded-2xl font-bold text-center shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform border-b-4 border-slate-200 flex items-center justify-center min-h-[60px]"
+                                        onClick={() => handleMatchSelect(item)}
+                                        className={`p-3 rounded-2xl font-bold text-center shadow-lg cursor-pointer transition-transform border-b-4 flex items-center justify-center min-h-[60px] relative ${isSelected ? 'bg-indigo-500 text-white border-indigo-700 scale-105 ring-2 ring-white' : 'bg-white text-slate-900 border-slate-200 hover:scale-105 active:scale-95'}`}
                                       >
                                           {isImage(item) ? (
                                               <img src={item} alt="Match" className="max-w-full max-h-24 object-contain rounded-lg pointer-events-none" />
                                           ) : (
                                               item
                                           )}
+                                          {isSelected && <div className="absolute -top-2 -right-2 bg-white text-indigo-600 rounded-full p-1 shadow-md"><MousePointerClick size={12} /></div>}
                                       </div>
                                   )
                               })}
