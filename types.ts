@@ -69,6 +69,7 @@ export interface UserPreferences {
   aiMode?: AIMode;
   appTheme?: string;
   customThemeData?: CustomTheme; 
+  soundEnabled?: boolean;
 }
 
 export interface User {
@@ -144,7 +145,7 @@ export interface Question {
   image: string;
   type: QuestionType;
   options: string[];
-  correctAnswer: number | string | null; 
+  correctAnswer: number | string | number[] | null; 
   timeLimit: number;
   explanation?: string;
 }

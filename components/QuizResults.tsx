@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { XCircle, CheckCircle, Info, Trophy, RotateCw, Home } from 'lucide-react';
 import { Quiz } from '../types';
 import { THEMES } from '../constants';
@@ -8,7 +7,6 @@ interface QuizResultsProps {
   quiz: Quiz;
   userAnswers: (number | string | number[])[];
   score: number;
-  /* Added points prop to resolve missing property error in App.tsx */
   points?: number;
   onPlayAgain: () => void;
   onHome: () => void;
@@ -37,6 +35,77 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, sco
       color: quiz.customTheme.text,
       border: `1px solid ${hexToRgba(quiz.customTheme.text, 0.1)}`
   } : {};
+
+  useEffect(() => {
+    if (percentage >= 80) {
+        fireConfetti();
+    }
+  }, [percentage]);
+
+  const fireConfetti = () => {
+    const canvas = document.createElement('canvas');
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '9999';
+    document.body.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles: any[] = [];
+    const particleCount = 150;
+    const colors = ['#fcd34d', '#f87171', '#60a5fa', '#4ade80', '#a78bfa'];
+
+    for (let i = 0; i < particleCount; i++) {
+        particles.push({
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+            vx: (Math.random() - 0.5) * 20,
+            vy: (Math.random() - 0.5) * 20 - 5,
+            size: Math.random() * 8 + 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            life: 100 + Math.random() * 50,
+            gravity: 0.5
+        });
+    }
+
+    const animate = () => {
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let active = false;
+
+        particles.forEach(p => {
+            if (p.life > 0) {
+                active = true;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                p.life--;
+                p.size *= 0.96;
+
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+
+        if (active) {
+            requestAnimationFrame(animate);
+        } else {
+            document.body.removeChild(canvas);
+        }
+    };
+
+    animate();
+  };
 
   const renderCorrectAnswer = (q: any) => {
       if (q.type === 'text-input' || q.type === 'fill-in-the-blank') return q.correctAnswer;

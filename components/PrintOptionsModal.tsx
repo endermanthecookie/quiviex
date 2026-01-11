@@ -15,71 +15,91 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
       
       const renderQuestionContent = (q: any) => {
           if (q.type === 'matching' || q.type === 'ordering') {
-              return `<div style="padding: 12px; background: #f8fafc; border: 1px dashed #cbd5e1; text-align: center; font-style: italic; font-size: 11px; color: #64748b; border-radius: 8px;">Interactive Question (${q.type}) - See online for full experience</div>`;
+              return `<div style="padding: 12px; background: #f9f9f9; border: 1px dashed #ccc; text-align: center; font-style: italic; font-size: 11px; border-radius: 4px;">Question Type Not Supported in Print Format</div>`;
           }
           if (q.type === 'fill-in-the-blank') {
-              return `<div class="q-text">${q.question.replace(/\[\s*\]/g, '<span style="display:inline-block; border-bottom: 2px solid #0f172a; width: 100px; margin: 0 4px;"></span>')}</div>`;
+              let bankHtml = '';
+              if (q.options && q.options.length > 0) {
+                  bankHtml = `
+                    <div style="margin-bottom: 12px; padding: 10px; border: 1px solid #ddd; background: #fafafa; border-radius: 4px; font-size: 11px;">
+                        <strong style="display:block; margin-bottom: 4px; text-transform: uppercase; font-size: 10px;">Word Bank:</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            ${q.options.map((opt: string) => `<span style="border: 1px solid #ccc; padding: 2px 6px; border-radius: 4px; background: white;">${opt}</span>`).join('')}
+                        </div>
+                    </div>
+                  `;
+              }
+              
+              const parts = q.question.split(/(\[\s*\])/g);
+              const processedQuestion = parts.map((part: string) => {
+                  if (part.match(/\[\s*\]/)) {
+                      return '<span class="dotted-line"></span>';
+                  }
+                  return part;
+              }).join('');
+
+              return `
+                ${bankHtml}
+                <div class="q-text">${processedQuestion}</div>
+              `;
           }
           if (q.type === 'text-input') {
               return `
                 <div class="q-text">${q.question}</div>
-                <div style="margin-top: 30px; border-bottom: 2px solid #e2e8f0; height: 30px; width: 100%;"></div>
+                <div class="write-box"></div>
               `;
           }
           if (q.type === 'slider') {
                return `
                 <div class="q-text">${q.question}</div>
-                <div style="margin-top: 20px; display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 12px; gap: 15px; color: #475569;">
-                    <span style="white-space: nowrap;">${q.options[0]}</span>
-                    <div style="flex: 1; height: 4px; background: #e2e8f0; border-radius: 4px; position: relative;">
-                        <div style="position: absolute; left: 50%; top: -6px; width: 12px; height: 12px; background: #94a3b8; border-radius: 50%;"></div>
+                <div style="margin-top: 15px; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 11px;">
+                    <span>${q.options[0]}</span>
+                    <div style="flex: 1; height: 1px; background: #000; margin: 0 10px; position: relative;">
+                        <div style="position: absolute; left: 0; width: 1px; height: 6px; background: #000; top: -3px;"></div>
+                        <div style="position: absolute; right: 0; width: 1px; height: 6px; background: #000; top: -3px;"></div>
                     </div>
-                    <span style="white-space: nowrap;">${q.options[1]}</span>
+                    <span>${q.options[1]}</span>
                 </div>
               `;
           }
+          
           // Multiple Choice / True False
           return `
             <div class="q-text">${q.question}</div>
             <ul class="opt-list">
-                ${q.options.map((o: string) => `<li class="opt"><span class="checkbox"></span> ${o}</li>`).join('')}
+                ${q.options.map((o: string, idx: number) => `
+                    <li class="opt">
+                        <span class="bubble">${String.fromCharCode(65 + idx)}</span>
+                        ${o}
+                    </li>
+                `).join('')}
             </ul>
           `;
       };
 
       const renderAnswer = (q: any) => {
-          if (q.type === 'matching' || q.type === 'ordering') return 'Interactive (See Online)';
-          if (q.type === 'multiple-choice' || q.type === 'true-false' || q.type === 'fill-in-the-blank') return q.options[q.correctAnswer];
-          if (q.type === 'slider') return `${q.correctAnswer} (Range: ${q.options[0]}-${q.options[1]})`;
-          if (q.type === 'text-input') return q.correctAnswer;
+          if (q.type === 'fill-in-the-blank') {
+              if (Array.isArray(q.correctAnswer)) {
+                  return q.correctAnswer.map((idx: number) => q.options[idx]).join(', ');
+              }
+              return 'See Online';
+          }
+          if (typeof q.correctAnswer === 'number' && q.options) return q.options[q.correctAnswer];
           return q.correctAnswer;
       };
 
       const brandingHtml = `
-        <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #f1f5f9; display: flex; justify-content: space-between; align-items: flex-end;">
-            <div>
-                <h5 style="margin: 0; font-weight: 700; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">QUIZ ID: ${quiz.id}</h5>
+        <div class="header">
+            <div class="header-left">
+                <h1>${quiz.title}</h1>
+                <p>Created by @${quiz.creatorUsername || 'User'}</p>
             </div>
-            <div style="font-size: 10px; font-weight: 700; color: #94a3b8;">
-                ${new Date().toLocaleDateString()}
+            <div class="header-fields">
+                <div class="field">Name: <span class="line"></span></div>
+                <div class="field">Date: <span class="line"></span></div>
+                <div class="field">Score: <span class="line short"></span> / ${quiz.questions.length}</div>
             </div>
         </div>
-      `;
-
-      // Inline Logo SVG
-      const logoSvg = `
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="24" height="24">
-          <defs>
-            <linearGradient id="g_print" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#9d33f5"/>
-              <stop offset="100%" style="stop-color:#5c4cf4"/>
-            </linearGradient>
-          </defs>
-          <rect x="0" y="0" width="100" height="100" rx="28" fill="url(#g_print)"/>
-          <path d="M 72 30 L 74 36 L 80 38 L 74 40 L 72 46 L 70 40 L 64 38 L 70 36 Z" fill="#fcd34d"/>
-          <path d="M 28 62 L 30 68 L 36 70 L 30 72 L 28 78 L 26 72 L 20 70 L 26 68 Z" fill="#fcd34d"/>
-          <path d="M 52 14 L 68 14 L 48 48 L 66 48 L 32 86 L 44 54 L 30 54 Z" fill="white"/>
-        </svg>
       `;
 
       let bodyContent = '';
@@ -87,43 +107,44 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
       if (type === 'quiz') {
           bodyContent = `
             ${brandingHtml}
-            <div style="margin-bottom: 40px;">
-                <h1 style="font-size: 36px; font-weight: 900; line-height: 1.1; margin-bottom: 10px; letter-spacing: -1px;">${quiz.title}</h1>
-                <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">
-                    By @${quiz.creatorUsername || 'User'} • ${quiz.questions.length} Questions
-                </div>
-            </div>
-
-            <div class="name-section">
-                <span style="color: #cbd5e1; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-right: 10px;">Student Name</span>
-            </div>
             
+            <div class="questions-container">
             ${quiz.questions.map((q, i) => `
                 <div class="q-block">
-                    <div class="q-num">Question ${i + 1}</div>
-                    ${q.image ? `<div class="img-container"><img src="${q.image}" /></div>` : ''}
-                    ${renderQuestionContent(q)}
+                    <div class="q-num">${i + 1}.</div>
+                    <div class="q-content">
+                        ${q.image ? `<div class="img-container"><img src="${q.image}" /></div>` : ''}
+                        ${renderQuestionContent(q)}
+                    </div>
                 </div>
             `).join('')}
+            </div>
           `;
       } else {
           bodyContent = `
-            <div class="answer-key-header">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-                    <h1 style="font-size: 28px; font-weight: 900; margin: 0;">Answer Key</h1>
-                    <span style="background: #f1f5f9; padding: 6px 12px; border-radius: 99px; font-size: 11px; font-weight: 800; color: #64748b;">INSTRUCTOR COPY</span>
-                </div>
-                <div style="font-size: 14px; font-weight: 700; color: #333; border-left: 4px solid #5c4cf4; padding-left: 12px;">${quiz.title}</div>
+            <div class="header">
+                <h1>Answer Key</h1>
+                <p>${quiz.title}</p>
             </div>
             
-            <div style="column-count: 2; column-gap: 40px;">
+            <table class="answer-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>Correct Answer</th>
+                        <th>Explanation</th>
+                    </tr>
+                </thead>
+                <tbody>
                 ${quiz.questions.map((q, i) => `
-                    <div class="answer-row">
-                        <div class="answer-q">Q${i + 1}</div>
-                        <div class="answer-val">${renderAnswer(q)}</div>
-                    </div>
+                    <tr>
+                        <td><strong>${i + 1}</strong></td>
+                        <td><strong>${renderAnswer(q)}</strong></td>
+                        <td style="color: #666; font-style: italic;">${q.explanation || ''}</td>
+                    </tr>
                 `).join('')}
-            </div>
+                </tbody>
+            </table>
           `;
       }
 
@@ -132,147 +153,133 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
         <html>
         <head>
             <title>${quiz.title}</title>
-            <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
             <style>
+                @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;700&family=Roboto:wght@400;700&display=swap');
+                
                 @page {
                     size: A4;
                     margin: 20mm;
                 }
                 body { 
-                    font-family: 'Plus Jakarta Sans', sans-serif; 
+                    font-family: 'Times New Roman', Times, serif;
                     margin: 0;
                     padding: 0;
-                    color: #0f172a;
+                    color: #000;
                     background: white;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
+                    line-height: 1.4;
                 }
                 
-                /* Footer Styles */
-                .print-footer {
-                    position: fixed;
-                    bottom: 0;
-                    right: 0;
+                .header {
                     display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    z-index: 999;
-                    opacity: 0.8;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 20px;
+                    margin-bottom: 30px;
                 }
-                
-                .footer-text {
-                    font-size: 10px;
-                    font-weight: 800;
+                .header h1 {
+                    font-family: 'Helvetica', 'Arial', sans-serif;
+                    font-size: 24px;
+                    margin: 0 0 5px 0;
                     text-transform: uppercase;
                     letter-spacing: 1px;
-                    color: #5c4cf4;
-                    margin-top: 4px;
                 }
-
-                .name-section { 
-                    margin-bottom: 40px; 
-                    border-bottom: 2px solid #e2e8f0; 
-                    padding-bottom: 8px; 
-                    display: inline-block; 
-                    width: 100%;
-                    max-width: 400px;
-                }
+                .header p { margin: 0; font-size: 12px; color: #555; }
                 
+                .header-fields {
+                    text-align: right;
+                    font-family: 'Helvetica', 'Arial', sans-serif;
+                    font-size: 12px;
+                }
+                .field { margin-bottom: 8px; }
+                .line {
+                    display: inline-block;
+                    border-bottom: 1px solid #000;
+                    width: 150px;
+                }
+                .line.short { width: 50px; }
+
                 .q-block { 
-                    margin-bottom: 25px; 
+                    margin-bottom: 20px; 
                     page-break-inside: avoid; 
-                    padding-bottom: 25px; 
-                    border-bottom: 1px dashed #f1f5f9;
+                    display: flex;
+                    gap: 10px;
                 }
-                
-                .q-block:last-child { border-bottom: none; }
-
-                .q-num { 
-                    font-weight: 800; 
-                    font-size: 11px; 
-                    color: #5c4cf4; 
-                    text-transform: uppercase; 
-                    margin-bottom: 8px;
-                    letter-spacing: 0.5px;
-                }
-                
-                .q-text { 
-                    font-size: 15px; 
-                    font-weight: 600; 
-                    margin-bottom: 12px; 
-                    line-height: 1.5; 
-                    color: #1e293b;
-                }
+                .q-num { font-weight: bold; font-size: 14px; min-width: 25px; }
+                .q-content { flex: 1; }
+                .q-text { margin-bottom: 8px; font-weight: bold; }
                 
                 .opt-list { padding-left: 0; list-style: none; margin: 0; }
-                .opt { margin-bottom: 8px; font-size: 13px; display: flex; align-items: flex-start; color: #475569; }
+                .opt { margin-bottom: 6px; font-size: 13px; display: flex; align-items: center; }
                 
-                .checkbox {
-                    display: inline-block;
-                    width: 16px;
-                    height: 16px;
-                    border: 2px solid #cbd5e1;
-                    border-radius: 4px;
+                .bubble {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 18px;
+                    height: 18px;
+                    border: 1px solid #000;
+                    border-radius: 50%;
                     margin-right: 10px;
-                    margin-top: 1px;
-                    flex-shrink: 0;
+                    font-size: 10px;
+                    font-family: sans-serif;
+                    font-weight: bold;
                 }
                 
+                .dotted-line {
+                    display: inline-block;
+                    border-bottom: 1px dotted #000;
+                    width: 100px;
+                    margin: 0 5px;
+                    vertical-align: bottom;
+                }
+                
+                .write-box {
+                    border-bottom: 1px solid #ccc;
+                    height: 25px;
+                    width: 100%;
+                    margin-top: 5px;
+                }
+
                 .img-container { 
-                    max-width: 300px; 
-                    border: 1px solid #e2e8f0; 
-                    border-radius: 8px; 
-                    overflow: hidden; 
-                    margin: 8px 0 16px 0;
+                    max-width: 200px; 
+                    border: 1px solid #eee; 
+                    margin: 5px 0 10px 0;
                 }
                 img { width: 100%; height: auto; display: block; }
                 
-                .answer-key-header { margin-bottom: 30px; border-bottom: 2px solid #0f172a; padding-bottom: 20px; }
-                .answer-row { 
-                    display: flex; 
-                    justify-content: space-between; 
-                    align-items: baseline; 
-                    padding: 6px 0; 
-                    border-bottom: 1px solid #f8fafc; 
-                    font-size: 12px; 
-                    page-break-inside: avoid;
+                .answer-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 12px;
                 }
-                .answer-q { font-weight: 800; width: 60px; color: #94a3b8; }
-                .answer-val { flex: 1; text-align: right; font-weight: 700; color: #0f172a; }
+                .answer-table th, .answer-table td {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    text-align: left;
+                }
+                .answer-table th { background: #eee; }
+
+                .footer {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    text-align: center;
+                    font-size: 9px;
+                    color: #999;
+                    font-family: sans-serif;
+                }
             </style>
         </head>
         <body>
-            <div class="print-footer">
-                ${logoSvg}
-                <div class="footer-text">Quiviex</div>
-            </div>
-            
+            <div class="footer">Generated by Quiviex Learning Labs</div>
             ${bodyContent}
-
             <script>
                 window.onload = function() {
-                    // Failsafe: Automatically close the window after 1.5 minutes (90000ms)
-                    setTimeout(function() {
-                        window.close();
-                    }, 90000);
-
-                    // Slight delay to ensure all styles/images are rendered
                     setTimeout(function() {
                         window.print();
-                        
-                        // Handler for browsers that support it (Firefox, IE)
-                        window.onafterprint = function() {
-                            window.close();
-                        };
-
-                        // Fallback logic for Chrome/Safari where print() is blocking
-                        // This code typically runs after the print dialog is closed in those browsers
-                        if (document.hasFocus()) {
-                            window.close();
-                        } else {
-                            // If window lost focus (e.g. print dialog open), wait for it to return
-                            window.onfocus = function() { window.close(); }
-                        }
+                        window.close();
                     }, 500);
                 };
             </script>
@@ -294,8 +301,8 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
                 <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-100">
                     <Printer size={32} />
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-1">Print Options</h3>
-                <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Select document format</p>
+                <h3 className="text-2xl font-black text-slate-900 mb-1">Print Worksheet</h3>
+                <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Academic Format</p>
             </div>
 
             <div className="space-y-3">
@@ -308,7 +315,7 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
                     </div>
                     <div className="text-left">
                         <div className="font-black text-sm">Print Quiz</div>
-                        <div className="text-[10px] font-bold opacity-60 uppercase tracking-wider">Questions Only</div>
+                        <div className="text-[10px] font-bold opacity-60 uppercase tracking-wider">Standard Worksheet</div>
                     </div>
                 </button>
 
@@ -320,8 +327,8 @@ export const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({ quiz, onCl
                         <CheckSquare size={24} />
                     </div>
                     <div className="text-left">
-                        <div className="font-black text-sm">Print Answer Sheet</div>
-                        <div className="text-[10px] font-bold opacity-60 uppercase tracking-wider">Solutions Key</div>
+                        <div className="font-black text-sm">Print Answer Key</div>
+                        <div className="text-[10px] font-bold opacity-60 uppercase tracking-wider">Teacher Copy</div>
                     </div>
                 </button>
             </div>

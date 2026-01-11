@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, CustomTheme, AIMode } from '../types';
-import { ArrowLeft, Loader2, Palette, Sparkles, Check, Settings, Image as ImageIcon, Key, ShieldCheck, Github, Upload, X, User as UserIcon, Star, MessageSquare, Send, Cpu, Zap, Layers } from 'lucide-react';
+import { ArrowLeft, Loader2, Palette, Sparkles, Check, Settings, Image as ImageIcon, Key, ShieldCheck, Github, Upload, X, User as UserIcon, Star, MessageSquare, Send, Cpu, Zap, Layers, Volume2, VolumeX, Keyboard } from 'lucide-react';
 import { THEMES } from '../constants';
 import { ThemeEditorModal } from './ThemeEditorModal';
 import { GitHubTokenHelpModal } from './GitHubTokenHelpModal';
 import { OpenAIKeyHelpModal } from './OpenAIKeyHelpModal';
 import { supabase } from '../services/supabase';
+import { sfx } from '../services/soundService';
 
 export const SettingsPage: React.FC<any> = ({ 
-  user, onBack, onUpdateProfile, onClearHistory, onDeleteAccount, onExportAll 
+  user, onBack, onUpdateProfile, onClearHistory, onDeleteAccount, onExportAll, onOpenShortcuts
 }) => {
   const [username, setUsername] = useState(user.username);
   const [email, setEmail] = useState(user.email);
@@ -17,6 +18,7 @@ export const SettingsPage: React.FC<any> = ({
   const [openaiKey, setOpenaiKey] = useState(user.preferences?.openaiKey || '');
   const [aiMode, setAiMode] = useState<AIMode>(user.preferences?.aiMode || '1');
   const [appTheme, setAppTheme] = useState(user.preferences?.appTheme || 'light');
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(user.preferences?.soundEnabled ?? true);
   
   const [customTheme, setCustomTheme] = useState<CustomTheme>(user.preferences?.customThemeData || {
       background: '#0f172a',
@@ -33,10 +35,6 @@ export const SettingsPage: React.FC<any> = ({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const isFirstRender = useRef(true);
 
-  const [platformRating, setPlatformRating] = useState<number>(0);
-  const [platformReview, setPlatformReview] = useState('');
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || '');
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,9 +45,11 @@ export const SettingsPage: React.FC<any> = ({
         return;
     }
     setSaveStatus('saving');
+    // Apply sound setting immediately
+    sfx.setEnabled(soundEnabled);
     const timer = window.setTimeout(() => { saveSettings(); }, 800);
     return () => window.clearTimeout(timer);
-  }, [username, email, appTheme, customTheme, githubToken, openaiKey, aiMode, avatarUrl]);
+  }, [username, email, appTheme, customTheme, githubToken, openaiKey, aiMode, avatarUrl, soundEnabled]);
 
   const saveSettings = () => {
     try {
@@ -62,6 +62,7 @@ export const SettingsPage: React.FC<any> = ({
                 githubToken,
                 openaiKey,
                 aiMode,
+                soundEnabled,
                 customThemeData: customTheme 
             }
         });
@@ -98,6 +99,41 @@ export const SettingsPage: React.FC<any> = ({
       </div>
 
       <div className="max-w-3xl mx-auto p-6 space-y-8 pb-20 stagger-in">
+        <section className="glass rounded-[2.5rem] p-8 border border-white">
+            <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2"><Settings size={22} className="text-indigo-500" /> General Preferences</h2>
+            
+            <div className="space-y-4">
+                <div className="flex items-center justify-between bg-white/50 p-4 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${soundEnabled ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+                            {soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
+                        </div>
+                        <div>
+                            <p className="font-black text-slate-800 text-sm">Sound Effects</p>
+                            <p className="text-xs font-bold text-slate-400">Play audio cues for interactions</p>
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" checked={soundEnabled} onChange={(e) => setSoundEnabled(e.target.checked)} />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+
+                <button onClick={onOpenShortcuts} className="w-full flex items-center justify-between bg-white/50 p-4 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-md transition-all group">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-slate-100 text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                            <Keyboard size={24} />
+                        </div>
+                        <div className="text-left">
+                            <p className="font-black text-slate-800 text-sm">Keyboard Shortcuts</p>
+                            <p className="text-xs font-bold text-slate-400">View power user keybindings</p>
+                        </div>
+                    </div>
+                    <div className="text-slate-300 group-hover:text-indigo-600 transition-colors px-2">Open</div>
+                </button>
+            </div>
+        </section>
+
         <section className="glass rounded-[2.5rem] p-8 border border-white">
             <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2"><Cpu size={22} className="text-indigo-500" /> AI Protocols</h2>
             <div className="grid grid-cols-1 gap-4 mb-8">

@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Room, Participant, User, Quiz } from '../types';
 import { supabase } from '../services/supabase';
-import { ArrowLeft, Users, Play, Loader2, Copy, Check, Shield, User as UserIcon, LogOut, Terminal } from 'lucide-react';
+import { ArrowLeft, Users, Play, Loader2, Copy, Check, Shield, User as UserIcon, LogOut, Terminal, QrCode, X } from 'lucide-react';
 import { Logo } from './Logo';
 
 interface MultiplayerLobbyProps {
@@ -19,6 +18,7 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
   const [hasJoined, setHasJoined] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showQR, setShowQR] = useState(false);
   
   const quizDataRef = useRef<Quiz | null>(null);
   const isHost = user?.id === room.hostId;
@@ -150,6 +150,25 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
     <div className="min-h-screen bg-[#05010d] text-white p-6 sm:p-12 flex flex-col font-['Plus_Jakarta_Sans'] relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.05)_0%,transparent_70%)] pointer-events-none"></div>
 
+      {showQR && (
+          <div className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-xl animate-in fade-in">
+              <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full text-center relative animate-in zoom-in shadow-2xl">
+                  <button onClick={() => setShowQR(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                      <X size={24} />
+                  </button>
+                  <h3 className="text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">Scan to Join</h3>
+                  <div className="bg-white p-4 rounded-3xl border-4 border-indigo-500 inline-block shadow-xl mb-6">
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/${room.pin}`)}`} 
+                        alt="QR Code" 
+                        className="w-48 h-48"
+                      />
+                  </div>
+                  <p className="text-slate-500 font-bold text-sm">Players can scan this to join instantly.</p>
+              </div>
+          </div>
+      )}
+
       <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col relative z-10">
         
         <header className="flex justify-between items-center mb-12 animate-in slide-in-from-top duration-700">
@@ -178,13 +197,22 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                                 <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-3 opacity-60">Game PIN</p>
                                 <div className="text-7xl sm:text-8xl font-black tracking-[0.1em] text-white drop-shadow-[0_0_40px_rgba(99,102,241,0.3)] transition-all group-hover:scale-105 select-all">{room.pin}</div>
                             </div>
-                            <button 
-                                onClick={handleCopyLink}
-                                className="bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 px-10 py-8 rounded-[3rem] flex flex-col items-center justify-center gap-3 transition-all click-scale min-w-[180px] group"
-                            >
-                                {copied ? <Check className="text-emerald-400" size={32} /> : <Copy className="text-slate-400 group-hover:text-white transition-colors" size={32} />}
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300">{copied ? 'Link Copied' : 'Invite Players'}</span>
-                            </button>
+                            <div className="flex flex-col gap-4">
+                                <button 
+                                    onClick={handleCopyLink}
+                                    className="bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 px-8 py-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 transition-all click-scale min-w-[140px] group flex-1"
+                                >
+                                    {copied ? <Check className="text-emerald-400" size={24} /> : <Copy className="text-slate-400 group-hover:text-white transition-colors" size={24} />}
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300">{copied ? 'Copied' : 'Copy Link'}</span>
+                                </button>
+                                <button 
+                                    onClick={() => setShowQR(true)}
+                                    className="bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 px-8 py-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 transition-all click-scale min-w-[140px] group flex-1"
+                                >
+                                    <QrCode className="text-slate-400 group-hover:text-white transition-colors" size={24} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300">QR Code</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

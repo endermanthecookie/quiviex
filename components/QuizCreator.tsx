@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2, Info, RefreshCw, Type, ListOrdered, Layers, Sliders, AlignLeft, CheckSquare, Brackets } from 'lucide-react';
+import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2, Info, RefreshCw, Type, ListOrdered, Layers, Sliders, AlignLeft, CheckSquare, Brackets, MinusCircle } from 'lucide-react';
 import { Quiz, Question, QuestionType, User, CustomTheme, QuizVisibility } from '../types';
 import { COLORS, TUTORIAL_STEPS, THEMES, BANNED_WORDS, SOFT_FILTER_WORDS } from '../constants';
 import { TutorialWidget } from './TutorialWidget';
@@ -51,6 +51,8 @@ const isImage = (url: string) => {
     if (!url) return false;
     return url.startsWith('data:image') || /\.(jpeg|jpg|gif|png|webp)$/i.test(url) || url.startsWith('https://images.unsplash.com');
 };
+
+const getBlankCount = (text: string) => (text.match(/\[\s*\]/g) || []).length;
 
 export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUser, onSave, onExit, startWithTutorial, onTutorialComplete, onStatUpdate, onOpenSettings, onRefreshProfile }) => {
   const [quizTitle, setQuizTitle] = useState('');
@@ -131,7 +133,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       });
 
       if (detected.size > 0) {
-          // If content is from AI, we do NOT issue a strike. We just warn and block save.
           if (isAiGenerated) {
               setValidationErrors(Array.from(detected).map(w => `• AI Safety Filter: Found word "${w}". Please remove or edit this content.`));
               setShowValidationModal(true);
@@ -171,6 +172,22 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
     const errors: string[] = [];
     if (!quizTitle.trim()) errors.push('• Add a quiz title');
     if (questions.length === 0) errors.push('• Add at least one question');
+    
+    questions.forEach((q, idx) => {
+        if (!q.question.trim()) errors.push(`• Question ${idx + 1} is empty`);
+        if (q.type === 'fill-in-the-blank') {
+            const blankCount = getBlankCount(q.question);
+            if (blankCount === 0) errors.push(`• Question ${idx + 1} needs at least one blank [ ]`);
+            if (Array.isArray(q.correctAnswer)) {
+                if (q.correctAnswer.length !== blankCount || q.correctAnswer.some(val => val === -1 || val === null)) {
+                    errors.push(`• Question ${idx + 1} has unassigned blanks`);
+                }
+            } else {
+                errors.push(`• Question ${idx + 1} answer key is invalid`);
+            }
+        }
+    });
+
     if (errors.length > 0) {
       setValidationErrors(errors);
       setShowValidationModal(true);
@@ -180,7 +197,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   };
 
   const handleFinalizeSave = (visibility: QuizVisibility) => {
-    // Check for soft filter words to flag content
     let isSensitive = false;
     const allText = [quizTitle, ...questions.map(q => q.question + ' ' + q.options.join(' ') + ' ' + (q.explanation || ''))].join(' ');
     const detectedSoft = scanForSoftFilterWords(allText);
@@ -204,7 +220,26 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   const updateQuestion = (field: keyof Question, value: any) => {
     setQuestions(prev => {
         const updated = [...prev];
-        updated[currentQuestionIndex] = { ...updated[currentQuestionIndex], [field]: value };
+        const q = updated[currentQuestionIndex];
+        let newValue = value;
+
+        // Auto-update blanks logic
+        if (q.type === 'fill-in-the-blank' && field === 'question') {
+            const blankCount = getBlankCount(value);
+            let currentAns = Array.isArray(q.correctAnswer) ? [...q.correctAnswer] : [];
+            
+            // Adjust answer array size
+            if (currentAns.length !== blankCount) {
+                if (currentAns.length < blankCount) {
+                    while (currentAns.length < blankCount) currentAns.push(-1);
+                } else {
+                    currentAns.length = blankCount;
+                }
+                q.correctAnswer = currentAns;
+            }
+        }
+
+        updated[currentQuestionIndex] = { ...q, [field]: newValue };
         return updated;
     });
   };
@@ -237,12 +272,12 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
               options = []; 
               correct = ''; 
           } else if (type === 'matching') {
-              // Prepare for 4 pairs (8 slots: even=left, odd=right)
               options = ['', '', '', '', '', '', '', ''];
               correct = null;
           } else if (type === 'fill-in-the-blank') {
-              options = ['', '', '', ''];
-              correct = 0; // Index of correct dragged item
+              options = ['', '', '', '']; // Initial word bank
+              const blankCount = getBlankCount(q.question);
+              correct = new Array(blankCount).fill(-1);
           } else { 
               // Multiple Choice, Ordering
               if (options.length < 4) options = ['', '', '', '']; 
@@ -267,7 +302,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
     newOptions.splice(draggedOptionIndex, 1);
     newOptions.splice(index, 0, draggedItem);
     
-    // Update state immediately for visual feedback
     updateQuestion('options', newOptions);
     setDraggedOptionIndex(index);
   };
@@ -348,7 +382,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                 onGenerate={(qs, t) => { 
                     setQuestions(prev => [...prev, ...qs]); 
                     setQuizTitle(t); 
-                    setIsAiGenerated(true); // Flag this quiz as AI generated to prevent strikes
+                    setIsAiGenerated(true); 
                 }} 
                 onClose={() => setShowAIModal(false)} 
                 onAiUsed={() => onStatUpdate('ai_quiz')} 
@@ -383,7 +417,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
             <div className="flex-1 overflow-y-auto p-8 sm:p-12 flex flex-col items-center">
                 <div className="w-full max-w-6xl animate-in fade-in duration-500">
                     
-                    {/* Modern Card Question Type Selector */}
                     <div className="w-full mb-10">
                         <div className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 custom-scrollbar snap-x">
                             {TYPE_CONFIG.map(t => {
@@ -410,7 +443,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                                         <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-white' : 'text-slate-500'}`}>
                                             {t.label}
                                         </span>
-                                        
                                         {isActive && (
                                             <div className="absolute -bottom-3 bg-white text-slate-900 text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-slate-100">
                                                 ACTIVE
@@ -442,7 +474,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                             </div>
 
                             <div className="animate-in slide-in-from-bottom-4 duration-500">
-                                {currentQ.type === 'multiple-choice' || currentQ.type === 'fill-in-the-blank' ? (
+                                {currentQ.type === 'multiple-choice' ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         {currentQ.options.map((opt, i) => (
                                             <div key={i} className="flex items-center gap-5 group">
@@ -450,6 +482,65 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                                                 <div className="flex-1 p-5 bg-slate-50 rounded-[2rem] border-[3px] border-slate-100 focus-within:border-indigo-200 transition-all"><input type="text" value={opt} onChange={(e) => { const newOpts = [...currentQ.options]; newOpts[i] = e.target.value; updateQuestion('options', newOpts); }} placeholder="Option..." className="w-full bg-transparent border-none p-0 focus:ring-0 font-bold text-slate-700" /></div>
                                             </div>
                                         ))}
+                                    </div>
+                                ) : currentQ.type === 'fill-in-the-blank' ? (
+                                    <div className="space-y-12">
+                                        <div className="bg-slate-50 border-2 border-slate-100 p-8 rounded-[2rem]">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Word Bank (Options)</label>
+                                                <button onClick={() => { const o = [...currentQ.options, '']; updateQuestion('options', o); }} className="text-indigo-600 font-bold text-xs flex items-center gap-1 hover:bg-indigo-50 px-2 py-1 rounded"><PlusCircle size={14} /> Add Word</button>
+                                            </div>
+                                            <div className="flex flex-wrap gap-4">
+                                                {currentQ.options.map((opt, i) => (
+                                                    <div key={i} className="relative group/opt">
+                                                        <input 
+                                                            type="text" 
+                                                            value={opt} 
+                                                            onChange={(e) => { const newOpts = [...currentQ.options]; newOpts[i] = e.target.value; updateQuestion('options', newOpts); }}
+                                                            placeholder={`Word ${i+1}`}
+                                                            className="bg-white border-2 border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 w-40 focus:border-indigo-400 focus:outline-none"
+                                                        />
+                                                        {currentQ.options.length > 2 && (
+                                                            <button 
+                                                                onClick={() => { const newOpts = currentQ.options.filter((_, idx) => idx !== i); updateQuestion('options', newOpts); }}
+                                                                className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 opacity-0 group-hover/opt:opacity-100 transition-opacity"
+                                                            >
+                                                                <MinusCircle size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-indigo-50 border-2 border-indigo-100 p-8 rounded-[2rem]">
+                                            <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-6 block">Answer Key (Map Blanks)</label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {(Array.isArray(currentQ.correctAnswer) ? currentQ.correctAnswer : []).map((ansIndex, i) => (
+                                                    <div key={i} className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                                                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center font-black text-indigo-600 text-sm">#{i+1}</div>
+                                                        <select 
+                                                            value={ansIndex === -1 ? '' : ansIndex} 
+                                                            onChange={(e) => {
+                                                                const val = e.target.value === '' ? -1 : parseInt(e.target.value);
+                                                                const newAns = [...(currentQ.correctAnswer as number[])];
+                                                                newAns[i] = val;
+                                                                updateQuestion('correctAnswer', newAns);
+                                                            }}
+                                                            className="flex-1 bg-transparent font-bold text-slate-700 focus:outline-none"
+                                                        >
+                                                            <option value="">Select Correct Word...</option>
+                                                            {currentQ.options.map((opt, optIdx) => (
+                                                                <option key={optIdx} value={optIdx}>{opt || `Option ${optIdx+1}`}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                ))}
+                                                {(Array.isArray(currentQ.correctAnswer) ? currentQ.correctAnswer.length : 0) === 0 && (
+                                                    <div className="col-span-full text-center text-indigo-400 font-bold text-sm italic py-4">No blanks detected. Use [ ] in question text.</div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : currentQ.type === 'matching' ? (
                                     <div className="space-y-4">

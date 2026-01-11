@@ -23,8 +23,12 @@ import { THEMES } from './constants';
 import { NotificationToast } from './components/NotificationToast';
 import { FeedbackModal } from './components/FeedbackModal';
 import { LegalModal } from './components/LegalModal';
+import { CommandPalette } from './components/CommandPalette';
+import { PomodoroWidget } from './components/PomodoroWidget';
+import { ShortcutsModal } from './components/ShortcutsModal';
 import { exportQuizToQZX, exportAllQuizzesToZip } from './services/exportService';
 import { supabase, checkSupabaseConnection } from './services/supabase';
+import { sfx } from './services/soundService';
 
 type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin' | 'onboarding' | 'not_found' | 'profile_view';
 
@@ -57,6 +61,8 @@ export default function App() {
   const [showNotification, setShowNotification] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [activeLegalModal, setActiveLegalModal] = useState<'terms' | 'guidelines' | 'privacy' | null>(null);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   useEffect(() => {
     checkSupabaseConnection().then(res => {
@@ -69,6 +75,16 @@ export default function App() {
     window.onpopstate = () => {
         handleUrlRouting();
     };
+
+    // Global Shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            setShowCommandPalette(prev => !prev);
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const safePushState = (path: string) => {
@@ -208,6 +224,9 @@ export default function App() {
           warnings: data.warnings || 0
         };
         setUser(userData);
+        // Initialize sound settings
+        sfx.setEnabled(userData.preferences?.soundEnabled ?? true);
+        
         fetchQuizzes(userId);
         
         const isNewAccount = !data.username || data.username.startsWith('user_');
@@ -273,6 +292,8 @@ export default function App() {
 
   const persistUser = async (updatedUser: User) => {
     setUser(updatedUser);
+    // Ensure sound preference is updated in real-time
+    sfx.setEnabled(updatedUser.preferences?.soundEnabled ?? true);
     try {
       await supabase.from('profiles').update({
         username: updatedUser.username, stats: updatedUser.stats, history: updatedUser.history,
@@ -297,6 +318,16 @@ export default function App() {
         console.error("Feedback submission error:", e);
         throw e;
     }
+  };
+
+  const handleCommandNavigate = (target: string) => {
+      if (target === 'join_pin') { safePushState('/join'); }
+      else if (target === 'community') { safePushState('/community'); }
+      else { safePushState('/'); }
+      
+      if (target === 'create') { setActiveQuiz(null); }
+      
+      setView(target as ViewState);
   };
 
   const renderContent = () => {
@@ -327,8 +358,9 @@ export default function App() {
           case 'achievements': return <AchievementsPage user={user!} definitions={achievementsDefinitions} onBack={() => setView('home')} />;
           case 'history': return <HistoryPage user={user!} onBack={() => setView('home')} />;
           case 'focus': return <FocusMode user={user!} quizzes={quizzes} onBack={() => setView('home')} onStartQuiz={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
-          case 'settings': return <SettingsPage user={user!} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user!, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} onDeleteAccount={() => {}} />;
+          case 'settings': return <SettingsPage user={user!} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user!, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} onDeleteAccount={() => {}} onOpenShortcuts={() => setShowShortcutsModal(true)} />;
           case 'community': return <CommunityPage user={user} onBack={() => { if (user) { setView('home'); safePushState('/'); } else { setView('landing'); safePushState('/'); } }} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} initialQuizId={initialCommunityQuizId} onRemixQuiz={handleRemixQuiz} />;
+          case 'study': return activeQuiz ? <FlashcardViewer quiz={activeQuiz} onExit={() => setView('home')} /> : null;
           case 'admin': return <AdminDashboard onBack={() => setView('home')} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} />;
           case 'landing': return <LandingPage 
             onGetStarted={() => { safePushState('/login'); setView('auth'); }} 
@@ -347,6 +379,11 @@ export default function App() {
         <NotificationToast title={notification?.title || ''} message={notification?.message || ''} isVisible={showNotification} onClose={() => setShowNotification(false)} />
         {showFeedbackModal && user && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} onSubmit={handleFeedbackSubmit} />}
         {activeLegalModal && <LegalModal type={activeLegalModal} onClose={() => setActiveLegalModal(null)} />}
+        {showShortcutsModal && <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
+        
+        <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} onNavigate={handleCommandNavigate} />
+        {user && view !== 'take' && <PomodoroWidget stopAudio={view === 'focus' || view === 'take'} />}
+
         <div key={view} className="view-transition">
           {renderContent()}
         </div>

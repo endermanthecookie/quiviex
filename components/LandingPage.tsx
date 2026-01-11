@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, Sparkles, Shield, Zap, Globe, Github, Database, Brain, Rocket, PlayCircle, ChevronLeft, ChevronRight, X, Layers, Cpu, Users, BarChart3, Star, Mail, Loader2, User as UserIcon, Lock, Code } from 'lucide-react';
 import { Logo } from './Logo';
 import { supabase } from '../services/supabase';
+import { Typewriter } from './Typewriter';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -108,7 +109,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
           
           <h1 className="text-5xl sm:text-8xl md:text-[11rem] lg:text-[13rem] font-black tracking-tighter text-white mb-8 sm:mb-12 leading-[0.9] sm:leading-[0.7] filter drop-shadow-[0_0_60px_rgba(168,85,247,0.4)] animate-in fade-in zoom-in-95 duration-1000">
             Learn with <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400">Pure Passion.</span>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400">
+              <Typewriter text="Pure Passion." speed={120} delay={800} />
+            </span>
           </h1>
           
           <p className="max-w-4xl mx-auto text-lg sm:text-2xl text-slate-400 font-medium mb-12 sm:mb-20 leading-relaxed animate-in slide-in-from-bottom-10 duration-1000 px-4">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Quiz, Question, Room, User } from '../types';
 import { Logo } from './Logo';
-import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { sfx } from '../services/soundService';
 
@@ -62,13 +62,20 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const [shuffledMatches, setShuffledMatches] = useState<string[]>([]);
   
   // Fill in Blank State
-  const [blankDropZone, setBlankDropZone] = useState<number | null>(null); // Index of dropped option
+  const [blankAnswers, setBlankAnswers] = useState<(number | null)[]>([]);
 
   // Drag States
   const [draggedOrderIndex, setDraggedOrderIndex] = useState<number | null>(null);
   const [draggedMatchItem, setDraggedMatchItem] = useState<string | null>(null);
-  const [draggedBlankItem, setDraggedBlankItem] = useState<number | null>(null);
+  const [draggedBlankOptionIndex, setDraggedBlankOptionIndex] = useState<number | null>(null);
   
+  // Voice Input
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Zen Mode
+  const [zenMode, setZenMode] = useState(false);
+
   const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
@@ -82,6 +89,39 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
     setShuffledQuestions(q);
     initializeQuestionState(q[0]);
   }, [quiz, room]);
+
+  const handleVoiceInput = () => {
+      if (isListening) {
+          recognitionRef.current?.stop();
+          setIsListening(false);
+          return;
+      }
+
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+          alert("Voice input is not supported in this browser.");
+          return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = (e: any) => {
+          console.error("Voice Error", e);
+          setIsListening(false);
+      };
+      recognition.onresult = (e: any) => {
+          const transcript = e.results[0][0].transcript;
+          setTempInput(transcript);
+      };
+
+      recognition.start();
+  };
 
   const initializeQuestionState = (q: Question) => {
       if (!q) return;
@@ -121,7 +161,8 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       }
 
       if (q.type === 'fill-in-the-blank') {
-          setBlankDropZone(null);
+          const blanksCount = (q.question.match(/\[\s*\]/g) || []).length;
+          setBlankAnswers(new Array(blanksCount).fill(null));
       }
   };
 
@@ -176,15 +217,12 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
             if (distance === 0) { isCorrect = true; multiplier = 1; } 
             else if (distance <= 2) { isCorrect = true; multiplier = 0.8; currentFeedback = "Close enough!"; }
         } else if (currentQuestion.type === 'matching') {
-            // answer is the matchingState array
             isCorrect = true;
             answer.forEach((pair: any) => {
-                // Find original pair in options
                 const leftIdx = currentQuestion.options.indexOf(pair.left);
                 const expectedRight = currentQuestion.options[leftIdx + 1];
                 if (pair.right !== expectedRight) isCorrect = false;
             });
-            // Must match all
             if (answer.some((p:any) => p.right === null)) isCorrect = false;
             multiplier = isCorrect ? 1 : 0;
         } else {
@@ -193,7 +231,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
         }
     }
     
-    // Play SFX
     if (isCorrect) sfx.play('correct');
     else sfx.play('wrong');
 
@@ -264,7 +301,9 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
         return Array.isArray(a) && a.every((val, i) => val === i);
     }
     if (q.type === 'fill-in-the-blank') {
-        return a === q.correctAnswer;
+        if (!Array.isArray(a) || !Array.isArray(q.correctAnswer)) return false;
+        if (a.length !== q.correctAnswer.length) return false;
+        return a.every((val, i) => val === q.correctAnswer[i]);
     }
     return a === q.correctAnswer;
   };
@@ -272,7 +311,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const currentQuestion = shuffledQuestions[currentQuestionIndex];
   const timePercentage = currentQuestion ? (timeLeft / currentQuestion.timeLimit) * 100 : 0;
 
-  // Drag Handlers
   const handleOrderDragStart = (index: number) => setDraggedOrderIndex(index);
   const handleOrderDragOver = (e: React.DragEvent, index: number) => {
       e.preventDefault();
@@ -290,10 +328,8 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       if (draggedMatchItem) {
           setMatchingState(prev => {
               const next = [...prev];
-              // If item was already somewhere else, clear it
               const existingIdx = next.findIndex(p => p.right === draggedMatchItem);
               if (existingIdx !== -1) next[existingIdx].right = null;
-              
               next[index].right = draggedMatchItem;
               return next;
           });
@@ -301,17 +337,22 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       }
   };
 
-  const handleBlankDragStart = (index: number) => setDraggedBlankItem(index);
-  const handleBlankDrop = () => {
-      if (draggedBlankItem !== null) {
-          setBlankDropZone(draggedBlankItem);
-          setDraggedBlankItem(null);
+  // Fill in the Blank Drag
+  const handleBlankOptionDragStart = (optIndex: number) => setDraggedBlankOptionIndex(optIndex);
+  const handleBlankDrop = (blankIndex: number) => {
+      if (draggedBlankOptionIndex !== null) {
+          const newAnswers = [...blankAnswers];
+          newAnswers[blankIndex] = draggedBlankOptionIndex;
+          setBlankAnswers(newAnswers);
+          setDraggedBlankOptionIndex(null);
       }
   };
 
   // Variables for leaderboard rendering
   let lastScore = -1;
   let currentRank = 0;
+
+  const isOnFire = streak >= 3;
 
   if (!currentQuestion) return null;
 
@@ -322,8 +363,8 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 stagger-in">
                     {currentQuestion.options.map((opt, i) => (
-                        <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className="glass p-8 rounded-[2.5rem] text-xl font-black text-left flex items-center gap-6 group click-scale border border-white/10 hover:bg-white/20 transition-all">
-                            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-2xl font-black italic text-white/30 group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all">{i+1}</div>
+                        <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className={`glass p-8 rounded-[2.5rem] text-xl font-black text-left flex items-center gap-6 group click-scale border border-white/10 transition-all ${zenMode ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'hover:bg-white/20'}`}>
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black italic group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all ${zenMode ? 'bg-white/5 text-white/50' : 'bg-white/10 text-white/30'}`}>{i+1}</div>
                             <span className="flex-1 drop-shadow-sm">{opt}</span>
                         </button>
                     ))}
@@ -331,59 +372,82 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               );
           case 'text-input':
               return (
-                  <div className="max-w-2xl mx-auto w-full stagger-in">
-                      <input 
-                        type="text" 
-                        value={tempInput}
-                        onChange={(e) => setTempInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && tempInput.trim() && submitAnswer(tempInput)}
-                        placeholder="Type answer..."
-                        className="w-full bg-black/40 backdrop-blur-xl border-4 border-white/10 rounded-[2.5rem] p-10 text-3xl font-black text-center focus:outline-none focus:border-indigo-500 transition-all mb-8 shadow-2xl text-white placeholder-white/30"
-                        autoFocus
-                      />
+                  <div className="max-w-2xl mx-auto w-full stagger-in relative">
+                      <div className="relative">
+                        <input 
+                            type="text" 
+                            value={tempInput}
+                            onChange={(e) => setTempInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && tempInput.trim() && submitAnswer(tempInput)}
+                            placeholder="Type answer..."
+                            className="w-full bg-black/40 backdrop-blur-xl border-4 border-white/10 rounded-[2.5rem] p-10 pr-20 text-3xl font-black text-center focus:outline-none focus:border-indigo-500 transition-all mb-8 shadow-2xl text-white placeholder-white/30"
+                            autoFocus
+                        />
+                        <button 
+                            onClick={handleVoiceInput}
+                            className={`absolute right-6 top-1/2 -translate-y-1/2 p-4 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                            title="Voice Input"
+                        >
+                            <Mic size={24} />
+                        </button>
+                      </div>
                       <button onClick={() => submitAnswer(tempInput)} disabled={!tempInput.trim()} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale shadow-xl">Submit</button>
                   </div>
               );
           case 'fill-in-the-blank':
-              const parts = currentQuestion.question.split('[ ]');
+              const parts = currentQuestion.question.split(/(\[\s*\])/g);
+              let blankCounter = 0;
+              
               return (
-                  <div className="max-w-3xl mx-auto w-full stagger-in flex flex-col gap-12">
-                      <div className="bg-black/30 backdrop-blur-xl p-10 rounded-[3rem] border border-white/10 shadow-2xl text-center">
-                          <h3 className="text-2xl sm:text-4xl font-bold leading-relaxed inline-block">
-                              {parts.map((part, i) => (
-                                  <React.Fragment key={i}>
-                                      {part}
-                                      {i < parts.length - 1 && (
+                  <div className="max-w-4xl mx-auto w-full stagger-in flex flex-col gap-12">
+                      <div className="bg-black/30 backdrop-blur-xl p-10 rounded-[3rem] border border-white/10 shadow-2xl text-center leading-loose">
+                          <div className="text-2xl sm:text-4xl font-bold inline-block">
+                              {parts.map((part, i) => {
+                                  if (part.match(/\[\s*\]/)) {
+                                      const currentIndex = blankCounter++;
+                                      const filledOptIndex = blankAnswers[currentIndex];
+                                      return (
                                           <span 
+                                            key={i}
                                             onDragOver={(e) => e.preventDefault()}
-                                            onDrop={handleBlankDrop}
-                                            onClick={() => setBlankDropZone(null)} // Clear on click
-                                            className={`inline-flex items-center justify-center min-w-[120px] h-14 mx-2 align-middle border-b-4 border-dashed rounded-lg transition-all cursor-pointer ${blankDropZone !== null ? 'bg-indigo-500 border-indigo-400 text-white px-4 border-solid shadow-lg scale-110' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
+                                            onDrop={() => handleBlankDrop(currentIndex)}
+                                            onClick={() => {
+                                                const newAnswers = [...blankAnswers];
+                                                newAnswers[currentIndex] = null;
+                                                setBlankAnswers(newAnswers);
+                                            }}
+                                            className={`inline-flex items-center justify-center min-w-[120px] h-14 mx-2 align-middle border-b-4 border-dashed rounded-lg transition-all cursor-pointer ${filledOptIndex !== null ? 'bg-indigo-500 border-indigo-400 text-white px-4 border-solid shadow-lg scale-110' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
                                           >
-                                              {blankDropZone !== null ? currentQuestion.options[blankDropZone] : ''}
+                                              {filledOptIndex !== null ? currentQuestion.options[filledOptIndex] : ''}
                                           </span>
-                                      )}
-                                  </React.Fragment>
-                              ))}
-                          </h3>
+                                      );
+                                  }
+                                  return <span key={i}>{part}</span>;
+                              })}
+                          </div>
                       </div>
 
                       <div className="flex flex-wrap justify-center gap-4">
-                          {currentQuestion.options.map((opt, i) => (
-                              <div 
-                                key={i}
-                                draggable={blankDropZone !== i}
-                                onDragStart={() => handleBlankDragStart(i)}
-                                onClick={() => !timerActive ? null : setBlankDropZone(i)}
-                                className={`px-8 py-4 rounded-2xl font-black text-lg transition-all cursor-grab active:cursor-grabbing shadow-lg border-b-4 ${blankDropZone === i ? 'opacity-30 bg-slate-700 border-slate-800 cursor-default' : 'bg-white text-slate-900 border-slate-300 hover:-translate-y-1 hover:shadow-xl'}`}
-                              >
-                                  {opt}
-                              </div>
-                          ))}
+                          {currentQuestion.options.map((opt, i) => {
+                              // If options are consumable (one-to-one mapping), hide used options
+                              // const isUsed = blankAnswers.includes(i); 
+                              // For now, let's assume multiple usage is allowed or user manages it. 
+                              // Standard behavior often allows reuse or just dragging.
+                              return (
+                                  <div 
+                                    key={i}
+                                    draggable
+                                    onDragStart={() => handleBlankOptionDragStart(i)}
+                                    className="px-8 py-4 rounded-2xl font-black text-lg transition-all cursor-grab active:cursor-grabbing shadow-lg border-b-4 bg-white text-slate-900 border-slate-300 hover:-translate-y-1 hover:shadow-xl"
+                                  >
+                                      {opt}
+                                  </div>
+                              );
+                          })}
                       </div>
 
                       <div className="text-center">
-                        <button onClick={() => submitAnswer(blankDropZone)} disabled={blankDropZone === null} className="px-12 py-5 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale disabled:opacity-50 disabled:cursor-not-allowed transition-all">Submit Answer</button>
+                        <button onClick={() => submitAnswer(blankAnswers)} disabled={blankAnswers.some(a => a === null)} className="px-12 py-5 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale disabled:opacity-50 disabled:cursor-not-allowed transition-all">Submit Answer</button>
                       </div>
                   </div>
               );
@@ -469,7 +533,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                             onDragStart={() => handleOrderDragStart(displayIdx)}
                             onDragOver={(e) => handleOrderDragOver(e, displayIdx)}
                             onDragEnd={() => setDraggedOrderIndex(null)}
-                            className={`glass p-5 rounded-2xl border border-white/10 flex items-center gap-6 cursor-grab active:cursor-grabbing transition-all ${draggedOrderIndex === displayIdx ? 'opacity-50 scale-95 border-indigo-500/50' : 'hover:bg-white/10'}`}
+                            className={`glass p-5 rounded-2xl border border-white/10 flex items-center gap-6 cursor-grab active:cursor-grabbing transition-all ${draggedOrderIndex === displayIdx ? 'opacity-50 scale-95 border-indigo-500/50' : zenMode ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'hover:bg-white/10'}`}
                           >
                               <div className="text-white/20">
                                 <GripVertical size={24} />
@@ -522,12 +586,19 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden font-['Plus_Jakarta_Sans']">
+    <div className={`min-h-screen text-white flex flex-col relative overflow-hidden font-['Plus_Jakarta_Sans'] transition-colors duration-1000 ${zenMode ? 'bg-[#000000]' : isOnFire ? 'bg-orange-950' : 'bg-slate-950'}`}>
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-         <div className={`text-[40rem] sm:text-[65rem] font-black leading-none tabular-nums transition-all duration-300 ${timeLeft <= 5 ? 'text-rose-500/20 animate-pulse scale-110' : 'text-white/[0.03]'}`}>
+         <div className={`text-[40rem] sm:text-[65rem] font-black leading-none tabular-nums transition-all duration-300 ${timeLeft <= 5 ? 'text-rose-500/20 animate-pulse scale-110' : zenMode ? 'text-white/[0.01]' : 'text-white/[0.03]'}`}>
             {timeLeft}
          </div>
       </div>
+
+      {isOnFire && !zenMode && (
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-0 left-0 w-full h-full bg-orange-600/10 blur-3xl animate-pulse"></div>
+              <div className="absolute bottom-0 w-full h-1/2 bg-gradient-to-t from-orange-900/40 to-transparent"></div>
+          </div>
+      )}
 
       {showExplanation && (
           <div className="absolute inset-0 z-[100] bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
@@ -579,7 +650,8 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       )}
 
       <div className={`flex flex-col h-full relative z-10 ${startCountdown > 0 ? 'opacity-0 blur-xl' : 'opacity-100 blur-0'} transition-all duration-1000`}>
-        <header className="px-8 py-6 flex items-center justify-between z-40 bg-transparent border-b border-white/5">
+        {/* Header - Hidden in Zen Mode */}
+        <header className={`px-8 py-6 flex items-center justify-between z-40 bg-transparent border-b border-white/5 transition-all duration-500 ${zenMode ? 'opacity-0 -translate-y-full pointer-events-none absolute' : ''}`}>
             <div className="flex items-center gap-4">
                 <Logo variant="small" className="shadow-2xl" />
                 <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-full">
@@ -587,26 +659,44 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                 </div>
             </div>
             <div className="flex items-center gap-6">
+                {isOnFire && (
+                    <div className="flex items-center gap-2 text-orange-500 font-black uppercase text-xs tracking-widest animate-pulse">
+                        <Flame size={18} fill="currentColor" />
+                        Streak x{streak}
+                    </div>
+                )}
                 <div className="text-right">
                     <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Score</div>
-                    <div className="text-2xl font-black text-indigo-400 tracking-tight">{sessionPoints}</div>
+                    <div className={`text-2xl font-black tracking-tight ${isOnFire ? 'text-orange-400' : 'text-indigo-400'}`}>{sessionPoints}</div>
                 </div>
+                <button onClick={() => setZenMode(true)} className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-slate-400 hover:text-white" title="Enter Zen Mode">
+                    <Eye size={20} />
+                </button>
             </div>
         </header>
 
-        <div className="absolute top-0 left-0 w-full h-1.5 z-30">
-            <div className={`h-full absolute left-0 transition-all duration-1000 ease-linear ${timeLeft <= 5 ? 'bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,1)]' : 'bg-indigo-500'}`} style={{ width: `${timePercentage}%` }} />
+        {/* Zen Mode Exit Button */}
+        {zenMode && (
+            <div className="absolute top-6 right-6 z-50 animate-in fade-in">
+                <button onClick={() => setZenMode(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-white/30 hover:text-white transition-all" title="Exit Zen Mode">
+                    <EyeOff size={20} />
+                </button>
+            </div>
+        )}
+
+        <div className={`absolute top-0 left-0 w-full h-1.5 z-30 transition-opacity duration-500 ${zenMode ? 'opacity-0' : 'opacity-100'}`}>
+            <div className={`h-full absolute left-0 transition-all duration-1000 ease-linear ${timeLeft <= 5 ? 'bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,1)]' : isOnFire ? 'bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]' : 'bg-indigo-500'}`} style={{ width: `${timePercentage}%` }} />
         </div>
 
         <main className="flex-1 flex flex-col justify-center px-6 py-12 relative overflow-y-auto">
             <div className="max-w-4xl mx-auto w-full text-center">
                 {currentQuestion.type !== 'fill-in-the-blank' && (
-                    <div className="mb-10 inline-block bg-black/40 backdrop-blur-xl p-10 sm:p-16 rounded-[4rem] border border-white/10 shadow-2xl animate-in slide-in-from-bottom-10 duration-700 w-full">
-                        <h2 className="text-3xl sm:text-5xl font-black leading-tight tracking-tighter text-white">
+                    <div className={`mb-10 inline-block p-10 sm:p-16 rounded-[4rem] animate-in slide-in-from-bottom-10 duration-700 w-full transition-all ${zenMode ? 'bg-transparent shadow-none' : 'bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl'} ${isOnFire && !zenMode ? 'border-orange-500/30 shadow-[0_0_50px_rgba(249,115,22,0.1)]' : ''}`}>
+                        <h2 className={`text-3xl sm:text-5xl font-black leading-tight tracking-tighter text-white transition-all ${zenMode ? 'scale-110 drop-shadow-2xl' : ''}`}>
                         {currentQuestion.question}
                         </h2>
                         {currentQuestion.image && (
-                            <div className="mt-8 rounded-3xl overflow-hidden border border-white/10 shadow-2xl max-w-md mx-auto aspect-video">
+                            <div className={`mt-8 rounded-3xl overflow-hidden shadow-2xl max-w-md mx-auto aspect-video transition-all ${zenMode ? 'border-0' : 'border border-white/10'}`}>
                                 <img src={currentQuestion.image} alt="" className="w-full h-full object-cover" />
                             </div>
                         )}

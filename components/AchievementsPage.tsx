@@ -3,6 +3,7 @@ import { User, Achievement } from '../types';
 import { ArrowLeft, Trophy, Lock, CheckCircle2 } from 'lucide-react';
 import { Logo } from './Logo';
 import { supabase } from '../services/supabase';
+import { HoloCard } from './HoloCard';
 
 interface AchievementsPageProps {
   user: User;
@@ -109,9 +110,9 @@ export const AchievementsPage: React.FC<AchievementsPageProps> = ({ user, onBack
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 pb-20">
               {definitions.map((ach, idx) => {
                 const isUnlocked = userStatus[`a${idx + 1}`] === 1;
-                return (
+                
+                const Content = (
                   <div 
-                    key={ach.id} 
                     className={`
                       relative overflow-hidden rounded-[2.5rem] p-8 border transition-all duration-500 click-scale group
                       ${isUnlocked 
@@ -140,6 +141,11 @@ export const AchievementsPage: React.FC<AchievementsPageProps> = ({ user, onBack
                     </div>
                   </div>
                 );
+
+                if (isUnlocked) {
+                    return <HoloCard key={ach.id}>{Content}</HoloCard>;
+                }
+                return <div key={ach.id}>{Content}</div>;
               })}
             </div>
         )}

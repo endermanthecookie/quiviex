@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap, Clock, History, Printer, ChevronDown } from 'lucide-react';
+import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap, Clock, History, Printer, ChevronDown, Dices, Loader2 } from 'lucide-react';
 import { Quiz, User as UserType, QXNotification } from '../types';
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
 import { PlaySelectionModal } from './PlaySelectionModal';
 import { PrintOptionsModal } from './PrintOptionsModal';
+import { TiltCard } from './TiltCard';
+import { supabase } from '../services/supabase';
 
 interface QuizHomeProps {
   quizzes: Quiz[];
@@ -63,6 +65,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
   const [visibleCount, setVisibleCount] = useState(10);
   const [pendingQuizPlay, setPendingQuizPlay] = useState<Quiz | null>(null);
   const [printingQuiz, setPrintingQuiz] = useState<Quiz | null>(null);
+  const [isLoadingRandom, setIsLoadingRandom] = useState(false);
 
   useEffect(() => {
     setVisibleCount(10);
@@ -78,8 +81,53 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
 
   const isSudo = user.email === 'sudo@quiviex.com';
 
+  // Level Logic
+  const currentPoints = user.stats.totalPoints || 0;
+  const level = Math.floor(Math.sqrt(currentPoints / 100)) + 1;
+  const pointsForNextLevel = Math.pow(level, 2) * 100;
+  const pointsForCurrentLevel = Math.pow(level - 1, 2) * 100;
+  const progress = Math.min(100, Math.max(0, ((currentPoints - pointsForCurrentLevel) / (pointsForNextLevel - pointsForCurrentLevel)) * 100));
+
   const handleLoadMore = () => {
     setVisibleCount(prev => prev + 10);
+  };
+
+  const handleLuckyDip = async () => {
+    if (isLoadingRandom) return;
+    setIsLoadingRandom(true);
+    try {
+        const { count } = await supabase.from('quizzes').select('*', { count: 'exact', head: true }).eq('visibility', 'public');
+        if (!count) {
+            alert("No public quizzes available.");
+            return;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * count);
+        const { data } = await supabase.from('quizzes').select('*').eq('visibility', 'public').range(randomIndex, randomIndex).maybeSingle();
+        
+        if (data) {
+            const mappedQuiz: Quiz = {
+                id: data.id,
+                userId: data.user_id,
+                title: data.title,
+                questions: data.questions,
+                createdAt: data.created_at,
+                theme: data.theme,
+                customTheme: data.custom_theme,
+                shuffleQuestions: data.shuffle_questions,
+                backgroundMusic: data.background_music,
+                visibility: data.visibility
+            };
+            setPendingQuizPlay(mappedQuiz);
+        } else {
+            alert("Could not fetch a random quiz. Try again.");
+        }
+    } catch (e: any) {
+        console.error(e);
+        alert("Lucky Dip failed: " + e.message);
+    } finally {
+        setIsLoadingRandom(false);
+    }
   };
 
   return (
@@ -122,17 +170,19 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
               </button>
           )}
           
-          <div className="hidden sm:flex items-center gap-2 bg-white/60 border border-white/30 px-3 py-2 rounded-2xl shadow-sm backdrop-blur-sm transition-all hover:bg-white">
-            <div className="flex flex-col items-end mr-1">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Points</span>
-                <span className="text-xs font-black text-indigo-600 leading-none">{user.stats.totalPoints || 0}</span>
+          <div className="hidden sm:flex items-center gap-3 bg-white/60 border border-white/30 px-3 py-2 rounded-2xl shadow-sm backdrop-blur-sm transition-all hover:bg-white pr-4">
+            <div className="relative w-10 h-10 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 36 36">
+                    <path className="text-slate-200" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="4" />
+                    <path className="text-indigo-500 transition-all duration-1000 ease-out" strokeDasharray={`${progress}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                </svg>
+                <span className="absolute text-[10px] font-black text-indigo-600">{level}</span>
             </div>
-            {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.username} className="w-6 h-6 rounded-full object-cover border border-slate-200" />
-            ) : (
-                <User size={14} className="text-purple-500" />
-            )}
-            <span className="text-sm font-bold text-slate-700">@{user.username || 'Unclaimed'}</span>
+            
+            <div className="flex flex-col">
+                <span className="text-xs font-bold text-slate-700">@{user.username || 'Unclaimed'}</span>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{currentPoints.toLocaleString()} XP</span>
+            </div>
           </div>
 
           <NotificationBell 
@@ -184,13 +234,21 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
                    </button>
                 </div>
 
-                <button onClick={onViewAchievements} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 hover:border-yellow-300 flex flex-row items-center justify-between group click-scale transition-all shadow-sm hover:shadow-lg">
-                   <div className="text-left">
-                       <h3 className="text-2xl font-black tracking-tight text-slate-800">Trophies</h3>
-                       <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Your Milestones</p>
-                   </div>
-                   <Trophy size={36} className="text-yellow-500 group-hover:scale-110 transition-transform group-hover:rotate-12" />
-                </button>
+                <div className="grid grid-cols-2 gap-8">
+                    <button onClick={onViewAchievements} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 hover:border-yellow-300 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-sm hover:shadow-lg">
+                       <Trophy size={32} className="text-yellow-500 mb-3 group-hover:scale-110 transition-transform group-hover:rotate-12" />
+                       <h3 className="text-lg font-black tracking-tight text-slate-800">Trophies</h3>
+                    </button>
+
+                    <button 
+                        onClick={handleLuckyDip}
+                        disabled={isLoadingRandom}
+                        className="bg-emerald-500 p-6 rounded-[2.5rem] border border-emerald-400 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-2xl hover:shadow-emerald-200"
+                    >
+                       {isLoadingRandom ? <Loader2 size={32} className="text-white animate-spin mb-3" /> : <Dices size={32} className="text-white mb-3 group-hover:rotate-180 transition-transform duration-500" />}
+                       <h3 className="text-lg font-black tracking-tight text-white leading-tight">I'm Feeling Lucky</h3>
+                    </button>
+                </div>
              </div>
           </div>
 
@@ -245,8 +303,8 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 stagger-in" key={activeTab}>
           {displayedQuizzes.map((quiz) => (
-            <div key={quiz.id} className="group bg-white rounded-[3rem] p-8 hover:shadow-2xl transition-all duration-500 flex flex-col relative border border-slate-100 hover-lift">
-                <div className={`h-52 rounded-[2.5rem] bg-gradient-to-br from-indigo-500 to-purple-600 mb-10 p-8 flex flex-col justify-between overflow-hidden relative shadow-lg group-hover:shadow-indigo-100 transition-all duration-500`}>
+            <TiltCard key={quiz.id} className="group bg-white rounded-[3rem] p-8 transition-all duration-500 flex flex-col relative border border-slate-100 h-full">
+                <div className={`h-52 rounded-[2.5rem] bg-gradient-to-br from-indigo-500 to-purple-600 mb-10 p-8 flex flex-col justify-between overflow-hidden relative shadow-lg group-hover:shadow-indigo-100 transition-all duration-500 transform-style-3d`}>
                     <div className="absolute top-0 right-0 p-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 z-20">
                        <button onClick={(e) => { e.stopPropagation(); setPrintingQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40 transition-colors" title="Print"><Printer size={18} /></button>
                        <button onClick={(e) => { e.stopPropagation(); onEditQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40 transition-colors" title="Edit Quiz"><Edit2 size={18} /></button>
@@ -257,7 +315,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
                             {quiz.questions.length} QUESTIONS
                         </div>
                     </div>
-                    <h3 className="text-2xl font-black text-white leading-tight drop-shadow-md relative z-10 group-hover:scale-[1.02] transition-transform">{quiz.title}</h3>
+                    <h3 className="text-2xl font-black text-white leading-tight drop-shadow-md relative z-10 group-hover:scale-[1.02] transition-transform translate-z-10">{quiz.title}</h3>
                 </div>
 
                 <div className="mt-auto grid grid-cols-2 gap-4">
@@ -268,7 +326,7 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
                     <BookOpen size={18} /> Study
                   </button>
                 </div>
-            </div>
+            </TiltCard>
           ))}
         </div>
 

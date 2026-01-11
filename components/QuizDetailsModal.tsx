@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Quiz, User } from '../types';
-import { X, Play, Share2, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock, Heart, Loader2, Star, AlertTriangle, GitFork, Printer } from 'lucide-react';
+import { X, Play, Share2, Bookmark, Calendar, User as UserIcon, Eye, BarChart2, Lock, Heart, Loader2, Star, AlertTriangle, GitFork, Printer, QrCode } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { StarRating } from './StarRating';
 import { CommentSection } from './CommentSection';
@@ -27,6 +27,7 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
   const [activeTab, setActiveTab] = useState<'overview' | 'comments'>('overview');
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [showAuthAlert, setShowAuthAlert] = useState(false);
+  const [showQR, setShowQR] = useState(false);
 
   const isOwner = user ? quiz.userId === user.id : false;
 
@@ -100,6 +101,25 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
 
       {showPrintOptions && (
           <PrintOptionsModal quiz={quiz} onClose={() => setShowPrintOptions(false)} />
+      )}
+
+      {showQR && (
+          <div className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-xl animate-in fade-in">
+              <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full text-center relative animate-in zoom-in shadow-2xl">
+                  <button onClick={() => setShowQR(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                      <X size={24} />
+                  </button>
+                  <h3 className="text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">Scan to Play</h3>
+                  <div className="bg-white p-4 rounded-3xl border-4 border-indigo-500 inline-block shadow-xl mb-6">
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/community/${quiz.id}`)}`} 
+                        alt="QR Code" 
+                        className="w-48 h-48"
+                      />
+                  </div>
+                  <p className="text-slate-500 font-bold text-sm">Point your camera to instantly load this quiz.</p>
+              </div>
+          </div>
       )}
 
       <div className="bg-white rounded-[3.5rem] shadow-2xl max-w-4xl w-full flex flex-col h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20">
@@ -183,6 +203,14 @@ export const QuizDetailsModal: React.FC<QuizDetailsModalProps> = ({ quiz, user, 
                         
                         <button onClick={handlePrint} className="px-6 py-5 bg-slate-50 border-2 border-slate-100 hover:bg-slate-100 text-slate-600 rounded-3xl flex items-center justify-center gap-2 transition-all click-scale" title="Print Quiz">
                             <Printer size={20} />
+                        </button>
+
+                        <button 
+                          className="px-6 py-5 bg-white border-2 border-slate-100 text-slate-500 hover:text-indigo-600 rounded-3xl flex items-center justify-center gap-2 transition-all click-scale" 
+                          onClick={() => setShowQR(true)}
+                          title="Show QR Code"
+                        >
+                          <QrCode size={20} />
                         </button>
 
                         <button 

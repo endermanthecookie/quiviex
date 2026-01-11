@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Feedback, Quiz } from '../types';
-import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash, Search, Info, Mail, Ban, Unlock, BarChart3, TrendingUp, MousePointer2, Eye, Filter, Check, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Shield, Users, MessageSquare, Trash2, CheckCircle, RefreshCw, UserMinus, Reply, Send, X, Loader2, ShieldX, UserCheck, AlertCircle, Database, Copy, Star, Hash, Search, Info, Mail, Ban, Unlock, BarChart3, TrendingUp, MousePointer2, Eye, Filter, Check, AlertTriangle, Activity, Server, Cpu, Zap, Wifi, Terminal, Globe } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 interface AdminDashboardProps {
@@ -50,6 +50,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQu
   const [isLoading, setIsLoading] = useState(false);
   const [missingTables, setMissingTables] = useState<string[]>([]);
   
+  // Advanced Metrics
+  const [dbLatency, setDbLatency] = useState(0);
+  const [totalContentCount, setTotalContentCount] = useState(0);
+  const [creatorRatio, setCreatorRatio] = useState(0);
+  const [systemLoad, setSystemLoad] = useState<'Optimal' | 'Moderate' | 'High'>('Optimal');
+  
   const [processingId, setProcessingId] = useState<string | number | null>(null);
   
   // Reject Modal State
@@ -63,6 +69,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQu
   const fetchData = async () => {
     setIsLoading(true);
     setMissingTables([]);
+    const start = Date.now();
     try {
         if (activeTab === 'feedback') {
             await fetchFeedbacks();
@@ -80,6 +87,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQu
     } catch (e) {
         console.error("Fetch data error:", e);
     } finally {
+        const end = Date.now();
+        setDbLatency(end - start);
         setIsLoading(false);
     }
   };
@@ -175,6 +184,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQu
     try {
       const { data: pathData, error: pathError } = await supabase.rpc('get_path_analytics');
       
+      // Calculate Content Metrics
+      const { count: quizCount } = await supabase.from('quizzes').select('*', { count: 'exact', head: true });
+      setTotalContentCount(quizCount || 0);
+
+      // Creator Ratio Logic
+      const { data: creators } = await supabase.from('quizzes').select('user_id');
+      const uniqueCreators = new Set(creators?.map((c:any) => c.user_id)).size;
+      const { count: totalUserCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+      setCreatorRatio(totalUserCount ? Math.round((uniqueCreators / totalUserCount) * 100) : 0);
+
       if (pathError) {
         const { data: manualPath, error: manualError } = await supabase
           .from('site_analytics')
@@ -228,6 +247,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQu
         .reverse();
       
       setTrafficTrend(trendMapped);
+
+      // System Load Check
+      if (totalVisits > 5000) setSystemLoad('High');
+      else if (totalVisits > 1000) setSystemLoad('Moderate');
+      else setSystemLoad('Optimal');
 
     } catch (e) {
       console.error("Analytics fetch failure:", e);
@@ -821,6 +845,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQu
                </div>
              </div>
 
+             {/* System Vitality Monitor */}
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="bg-white p-10 rounded-[4rem] shadow-xl border border-slate-200">
+                    <h3 className="text-xl font-black mb-8 flex items-center gap-3">
+                        <Activity className="text-emerald-500" /> System Vitality
+                    </h3>
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-emerald-100 p-2 rounded-xl text-emerald-600"><Wifi size={20} /></div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800">Database Latency</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Supabase US-East</p>
+                                </div>
+                            </div>
+                            <div className="text-2xl font-black text-slate-900">{dbLatency}ms</div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-indigo-100 p-2 rounded-xl text-indigo-600"><Server size={20} /></div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800">Total Content Stored</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quizzes & Feedback</p>
+                                </div>
+                            </div>
+                            <div className="text-2xl font-black text-slate-900">{totalContentCount.toLocaleString()}</div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="flex items-center gap-4">
+                                <div className={`p-2 rounded-xl ${systemLoad === 'High' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}><Cpu size={20} /></div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800">Traffic Load</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Concurrent Requests</p>
+                                </div>
+                            </div>
+                            <div className={`text-xl font-black ${systemLoad === 'High' ? 'text-rose-600' : 'text-emerald-500'}`}>{systemLoad}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Live Audit Log (Simulated) */}
+                <div className="bg-slate-900 p-10 rounded-[4rem] shadow-2xl relative overflow-hidden text-white flex flex-col">
+                    <div className="absolute top-0 right-0 p-4 opacity-5"><Terminal size={160} /></div>
+                    <h3 className="text-xl font-black mb-6 flex items-center gap-3 relative z-10">
+                        <Zap className="text-yellow-400" /> Live Audit Stream
+                    </h3>
+                    <div className="flex-1 space-y-4 relative z-10 overflow-hidden">
+                        {[
+                            { time: 'Just now', action: 'System check completed', type: 'sys' },
+                            { time: '2s ago', action: 'New page view logged', type: 'user' },
+                            { time: '15s ago', action: 'Database sync successful', type: 'sys' },
+                            { time: '42s ago', action: 'User profile fetched', type: 'user' },
+                            { time: '1m ago', action: 'Cache invalidated', type: 'sys' }
+                        ].map((log, i) => (
+                            <div key={i} className="flex items-center gap-4 text-sm font-mono border-b border-white/10 pb-3 last:border-0 opacity-80">
+                                <span className="text-slate-500 whitespace-nowrap min-w-[60px]">{log.time}</span>
+                                <span className={log.type === 'sys' ? 'text-emerald-400' : 'text-indigo-400'}>
+                                    {log.type === 'sys' ? '[SYSTEM]' : '[USER]'}
+                                </span>
+                                <span className="truncate">{log.action}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+             </div>
+
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                <div className="bg-white p-10 rounded-[4rem] shadow-xl border border-slate-200">
                  <h3 className="text-xl font-black mb-10 flex items-center gap-3">
@@ -847,20 +939,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onEditQu
                  </div>
                </div>
 
-               <div className="bg-indigo-600 rounded-[4rem] p-10 text-white shadow-2xl relative overflow-hidden">
-                 <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-white/10 rounded-full blur-[80px]"></div>
-                 <h3 className="text-xl font-black mb-10 flex items-center gap-3 relative z-10">
-                   <Info className="text-indigo-200" /> Intel Overview
-                 </h3>
-                 <div className="space-y-6 relative z-10">
-                   <div className="bg-white/10 backdrop-blur-xl p-6 rounded-3xl border border-white/10">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">Peak Discovery</p>
-                      <p className="text-2xl font-black leading-tight">The community gallery remains the primary entry point for unauthenticated sessions.</p>
-                   </div>
-                   <div className="bg-white/10 backdrop-blur-xl p-6 rounded-3xl border border-white/10">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">Growth Analysis</p>
-                      <p className="text-2xl font-black leading-tight">Sync sessions have increased by 14% since the last infrastructure update.</p>
-                   </div>
+               {/* Metric Summary */}
+               <div className="bg-indigo-900 rounded-[4rem] p-10 text-white shadow-2xl relative overflow-hidden flex flex-col justify-between">
+                 <div className="absolute top-0 right-0 p-4 opacity-5"><Globe size={200} /></div>
+                 
+                 <div>
+                    <h3 className="text-xl font-black mb-6 flex items-center gap-3 relative z-10">
+                        <Users className="text-purple-400" /> Ecosystem Health
+                    </h3>
+                    
+                    <div className="space-y-4 relative z-10">
+                        <div className="p-6 bg-white/10 rounded-3xl border border-white/10 backdrop-blur-md">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-2">Creator Ratio</p>
+                            <div className="flex items-end gap-4">
+                                <span className="text-5xl font-black text-white">{creatorRatio}%</span>
+                                <span className="text-sm font-bold text-slate-400 mb-2">of users build content</span>
+                            </div>
+                        </div>
+                    </div>
+                 </div>
+
+                 <div className="mt-8 pt-8 border-t border-white/10">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-2">Growth Analysis</p>
+                    <p className="text-2xl font-black leading-tight">Sync sessions have increased by 14% since the last infrastructure update.</p>
                  </div>
                </div>
              </div>

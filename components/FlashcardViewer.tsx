@@ -9,14 +9,14 @@ interface FlashcardViewerProps {
   onExit: () => void;
 }
 
-type StudyState = 'studying' | 'summary';
+type StudyState = 'initializing' | 'studying' | 'summary' | 'empty';
 
 export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ quiz, onExit }) => {
   // Session State
   const [studyQueue, setStudyQueue] = useState<Question[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [studyState, setStudyState] = useState<StudyState>('studying');
+  const [studyState, setStudyState] = useState<StudyState>('initializing');
   
   // Performance Tracking
   const [knownCount, setKnownCount] = useState(0);
@@ -36,11 +36,21 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ quiz, onExit }
   useEffect(() => {
     if (quiz && quiz.questions && quiz.questions.length > 0) {
       startSession(quiz.questions);
+    } else {
+      setStudyState('empty');
     }
   }, [quiz]);
 
   const startSession = (questionsToStudy: Question[]) => {
-    const shuffled = [...questionsToStudy];
+    // Filter out invalid questions
+    const validQuestions = questionsToStudy.filter(q => q.question && q.question.trim() !== '');
+    
+    if (validQuestions.length === 0) {
+        setStudyState('empty');
+        return;
+    }
+
+    const shuffled = [...validQuestions];
     for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -153,6 +163,30 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ quiz, onExit }
     );
   };
 
+  if (studyState === 'initializing') {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+              <div className="flex flex-col items-center animate-pulse">
+                  <Loader2 size={48} className="animate-spin mb-4 text-indigo-500" />
+                  <p className="font-bold text-sm uppercase tracking-widest">Preparing Cards...</p>
+              </div>
+          </div>
+      );
+  }
+
+  if (studyState === 'empty') {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white p-6">
+              <div className="bg-white/10 p-10 rounded-3xl text-center border border-white/10 max-w-md">
+                  <Brain size={64} className="mx-auto mb-6 text-slate-500" />
+                  <h3 className="text-2xl font-black mb-4">No Study Material</h3>
+                  <p className="text-slate-400 mb-8">This quiz doesn't have enough data to generate flashcards.</p>
+                  <button onClick={onExit} className="bg-white text-slate-900 px-8 py-3 rounded-xl font-bold hover:bg-slate-200 transition-colors">Go Back</button>
+              </div>
+          </div>
+      );
+  }
+
   if (studyState === 'summary') {
     return (
         <div className={`min-h-screen flex items-center justify-center p-4 ${customClass}`} style={customStyle}>
@@ -191,7 +225,6 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ quiz, onExit }
   }
 
   const currentQ = studyQueue[currentCardIndex];
-  if (!currentQ) return <div className="min-h-screen flex items-center justify-center text-white font-bold">Initializing Queue...</div>;
 
   return (
     <div className={`min-h-screen flex flex-col overflow-hidden ${customClass}`} style={customStyle}>
