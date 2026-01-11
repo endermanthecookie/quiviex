@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Quiz, Question, Room, User } from '../types';
 import { Logo } from './Logo';
-import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame, X, MousePointerClick } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame, X, MousePointerClick, Hourglass, ArrowRight } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { sfx } from '../services/soundService';
 
@@ -40,7 +40,7 @@ const isImage = (url: string) => {
 
 export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComplete, onExit }) => {
   const [shuffledQuestions, setShuffledQuestions] = useState<ShuffledQuestion[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(room?.currentQuestionIndex || 0);
   const userAnswersRef = useRef<(number | string | number[])[]>([]);
   const [timeLeft, setTimeLeft] = useState<number>(20);
   const [timerActive, setTimerActive] = useState(false);
@@ -51,6 +51,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const [streak, setStreak] = useState(0);
   const [startCountdown, setStartCountdown] = useState(3);
   const [roomLeaderboard, setRoomLeaderboard] = useState<any[]>([]);
+  const [waitingForOthers, setWaitingForOthers] = useState(false);
   
   // Input States
   const [tempInput, setTempInput] = useState('');
@@ -78,9 +79,19 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const [zenMode, setZenMode] = useState(false);
 
   const startTimeRef = useRef<number>(0);
+  
+  // Multiplayer Props
+  const isHost = user?.id === room?.hostId;
+  const answeredPlayersRef = useRef<Set<string>>(new Set());
+  const [totalParticipants, setTotalParticipants] = useState(0);
+
+  // Guest ID fallback
+  const getGuestId = () => sessionStorage.getItem('qx_guest_id') || 'guest';
+  const myId = user?.id || getGuestId();
 
   useEffect(() => {
     let q: ShuffledQuestion[] = quiz.questions.map((qs, idx) => ({ ...qs, originalIndex: idx }));
+    // In multiplayer, do NOT shuffle to keep everyone on same question
     if (quiz.shuffleQuestions && !room) {
         for (let i = q.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -88,8 +99,118 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
         }
     }
     setShuffledQuestions(q);
-    initializeQuestionState(q[0]);
+    
+    // In multiplayer, question index comes from room
+    const initIdx = room ? room.currentQuestionIndex : 0;
+    setCurrentQuestionIndex(initIdx);
+    
+    if (q[initIdx]) initializeQuestionState(q[initIdx]);
   }, [quiz, room]);
+
+  useEffect(() => {
+      if (room) {
+          // Listen to room status changes
+          const roomSub = supabase
+            .channel(`quiz-room-${room.id}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` }, (payload: any) => {
+                const newStatus = payload.new.status;
+                const newIndex = payload.new.current_question_index;
+                
+                if (newStatus === 'results') {
+                    setTimerActive(false);
+                    setWaitingForOthers(false);
+                    setShowExplanation(true); // Show results screen
+                } else if (newStatus === 'playing') {
+                    // Moving to next question?
+                    if (newIndex !== currentQuestionIndex) {
+                        setCurrentQuestionIndex(newIndex);
+                        setWaitingForOthers(false);
+                        setShowExplanation(false);
+                        setIsCorrectFeedback(null);
+                        setFeedbackMessage(null);
+                        answeredPlayersRef.current.clear(); // Reset answered tracking
+                        
+                        if (shuffledQuestions[newIndex]) {
+                            initializeQuestionState(shuffledQuestions[newIndex]);
+                            setTimerActive(true);
+                        } else {
+                            // Finished
+                            handleGameFinish();
+                        }
+                    }
+                } else if (newStatus === 'finished') {
+                    handleGameFinish();
+                }
+            })
+            .on('broadcast', { event: 'player_answered' }, ({ payload }) => {
+                if (isHost) {
+                    answeredPlayersRef.current.add(payload.userId);
+                    checkAllAnswered();
+                }
+            })
+            .subscribe();
+
+          // Listen to participants to get count and scores
+          const partSub = supabase
+            .channel(`quiz-participants-${room.id}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'room_participants', filter: `room_id=eq.${room.id}` }, () => {
+                fetchLeaderboard();
+            })
+            .subscribe();
+            
+          fetchLeaderboard();
+
+          return () => {
+              supabase.removeChannel(roomSub);
+              supabase.removeChannel(partSub);
+          }
+      }
+  }, [room?.id, isHost, currentQuestionIndex, totalParticipants, shuffledQuestions]);
+
+  const checkAllAnswered = async () => {
+      if (!isHost || !room) return;
+      // Host logic: if answered count >= total participants, trigger results
+      if (answeredPlayersRef.current.size >= totalParticipants) {
+          // Add slight delay for UX
+          setTimeout(async () => {
+              await supabase.from('rooms').update({ status: 'results' }).eq('id', room.id);
+          }, 1000);
+      }
+  };
+
+  const fetchLeaderboard = async () => {
+      if (!room) return;
+      const { data } = await supabase.from('room_participants').select('id, user_id, username, score').eq('room_id', room.id).order('score', { ascending: false });
+      if (data) {
+          setRoomLeaderboard(data);
+          setTotalParticipants(data.length);
+      }
+  };
+
+  const handleGameFinish = () => {
+      sfx.play('complete');
+      const finalAnswers = new Array(quiz.questions.length).fill(-1);
+      userAnswersRef.current.forEach((ans, idx) => {
+          if (shuffledQuestions[idx]) finalAnswers[shuffledQuestions[idx].originalIndex] = ans;
+      });
+      // Calculate final score based on local tracking or trust room score?
+      // We will pass sessionPoints as well.
+      onComplete(finalAnswers, sessionPoints, sessionPoints); // Score calculation logic duplicated in results, fine for now
+  };
+
+  const handleHostNextQuestion = async () => {
+      if (!isHost || !room) return;
+      const nextIdx = currentQuestionIndex + 1;
+      
+      if (nextIdx >= shuffledQuestions.length) {
+          await supabase.from('rooms').update({ status: 'finished' }).eq('id', room.id);
+      } else {
+          await supabase.from('rooms').update({ 
+              status: 'playing', 
+              current_question_index: nextIdx 
+          }).eq('id', room.id);
+      }
+  };
 
   const handleVoiceInput = () => {
       if (isListening) {
@@ -130,6 +251,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       startTimeRef.current = Date.now();
       setTempInput('');
       setTempSlider(q.type === 'slider' ? parseInt(q.options[0]) || 0 : 50);
+      setWaitingForOthers(false);
       
       if (q.type === 'ordering') {
           const indices = Array.from({length: q.options.length}, (_, i) => i);
@@ -181,13 +303,13 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   }, [startCountdown]);
 
   useEffect(() => {
-    if (!timerActive || timeLeft === null || showExplanation) return;
+    if (!timerActive || timeLeft === null || showExplanation || waitingForOthers) return;
     if (timeLeft <= 0) { submitAnswer(-1); return; }
     const timer = window.setInterval(() => {
       setTimeLeft(p => p - 1);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [timeLeft, timerActive, showExplanation]);
+  }, [timeLeft, timerActive, showExplanation, waitingForOthers]);
 
   const calculatePoints = (isCorrect: boolean, timeTakenSeconds: number, timeLimit: number, multiplier: number = 1) => {
       if (!isCorrect && multiplier === 0) return 0;
@@ -247,19 +369,40 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
     userAnswersRef.current = newAnswers;
 
     if (room) {
+        setWaitingForOthers(true); // Wait for sync
+        
+        // 1. Update Score in DB
         const { data: participants } = await supabase.from('room_participants').select('*').eq('room_id', room.id);
-        const me = participants?.find(p => p.user_id === user?.id);
+        const me = participants?.find(p => p.user_id === myId);
+        
         if (me) {
             await supabase.from('room_participants').update({ score: me.score + pointsGained }).eq('id', me.id);
+        } else {
+            // Fallback if user ID mismatch (e.g. Host playing as guest logic?)
+            // Usually auth.uid() matches.
         }
-        const { data: updated } = await supabase.from('room_participants').select('username, score').eq('room_id', room.id).order('score', { ascending: false });
-        setRoomLeaderboard(updated || []);
-    }
 
-    setShowExplanation(true);
+        // 2. Broadcast that I answered (so Host can track progress)
+        const channel = supabase.channel(`quiz-room-${room.id}`);
+        await channel.send({
+            type: 'broadcast',
+            event: 'player_answered',
+            payload: { userId: myId, questionIndex: currentQuestionIndex }
+        });
+        
+        // Host also plays logic: if I am host, I also need to count myself
+        if (isHost) {
+            answeredPlayersRef.current.add(myId);
+            checkAllAnswered();
+        }
+    } else {
+        // Solo mode -> Show explanation immediately
+        setShowExplanation(true);
+    }
   };
 
   const nextQuestion = () => {
+      // SOLO Mode logic only
       sfx.play('click');
       setShowExplanation(false);
       setIsCorrectFeedback(null);
@@ -270,25 +413,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
         initializeQuestionState(shuffledQuestions[nextIndex]);
         setTimerActive(true);
       } else {
-        sfx.play('complete');
-        const finalAnswers = new Array(quiz.questions.length).fill(-1);
-        userAnswersRef.current.forEach((ans, idx) => {
-            finalAnswers[shuffledQuestions[idx].originalIndex] = ans;
-        });
-        const finalScore = quiz.questions.reduce((acc, q, i) => {
-            if (q.type === 'matching') {
-               const userAns = finalAnswers[i];
-               if (!Array.isArray(userAns)) return acc;
-               let correct = true;
-               userAns.forEach((pair: any) => {
-                   const idx = q.options.indexOf(pair.left);
-                   if (q.options[idx+1] !== pair.right) correct = false;
-               });
-               return acc + (correct ? 1 : 0);
-            }
-            return acc + (checkAnswerIsCorrect(q, finalAnswers[i]) ? 1 : 0)
-        }, 0);
-        onComplete(finalAnswers, finalScore, sessionPoints);
+        handleGameFinish();
       }
   };
 
@@ -325,9 +450,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       setDraggedOrderIndex(index);
   };
 
-  // Improved Matching Logic (supports tap-to-select)
   const handleMatchSelect = (item: string) => {
-      // If tapping same item, deselect
       if (selectedMatchItem === item) {
           setSelectedMatchItem(null);
           return;
@@ -341,16 +464,12 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   };
 
   const handleMatchDrop = (index: number) => {
-      // Use either the dragged item OR the currently selected item (for tap support)
       const itemToPlace = draggedMatchItem || selectedMatchItem;
-      
       if (itemToPlace) {
           setMatchingState(prev => {
               const next = [...prev];
-              // Remove if already placed elsewhere
               const existingIdx = next.findIndex(p => p.right === itemToPlace);
               if (existingIdx !== -1) next[existingIdx].right = null;
-              // Place in new spot
               next[index].right = itemToPlace;
               return next;
           });
@@ -359,7 +478,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       }
   };
 
-  // Fill in the Blank Drag
   const handleBlankOptionDragStart = (optIndex: number) => setDraggedBlankOptionIndex(optIndex);
   const handleBlankDrop = (blankIndex: number) => {
       if (draggedBlankOptionIndex !== null) {
@@ -370,7 +488,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       }
   };
 
-  // Variables for leaderboard rendering
   let lastScore = -1;
   let currentRank = 0;
 
@@ -379,6 +496,19 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   if (!currentQuestion) return null;
 
   const renderInputs = () => {
+      // If waiting for others, hide inputs and show spinner
+      if (waitingForOthers) {
+          return (
+              <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
+                  <div className="bg-white/10 p-8 rounded-[3rem] backdrop-blur-md border border-white/20 shadow-2xl flex flex-col items-center">
+                      <Hourglass className="text-yellow-400 animate-spin-slow mb-6" size={64} />
+                      <h3 className="text-3xl font-black text-white mb-2 tracking-tight">Answer Locked</h3>
+                      <p className="text-indigo-200 font-bold uppercase tracking-widest text-sm">Waiting for other players...</p>
+                  </div>
+              </div>
+          );
+      }
+
       switch(currentQuestion.type) {
           case 'multiple-choice':
           case 'true-false':
@@ -653,7 +783,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                                  if (p.score !== lastScore) currentRank = i + 1;
                                  lastScore = p.score;
                                  return (
-                                     <div key={i} className={`flex items-center justify-between px-6 py-3 rounded-xl border transition-all ${p.username === user?.username ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-white/5 border-white/5'}`}>
+                                     <div key={i} className={`flex items-center justify-between px-6 py-3 rounded-xl border transition-all ${p.user_id === myId ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-white/5 border-white/5'}`}>
                                          <div className="flex items-center gap-4">
                                              <span className={`text-[10px] font-black w-6 ${currentRank === 1 ? 'text-yellow-400' : 'text-slate-500'}`}>#{currentRank}</span>
                                              <span className="font-bold text-sm">@{p.username}</span>
@@ -666,9 +796,19 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                       </div>
                   )}
 
-                  <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-colors">
-                    Next Question
-                  </button>
+                  {room ? (
+                      isHost ? (
+                          <button onClick={handleHostNextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-colors flex items-center justify-center gap-3">
+                              Next Question <ArrowRight size={24} />
+                          </button>
+                      ) : (
+                          <div className="text-white font-bold uppercase tracking-widest animate-pulse">Waiting for host to continue...</div>
+                      )
+                  ) : (
+                      <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-colors">
+                        Next Question
+                      </button>
+                  )}
               </div>
           </div>
       )}

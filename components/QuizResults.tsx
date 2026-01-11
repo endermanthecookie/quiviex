@@ -1,20 +1,24 @@
-import React, { useEffect } from 'react';
-import { XCircle, CheckCircle, Info, Trophy, RotateCw, Home } from 'lucide-react';
-import { Quiz } from '../types';
+import React, { useEffect, useState } from 'react';
+import { XCircle, CheckCircle, Info, Trophy, RotateCw, Home, Crown, Star } from 'lucide-react';
+import { Quiz, Room } from '../types';
 import { THEMES } from '../constants';
+import { supabase } from '../services/supabase';
 
 interface QuizResultsProps {
   quiz: Quiz;
   userAnswers: (number | string | number[])[];
   score: number;
   points?: number;
+  room?: Room;
   onPlayAgain: () => void;
   onHome: () => void;
 }
 
-export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, score, points, onPlayAgain, onHome }) => {
+export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, score, points, room, onPlayAgain, onHome }) => {
   const percentage = Math.round((score / quiz.questions.length) * 100);
   const currentTheme = THEMES[quiz.theme || 'classic'] || THEMES.classic;
+  
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
   const customStyle = quiz.customTheme ? {
       background: quiz.customTheme.backgroundImage ? `url(${quiz.customTheme.backgroundImage}) center/cover no-repeat fixed` : quiz.customTheme.background,
@@ -40,7 +44,16 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, sco
     if (percentage >= 80) {
         fireConfetti();
     }
-  }, [percentage]);
+    if (room) {
+        fetchFinalLeaderboard();
+    }
+  }, [percentage, room]);
+
+  const fetchFinalLeaderboard = async () => {
+      if (!room) return;
+      const { data } = await supabase.from('room_participants').select('username, score').eq('room_id', room.id).order('score', { ascending: false });
+      if (data) setLeaderboard(data);
+  };
 
   const fireConfetti = () => {
     const canvas = document.createElement('canvas');
@@ -123,6 +136,58 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, sco
     >
       <div className="max-w-4xl w-full animate-in fade-in zoom-in duration-500">
         
+        {room && leaderboard.length > 0 && (
+            <div className="mb-12 text-center">
+                <div className="inline-block bg-black/20 backdrop-blur-md px-8 py-3 rounded-full border border-white/20 mb-8">
+                    <h2 className="text-2xl font-black uppercase tracking-widest text-white flex items-center gap-3"><Crown className="text-yellow-400" /> Final Podium</h2>
+                </div>
+                
+                <div className="flex items-end justify-center gap-4 h-64">
+                    {/* 2nd Place */}
+                    {leaderboard[1] && (
+                        <div className="flex flex-col items-center animate-in slide-in-from-bottom duration-700 delay-100">
+                            <div className="w-20 h-20 rounded-full bg-slate-300 border-4 border-white shadow-xl flex items-center justify-center font-black text-2xl text-slate-600 mb-4 z-10 relative">
+                                2
+                            </div>
+                            <div className="bg-slate-300/20 backdrop-blur-md w-24 h-32 rounded-t-2xl border-t border-x border-white/10 flex flex-col items-center justify-end pb-4">
+                                <div className="font-black text-white">{leaderboard[1].username}</div>
+                                <div className="text-xs font-bold text-slate-300">{leaderboard[1].score} pts</div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* 1st Place */}
+                    {leaderboard[0] && (
+                        <div className="flex flex-col items-center animate-in slide-in-from-bottom duration-700">
+                            <div className="relative">
+                                <Crown className="absolute -top-10 left-1/2 -translate-x-1/2 text-yellow-400 w-12 h-12 animate-bounce" />
+                                <div className="w-24 h-24 rounded-full bg-yellow-400 border-4 border-white shadow-2xl flex items-center justify-center font-black text-4xl text-yellow-800 mb-4 z-10 relative">
+                                    1
+                                </div>
+                            </div>
+                            <div className="bg-yellow-400/20 backdrop-blur-md w-32 h-48 rounded-t-2xl border-t border-x border-white/20 flex flex-col items-center justify-end pb-4">
+                                <div className="font-black text-2xl text-white">{leaderboard[0].username}</div>
+                                <div className="text-sm font-bold text-yellow-200">{leaderboard[0].score} pts</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 3rd Place */}
+                    {leaderboard[2] && (
+                        <div className="flex flex-col items-center animate-in slide-in-from-bottom duration-700 delay-200">
+                            <div className="w-20 h-20 rounded-full bg-orange-400 border-4 border-white shadow-xl flex items-center justify-center font-black text-2xl text-orange-900 mb-4 z-10 relative">
+                                3
+                            </div>
+                            <div className="bg-orange-400/20 backdrop-blur-md w-24 h-24 rounded-t-2xl border-t border-x border-white/10 flex flex-col items-center justify-end pb-4">
+                                <div className="font-black text-white">{leaderboard[2].username}</div>
+                                <div className="text-xs font-bold text-orange-200">{leaderboard[2].score} pts</div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
         {/* Score Card */}
         <div 
             className={`rounded-[2.5rem] border p-8 sm:p-12 text-center shadow-2xl mb-8 relative overflow-hidden ${!quiz.customTheme ? 'bg-white/10 backdrop-blur-md border-white/20' : ''}`}
@@ -130,7 +195,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, sco
         >
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-white/50 to-transparent"></div>
           
-          <h2 className="text-3xl sm:text-4xl font-bold uppercase tracking-widest opacity-80 mb-4">Quiz Complete</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold uppercase tracking-widest opacity-80 mb-4">Your Performance</h2>
           
           <div className="relative inline-block mb-6">
              <div 
@@ -167,7 +232,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, sco
           </button>
         </div>
 
-        {/* Breakdown */}
+        {/* Breakdown - Only show in solo or if finished */}
         <h3 className="text-2xl font-bold mb-6 px-4 opacity-90">Question Breakdown</h3>
         <div className="space-y-4">
           {quiz.questions.map((q, index) => {

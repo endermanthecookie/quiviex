@@ -204,7 +204,7 @@ export default function App() {
         const segments = window.location.pathname.split('/').filter(Boolean);
         // Only redirect to landing if we are not on a public route
         if (segments[0] !== 'login' && segments[0] !== 'code' && segments[0] !== 'auth' && segments[0] !== 'community' && segments[0] !== 'profiles') {
-          const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view'];
+          const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view', 'take', 'results'];
           if (!publicViews.includes(view)) setView('landing');
         }
       }
@@ -363,7 +363,7 @@ export default function App() {
       if (dbError) return <div className="p-20 text-center text-red-500 font-bold">{dbError}</div>;
       if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse text-2xl tracking-tighter">Quiviex...</div>;
       
-      const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view'];
+      const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view', 'take', 'results'];
       if (!user && !publicViews.includes(view)) {
           return <LandingPage 
             onGetStarted={() => { safePushState('/login'); setView('auth'); }} 
@@ -383,7 +383,7 @@ export default function App() {
           case 'leaderboard': return <LeaderboardPage user={user!} onBack={() => setView('home')} />;
           case 'profile_view': return <PublicProfilePage userId={targetProfileId!} onBack={() => { if (user) { setView('home'); safePushState('/'); } else { setView('landing'); safePushState('/'); } }} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} />;
           case 'take': return activeQuiz ? <QuizTaker quiz={activeQuiz} room={activeRoom || undefined} user={user || undefined} onComplete={(answers, score, points) => { setActiveResults({answers, score, points}); setView('results'); }} onExit={() => setView('home')} /> : null;
-          case 'results': return activeQuiz && activeResults ? <QuizResults quiz={activeQuiz} userAnswers={activeResults.answers} score={activeResults.score} points={activeResults.points} onPlayAgain={() => setView('take')} onHome={() => setView('home')} /> : null;
+          case 'results': return activeQuiz && activeResults ? <QuizResults quiz={activeQuiz} userAnswers={activeResults.answers} score={activeResults.score} points={activeResults.points} room={activeRoom || undefined} onPlayAgain={() => setView('take')} onHome={() => setView('home')} /> : null;
           case 'achievements': return <AchievementsPage user={user!} definitions={achievementsDefinitions} onBack={() => setView('home')} />;
           case 'history': return <HistoryPage user={user!} onBack={() => setView('home')} />;
           case 'focus': return <FocusMode user={user!} quizzes={quizzes} onBack={() => setView('home')} onStartQuiz={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
