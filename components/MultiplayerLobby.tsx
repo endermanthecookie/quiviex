@@ -14,6 +14,7 @@ interface MultiplayerLobbyProps {
 export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, onBack, onStart }) => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isStarting, setIsStarting] = useState(false);
   const [tempUsername, setTempUsername] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
@@ -168,9 +169,23 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
   };
 
   const handleStartSession = async () => {
-      if (!isHost) return;
-      // Start game AND clear PIN to prevent late joins (effectively deleting the code)
-      await supabase.from('rooms').update({ status: 'playing', pin: null }).eq('id', room.id);
+      if (!isHost || isStarting) return;
+      setIsStarting(true);
+      
+      try {
+          // Start game AND clear PIN to prevent late joins (effectively deleting the code)
+          // The subscription will detect the status change and trigger onStart for everyone
+          const { error } = await supabase
+            .from('rooms')
+            .update({ status: 'playing', pin: null })
+            .eq('id', room.id);
+            
+          if (error) throw error;
+      } catch (e: any) {
+          console.error("Failed to start session:", e);
+          alert("Could not start game: " + e.message);
+          setIsStarting(false);
+      }
   };
 
   const handleCopyLink = () => {
@@ -204,6 +219,47 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                   <p className="text-slate-500 font-bold text-sm">Players can scan this to join instantly.</p>
               </div>
           </div>
+      )}
+
+      {/* Username Entry Popup for Direct Links */}
+      {!isHost && !hasJoined && !isLoading && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[150] flex items-center justify-center p-6 animate-in fade-in duration-300">
+            <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full text-slate-900 shadow-2xl animate-in zoom-in duration-500 border-4 border-indigo-100">
+                <div className="text-center mb-8">
+                    <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <UserIcon size={32} />
+                    </div>
+                    <h3 className="text-3xl font-black tracking-tight mb-2">Enter Name</h3>
+                    <p className="text-slate-500 font-bold text-sm">Join the game session.</p>
+                </div>
+
+                <form onSubmit={(e) => handleJoin(e)} className="space-y-6">
+                    <input 
+                        type="text"
+                        placeholder="Username..."
+                        value={tempUsername}
+                        onChange={(e) => setTempUsername(e.target.value)}
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-5 text-xl font-bold focus:outline-none focus:border-indigo-500 transition-all"
+                        maxLength={15}
+                        autoFocus
+                    />
+                    <button 
+                        type="submit"
+                        disabled={tempUsername.trim().length < 2}
+                        className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl uppercase tracking-widest hover:bg-indigo-700 transition-all click-scale disabled:opacity-50 shadow-xl"
+                    >
+                        Join Game
+                    </button>
+                </form>
+                
+                <button 
+                    onClick={onBack}
+                    className="w-full mt-4 py-3 text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 transition-colors"
+                >
+                    Cancel
+                </button>
+            </div>
+        </div>
       )}
 
       <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col relative z-10">
@@ -285,30 +341,7 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
             </div>
 
             <div className="space-y-6 animate-in slide-in-from-right duration-1000">
-                {!isHost && !hasJoined && (
-                    <div className="bg-indigo-600 rounded-[3rem] p-10 shadow-2xl animate-in zoom-in duration-500 border border-indigo-400 relative overflow-hidden">
-                        <div className="absolute top-[-20%] right-[-20%] w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-                        <h3 className="text-2xl font-black mb-6 tracking-tight relative z-10">Enter Name</h3>
-                        <form onSubmit={(e) => handleJoin(e)} className="space-y-4 relative z-10">
-                            <input 
-                                type="text" 
-                                placeholder="Your display name..." 
-                                value={tempUsername}
-                                onChange={(e) => setTempUsername(e.target.value)}
-                                className="w-full bg-black/20 border-2 border-white/10 rounded-2xl p-5 focus:outline-none focus:border-white font-bold text-lg placeholder:text-white/20 transition-all"
-                                maxLength={15}
-                            />
-                            <button 
-                                type="submit"
-                                disabled={tempUsername.trim().length < 2}
-                                className="w-full bg-white text-indigo-600 py-5 rounded-2xl font-black text-lg shadow-xl click-scale uppercase tracking-widest disabled:opacity-50 transition-all"
-                            >
-                                Join Game
-                            </button>
-                        </form>
-                    </div>
-                )}
-
+                {/* Status Column */}
                 {hasJoined && !isHost && (
                     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[3rem] p-12 text-center shadow-2xl animate-in fade-in flex flex-col items-center">
                         <div className="w-20 h-20 bg-emerald-500 rounded-3xl flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(16,185,129,0.3)] animate-bounce"><Check size={40} /></div>
@@ -328,9 +361,11 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                          </p>
                          <button 
                             onClick={handleStartSession}
-                            className="w-full bg-slate-950 hover:bg-black text-white py-8 rounded-[2rem] font-black text-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] click-scale flex items-center justify-center gap-4 transition-all group"
+                            disabled={isStarting}
+                            className="w-full bg-slate-950 hover:bg-black text-white py-8 rounded-[2rem] font-black text-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] click-scale flex items-center justify-center gap-4 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
                          >
-                            <Play fill="currentColor" className="group-hover:scale-110 transition-transform" /> START GAME
+                            {isStarting ? <Loader2 className="animate-spin" size={28} /> : <Play fill="currentColor" className="group-hover:scale-110 transition-transform" />} 
+                            {isStarting ? 'STARTING...' : 'START GAME'}
                          </button>
                     </div>
                 )}

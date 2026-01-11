@@ -251,24 +251,53 @@ export default function App() {
   const handleHostSession = async (quiz: Quiz) => {
     if (!user) return;
     setIsLoading(true);
-    try {
-        const pin = Math.floor(100000 + Math.random() * 900000).toString();
-        const { data: room, error } = await supabase.from('rooms').insert({
-            pin,
-            host_id: user.id,
-            quiz_id: quiz.id,
-            status: 'waiting'
-        }).select().single();
+    
+    const MAX_RETRIES = 10;
+    let attempts = 0;
+    let createdRoom = null;
 
-        if (error) throw error;
+    try {
+        while(attempts < MAX_RETRIES && !createdRoom) {
+            const pin = Math.floor(100000 + Math.random() * 900000).toString();
+            
+            // Try to create room with random PIN
+            // If PIN exists (unique constraint), supabase will return error code 23505
+            const { data, error } = await supabase.from('rooms').insert({
+                pin,
+                host_id: user.id,
+                quiz_id: quiz.id,
+                status: 'waiting'
+            }).select().maybeSingle();
+
+            if (!error && data) {
+                createdRoom = data;
+            } else if (error) {
+                // Check for unique violation
+                if (error.code === '23505') {
+                    attempts++;
+                    console.log(`PIN collision ${pin}, retrying... (${attempts}/${MAX_RETRIES})`);
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        if (!createdRoom) {
+            throw new Error("All rooms are in use. Please try again later.");
+        }
         
         setActiveRoom({
-            id: room.id, pin: room.pin, hostId: room.host_id, quizId: room.quiz_id,
-            status: room.status as any, currentQuestionIndex: room.current_question_index, createdAt: room.created_at
+            id: createdRoom.id, 
+            pin: createdRoom.pin, 
+            hostId: createdRoom.host_id, 
+            quizId: createdRoom.quiz_id,
+            status: createdRoom.status as any, 
+            currentQuestionIndex: createdRoom.current_question_index, 
+            createdAt: createdRoom.created_at
         });
         setView('multiplayer_lobby');
     } catch (e: any) {
-        alert("Host error: " + e.message);
+        alert(e.message || "Failed to create lobby.");
     } finally {
         setIsLoading(false);
     }
