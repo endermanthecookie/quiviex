@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, CustomTheme, AIMode } from '../types';
-import { ArrowLeft, Loader2, Palette, Sparkles, Check, Settings, Image as ImageIcon, Key, ShieldCheck, Github, Upload, X, User as UserIcon, Star, MessageSquare, Send, Cpu, Zap, Layers, Volume2, VolumeX, Keyboard } from 'lucide-react';
+import { ArrowLeft, Loader2, Palette, Sparkles, Check, Settings, Image as ImageIcon, Key, ShieldCheck, Github, Upload, X, User as UserIcon, Star, MessageSquare, Send, Cpu, Zap, Layers, Volume2, VolumeX, Keyboard, Share2, Copy } from 'lucide-react';
 import { THEMES } from '../constants';
 import { ThemeEditorModal } from './ThemeEditorModal';
 import { GitHubTokenHelpModal } from './GitHubTokenHelpModal';
@@ -33,6 +33,7 @@ export const SettingsPage: React.FC<any> = ({
   const [showGhHelp, setShowGhHelp] = useState(false);
   const [showOaiHelp, setShowOaiHelp] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [copiedLink, setCopiedLink] = useState(false);
   const isFirstRender = useRef(true);
 
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || '');
@@ -45,7 +46,6 @@ export const SettingsPage: React.FC<any> = ({
         return;
     }
     setSaveStatus('saving');
-    // Apply sound setting immediately
     sfx.setEnabled(soundEnabled);
     const timer = window.setTimeout(() => { saveSettings(); }, 800);
     return () => window.clearTimeout(timer);
@@ -82,6 +82,13 @@ export const SettingsPage: React.FC<any> = ({
           const { data: { publicUrl } } = supabase.storage.from('UserProfiles').getPublicUrl(fileName);
           setAvatarUrl(publicUrl);
       } catch (err: any) { alert("Upload failed: " + err.message); } finally { setIsUploadingAvatar(false); }
+  };
+
+  const handleCopyVanityUrl = () => {
+      const url = `${window.location.origin}/profiles/@${user.username}`;
+      navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
   };
 
   return (
@@ -174,6 +181,24 @@ export const SettingsPage: React.FC<any> = ({
 
         <section className="glass rounded-[2.5rem] p-8 border border-white">
             <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2"><Settings size={22} className="text-purple-500" /> Account Identity</h2>
+            
+            <div className="bg-indigo-50/50 border border-indigo-100 rounded-3xl p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white rounded-2xl text-indigo-600 shadow-sm"><Share2 size={24} /></div>
+                    <div>
+                        <p className="font-black text-slate-800 text-sm">Public Vanity URL</p>
+                        <p className="text-xs font-bold text-slate-400">quiviex.vercel.app/profiles/@{user.username}</p>
+                    </div>
+                </div>
+                <button 
+                  onClick={handleCopyVanityUrl}
+                  className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all ${copiedLink ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'} shadow-lg click-scale`}
+                >
+                    {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                    {copiedLink ? 'Copied' : 'Copy Link'}
+                </button>
+            </div>
+
             <div className="flex flex-col sm:flex-row items-center gap-8">
                 <div className="relative group">
                     <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-100 shadow-xl bg-slate-200 flex items-center justify-center">

@@ -91,7 +91,6 @@ export default function App() {
       try {
           window.history.pushState(null, '', path);
       } catch (e) {
-          // Ignore security errors in sandboxed environments (e.g. blobs)
           console.debug("History pushState blocked in this environment");
       }
   };
@@ -100,9 +99,7 @@ export default function App() {
       const segments = window.location.pathname.split('/').filter(Boolean);
       const path = segments[0] || '';
       
-      // Basic check to see if we are in a blob environment or similar that might return weird paths
       if (window.location.protocol === 'blob:') return;
-
       if (path === '' || path === 'index.html') return;
 
       if (path === 'community') {
@@ -115,9 +112,27 @@ export default function App() {
       }
 
       if (path === 'profiles') {
-          const profileId = segments[1];
-          if (profileId) {
-              setTargetProfileId(profileId);
+          let identifier = segments[1];
+          if (identifier) {
+              // Handle Vanity URL format: /profiles/@username
+              if (identifier.startsWith('@')) {
+                  const username = decodeURIComponent(identifier.substring(1));
+                  const { data, error } = await supabase
+                    .from('profiles')
+                    .select('user_id')
+                    .ilike('username', username)
+                    .maybeSingle();
+
+                  if (data) {
+                      setTargetProfileId(data.user_id);
+                  } else {
+                      setView('not_found');
+                      return;
+                  }
+              } else {
+                  // Handle standard UUID format: /profiles/uuid
+                  setTargetProfileId(identifier);
+              }
               setView('profile_view');
               return;
           }
@@ -202,7 +217,6 @@ export default function App() {
         setNotifications([]);
         setIsLoading(false);
         const segments = window.location.pathname.split('/').filter(Boolean);
-        // Only redirect to landing if we are not on a public route
         if (segments[0] !== 'login' && segments[0] !== 'code' && segments[0] !== 'auth' && segments[0] !== 'community' && segments[0] !== 'profiles') {
           const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view', 'take', 'results'];
           if (!publicViews.includes(view)) setView('landing');
@@ -224,17 +238,11 @@ export default function App() {
           warnings: data.warnings || 0
         };
         setUser(userData);
-        // Initialize sound settings
         sfx.setEnabled(userData.preferences?.soundEnabled ?? true);
-        
         fetchQuizzes(userId);
-        
         const isNewAccount = !data.username || data.username.startsWith('user_');
-        if (isNewAccount) {
-            setView('onboarding');
-        } else if (['landing', 'auth', 'onboarding'].includes(view)) {
-            setView('home');
-        }
+        if (isNewAccount) setView('onboarding');
+        else if (['landing', 'auth', 'onboarding'].includes(view)) setView('home');
       }
     } catch (error) { console.error(error); } finally { setIsLoading(false); }
   };
@@ -251,132 +259,75 @@ export default function App() {
   const handleHostSession = async (quiz: Quiz) => {
     if (!user) return;
     setIsLoading(true);
-    
     const MAX_RETRIES = 10;
     let attempts = 0;
     let createdRoom = null;
-
     try {
         while(attempts < MAX_RETRIES && !createdRoom) {
             const pin = Math.floor(100000 + Math.random() * 900000).toString();
-            
-            // Try to create room with random PIN
-            // If PIN exists (unique constraint), supabase will return error code 23505
             const { data, error } = await supabase.from('rooms').insert({
-                pin,
-                host_id: user.id,
-                quiz_id: quiz.id,
-                status: 'waiting'
+                pin, host_id: user.id, quiz_id: quiz.id, status: 'waiting'
             }).select().maybeSingle();
-
-            if (!error && data) {
-                createdRoom = data;
-            } else if (error) {
-                // Check for unique violation
-                if (error.code === '23505') {
-                    attempts++;
-                    console.log(`PIN collision ${pin}, retrying... (${attempts}/${MAX_RETRIES})`);
-                } else {
-                    throw error;
-                }
-            }
+            if (!error && data) createdRoom = data;
+            else if (error && error.code === '23505') attempts++;
+            else throw error;
         }
-
-        if (!createdRoom) {
-            throw new Error("All rooms are in use. Please try again later.");
-        }
-        
+        if (!createdRoom) throw new Error("All rooms are in use.");
         setActiveRoom({
-            id: createdRoom.id, 
-            pin: createdRoom.pin, 
-            hostId: createdRoom.host_id, 
-            quizId: createdRoom.quiz_id,
-            status: createdRoom.status as any, 
-            currentQuestionIndex: createdRoom.current_question_index, 
-            createdAt: createdRoom.created_at
+            id: createdRoom.id, pin: createdRoom.pin, hostId: createdRoom.host_id, quizId: createdRoom.quiz_id,
+            status: createdRoom.status as any, currentQuestionIndex: createdRoom.current_question_index, createdAt: createdRoom.created_at
         });
         setView('multiplayer_lobby');
-    } catch (e: any) {
-        alert(e.message || "Failed to create lobby.");
-    } finally {
-        setIsLoading(false);
-    }
+    } catch (e: any) { alert(e.message || "Failed to create lobby."); } finally { setIsLoading(false); }
   };
 
-  // Feature: Remix/Fork Quiz
   const handleRemixQuiz = (quiz: Quiz) => {
-      // Create a copy of the quiz, stripped of ID/User info, ready for the creator
       const remixedQuiz: Quiz = {
           ...quiz,
-          id: Date.now(), // Temp ID
+          id: Date.now(),
           title: `Remix: ${quiz.title}`,
           userId: user?.id || '',
           visibility: 'private',
-          questions: quiz.questions.map(q => ({...q})), // Deep copy questions
+          questions: quiz.questions.map(q => ({...q})),
           createdAt: new Date().toISOString()
       };
       setActiveQuiz(remixedQuiz);
       setView('create');
   };
 
-  // PERSIST QUIZ TO DATABASE
   const handleSaveQuiz = async (quiz: Quiz) => {
       if (!user) return;
       setIsLoading(true);
       try {
           const quizData = {
-              user_id: user.id,
-              title: quiz.title,
-              questions: quiz.questions,
-              theme: quiz.theme,
-              custom_theme: quiz.customTheme,
-              shuffle_questions: quiz.shuffleQuestions,
-              background_music: quiz.backgroundMusic,
-              visibility: quiz.visibility,
-              is_sensitive: quiz.isSensitive,
-              username_at_creation: user.username,
-              avatar_url_at_creation: user.avatarUrl
+              user_id: user.id, title: quiz.title, questions: quiz.questions,
+              theme: quiz.theme, custom_theme: quiz.customTheme, shuffle_questions: quiz.shuffleQuestions,
+              background_music: quiz.backgroundMusic, visibility: quiz.visibility,
+              is_sensitive: quiz.isSensitive, username_at_creation: user.username, avatar_url_at_creation: user.avatarUrl
           };
-
           let error;
-          // Check if we are updating an existing quiz or inserting a new one
-          // activeQuiz is set when clicking 'Edit' from the dashboard
           if (activeQuiz && activeQuiz.id && activeQuiz.userId === user.id) {
-              const { error: updateError } = await supabase
-                  .from('quizzes')
-                  .update(quizData)
-                  .eq('id', activeQuiz.id);
+              const { error: updateError } = await supabase.from('quizzes').update(quizData).eq('id', activeQuiz.id);
               error = updateError;
           } else {
-              const { error: insertError } = await supabase
-                  .from('quizzes')
-                  .insert(quizData);
+              const { error: insertError } = await supabase.from('quizzes').insert(quizData);
               error = insertError;
               if (!error) handleStatUpdate('create');
           }
-
           if (error) throw error;
-
-          // Sync local state
           await fetchQuizzes(user.id);
           setView('home');
-      } catch (e: any) {
-          alert("Signal Error: Infrastructure failed to store module. " + e.message);
-      } finally {
-          setIsLoading(false);
-      }
+      } catch (e: any) { alert("Infrastructure error: " + e.message); } finally { setIsLoading(false); }
   };
 
   const persistUser = async (updatedUser: User) => {
     setUser(updatedUser);
-    // Ensure sound preference is updated in real-time
     sfx.setEnabled(updatedUser.preferences?.soundEnabled ?? true);
     try {
       await supabase.from('profiles').update({
         username: updatedUser.username, stats: updatedUser.stats, history: updatedUser.history,
         preferences: updatedUser.preferences, saved_quiz_ids: updatedUser.savedQuizIds, 
-        avatar_url: updatedUser.avatarUrl, has_seen_tutorial: updatedUser.hasSeenTutorial, 
-        updated_at: new Date().toISOString()
+        avatar_url: updatedUser.avatarUrl, has_seen_tutorial: updatedUser.hasSeenTutorial, updated_at: new Date().toISOString()
       }).eq('user_id', updatedUser.id);
     } catch (error) { console.error(error); }
   };
@@ -384,43 +335,30 @@ export default function App() {
   const handleFeedbackSubmit = async (feedback: Feedback) => {
     try {
         const { error } = await supabase.from('feedback').insert({
-            user_id: feedback.userId,
-            username: feedback.username,
-            type: feedback.type,
-            content: feedback.content,
-            status: feedback.status
+            user_id: feedback.userId, username: feedback.username, type: feedback.type,
+            content: feedback.content, status: feedback.status
         });
         if (error) throw error;
-    } catch (e: any) {
-        console.error("Feedback submission error:", e);
-        throw e;
-    }
+    } catch (e: any) { console.error(e); throw e; }
   };
 
   const handleCommandNavigate = (target: string) => {
-      if (target === 'join_pin') { safePushState('/join'); }
-      else if (target === 'community') { safePushState('/community'); }
-      else { safePushState('/'); }
-      
-      if (target === 'create') { setActiveQuiz(null); }
-      
+      if (target === 'join_pin') safePushState('/join');
+      else if (target === 'community') safePushState('/community');
+      else if (target === 'profile_view' && user) safePushState(`/profiles/@${user.username}`);
+      else safePushState('/');
+      if (target === 'create') setActiveQuiz(null);
+      if (target === 'profile_view' && user) setTargetProfileId(user.id);
       setView(target as ViewState);
   };
 
   const renderContent = () => {
       if (dbError) return <div className="p-20 text-center text-red-500 font-bold">{dbError}</div>;
       if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse text-2xl tracking-tighter">Quiviex...</div>;
-      
       const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view', 'take', 'results'];
       if (!user && !publicViews.includes(view)) {
-          return <LandingPage 
-            onGetStarted={() => { safePushState('/login'); setView('auth'); }} 
-            onExplore={() => { safePushState('/community'); setView('community'); }} 
-            onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} 
-            onShowLegal={(type) => setActiveLegalModal(type)} 
-          />;
+          return <LandingPage onGetStarted={() => { safePushState('/login'); setView('auth'); }} onExplore={() => { safePushState('/community'); setView('community'); }} onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} onShowLegal={(type) => setActiveLegalModal(type)} />;
       }
-      
       switch(view) {
           case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={() => {}} onClearNotifications={() => {}} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={() => {}} onLogout={async () => { await supabase.auth.signOut(); safePushState('/'); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => { safePushState('/community'); setView('community'); }} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={handleHostSession} onViewLeaderboard={() => setView('leaderboard')} onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} />;
           case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user!} onSave={handleSaveQuiz} onExit={() => setView('home')} startWithTutorial={!user!.hasSeenTutorial} onOpenSettings={() => setView('settings')} onStatUpdate={handleStatUpdate} onRefreshProfile={() => fetchProfile(user!.id, user!.email)} />;
@@ -439,12 +377,7 @@ export default function App() {
           case 'community': return <CommunityPage user={user} onBack={() => { if (user) { setView('home'); safePushState('/'); } else { setView('landing'); safePushState('/'); } }} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} initialQuizId={initialCommunityQuizId} onRemixQuiz={handleRemixQuiz} />;
           case 'study': return activeQuiz ? <FlashcardViewer quiz={activeQuiz} onExit={() => setView('home')} /> : null;
           case 'admin': return <AdminDashboard onBack={() => setView('home')} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} />;
-          case 'landing': return <LandingPage 
-            onGetStarted={() => { safePushState('/login'); setView('auth'); }} 
-            onExplore={() => { safePushState('/community'); setView('community'); }} 
-            onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} 
-            onShowLegal={(type) => setActiveLegalModal(type)} 
-          />;
+          case 'landing': return <LandingPage onGetStarted={() => { safePushState('/login'); setView('auth'); }} onExplore={() => { safePushState('/community'); setView('community'); }} onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} onShowLegal={(type) => setActiveLegalModal(type)} />;
           case 'not_found': return <NotFoundPage onGoHome={() => { safePushState('/'); setView(user ? 'home' : 'landing'); }} />;
           default: return <div className="p-20 text-center font-bold">Initializing...</div>;
       }
@@ -457,13 +390,9 @@ export default function App() {
         {showFeedbackModal && user && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} onSubmit={handleFeedbackSubmit} />}
         {activeLegalModal && <LegalModal type={activeLegalModal} onClose={() => setActiveLegalModal(null)} />}
         {showShortcutsModal && <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
-        
         <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} onNavigate={handleCommandNavigate} />
         {user && view !== 'take' && <PomodoroWidget stopAudio={view === 'focus'} />}
-
-        <div key={view} className="view-transition">
-          {renderContent()}
-        </div>
+        <div key={view} className="view-transition">{renderContent()}</div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Quiz, User } from '../types';
 import { supabase } from '../services/supabase';
-import { ArrowLeft, User as UserIcon, Globe, Play, Sparkles, Loader2, Award, Zap, Trophy, Crown } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Globe, Play, Sparkles, Loader2, Award, Zap, Trophy, Crown, Share2, Check } from 'lucide-react';
 import { Logo } from './Logo';
 import { THEMES } from '../constants';
 import { calculateLevelInfo } from './QuizHome';
@@ -17,6 +17,7 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ userId, on
   const [publicQuizzes, setPublicQuizzes] = useState<Quiz[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchPublicData = async () => {
@@ -41,7 +42,6 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ userId, on
             theme: q.theme, creatorUsername: prof.username, creatorAvatarUrl: prof.avatar_url
         }));
 
-        // Filter: Quiviex Team quizzes must have >= 7 questions
         const filteredQuizzes = mappedQuizzes.filter((q: Quiz) => {
             if (q.userId === '00000000-0000-0000-0000-000000000000') {
                 return q.questions.length >= 7;
@@ -58,6 +58,14 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ userId, on
     };
     fetchPublicData();
   }, [userId]);
+
+  const handleShareProfile = () => {
+    if (!profile) return;
+    const url = `${window.location.origin}/profiles/@${profile.username}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (isLoading) return (
       <div className="min-h-screen bg-[#05010d] flex flex-col items-center justify-center animate-pulse">
@@ -85,7 +93,16 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ userId, on
         <div className="max-w-6xl mx-auto relative z-10">
             <header className="flex justify-between items-center mb-16 animate-in slide-in-from-top duration-700">
                 <button onClick={onBack} className="p-4 bg-white/5 hover:bg-white/10 rounded-[1.5rem] transition-all border border-white/5 click-scale"><ArrowLeft size={24} /></button>
-                <Logo variant="small" className="shadow-2xl" />
+                <div className="flex items-center gap-4">
+                    <button 
+                      onClick={handleShareProfile}
+                      className={`p-4 rounded-[1.5rem] transition-all border click-scale flex items-center gap-2 group ${copied ? 'bg-emerald-600 border-emerald-500' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                    >
+                        {copied ? <Check size={20} /> : <Share2 size={20} className="text-indigo-400 group-hover:scale-110 transition-transform" />}
+                        <span className="hidden sm:block text-[10px] font-black uppercase tracking-widest">{copied ? 'Copied Link' : 'Share Vanity URL'}</span>
+                    </button>
+                    <Logo variant="small" className="shadow-2xl" />
+                </div>
             </header>
 
             <section className="flex flex-col md:flex-row items-center gap-12 mb-24 animate-in fade-in duration-1000">
