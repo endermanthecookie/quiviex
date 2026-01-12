@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Quiz, User } from '../types';
 import { supabase } from '../services/supabase';
-import { ArrowLeft, User as UserIcon, Globe, Play, Sparkles, Loader2, Award, Zap, Trophy } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Globe, Play, Sparkles, Loader2, Award, Zap, Trophy, Crown } from 'lucide-react';
 import { Logo } from './Logo';
 import { THEMES } from '../constants';
+import { calculateLevelInfo } from './QuizHome';
 
 interface PublicProfilePageProps {
   userId: string;
@@ -59,20 +60,23 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ userId, on
   }, [userId]);
 
   if (isLoading) return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center animate-pulse">
+      <div className="min-h-screen bg-[#05010d] flex flex-col items-center justify-center animate-pulse">
           <Loader2 className="animate-spin text-indigo-500 mb-4" size={48} />
           <p className="text-indigo-400 font-black uppercase tracking-[0.5em] text-xs">Syncing Dossier...</p>
       </div>
   );
 
   if (error) return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center font-['Plus_Jakarta_Sans']">
+      <div className="min-h-screen bg-[#05010d] text-white flex flex-col items-center justify-center p-6 text-center font-['Plus_Jakarta_Sans']">
           <Globe size={80} className="text-slate-800 mb-8" />
           <h2 className="text-4xl font-black mb-4">Unit Signal Lost</h2>
           <p className="text-slate-400 font-bold mb-12 max-w-md">{error}</p>
           <button onClick={onBack} className="bg-white text-slate-950 px-10 py-4 rounded-2xl font-black uppercase tracking-widest click-scale shadow-2xl">Return to Base</button>
       </div>
   );
+
+  const currentPoints = profile.stats?.totalPoints || 0;
+  const { level, threshold, progressPercent } = calculateLevelInfo(currentPoints);
 
   return (
     <div className="min-h-screen bg-[#05010d] text-white p-6 sm:p-12 font-['Plus_Jakarta_Sans'] relative overflow-hidden">
@@ -90,23 +94,40 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ userId, on
                     <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-[4rem] bg-gradient-to-br from-indigo-500 to-purple-600 p-2 shadow-2xl relative z-10">
                         <div className="w-full h-full bg-[#0a0a0f] rounded-[3.5rem] overflow-hidden flex items-center justify-center border-4 border-white/5">
                             {profile.avatar_url ? (
-                                <img src={profile.avatar_url} className="w-full h-full object-cover" />
+                                <img src={profile.avatar_url} className="w-full h-full object-cover" alt="" />
                             ) : (
                                 <UserIcon size={80} className="text-slate-700" />
                             )}
                         </div>
                     </div>
                     <div className="absolute -bottom-4 -right-4 bg-yellow-400 text-black px-6 py-2 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl border-4 border-[#05010d] z-20 flex items-center gap-2">
-                        <Award size={14} /> Level 1
+                        <Award size={14} /> Level {level}
                     </div>
                 </div>
 
                 <div className="text-center md:text-left flex-1">
                     <h1 className="text-6xl sm:text-8xl font-black tracking-tighter text-white mb-4 leading-none">@{profile.username}</h1>
-                    <p className="text-indigo-400 font-black uppercase tracking-[0.6em] text-sm mb-10 ml-1 flex items-center justify-center md:justify-start gap-3">
-                        <Zap size={16} className="text-yellow-400" /> Registered Unit
-                    </p>
+                    <div className="flex items-center justify-center md:justify-start gap-4 mb-10">
+                         <p className="text-indigo-400 font-black uppercase tracking-[0.6em] text-sm flex items-center gap-3">
+                            <Zap size={16} className="text-yellow-400" /> Registered Unit
+                        </p>
+                        <div className="hidden sm:block w-px h-4 bg-white/10"></div>
+                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-full">
+                            <Crown size={12} className="text-yellow-500" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">{currentPoints.toLocaleString()} Total XP</span>
+                        </div>
+                    </div>
                     
+                    <div className="max-w-md bg-white/5 border border-white/10 p-6 rounded-[2rem] mb-10 mx-auto md:mx-0">
+                         <div className="flex justify-between items-end mb-3">
+                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Level Progress</p>
+                             <p className="text-xs font-bold text-slate-300">{currentPoints} / {threshold} XP</p>
+                         </div>
+                         <div className="w-full bg-white/5 h-2.5 rounded-full overflow-hidden">
+                             <div className="h-full bg-indigo-500 transition-all duration-1000 shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${progressPercent}%` }}></div>
+                         </div>
+                    </div>
+
                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-10">
                          <div className="text-center md:text-left group">
                              <div className="text-4xl font-black text-white group-hover:text-indigo-400 transition-colors">{(profile.stats?.totalPoints || 0).toLocaleString()}</div>

@@ -319,6 +319,54 @@ export default function App() {
       setView('create');
   };
 
+  // PERSIST QUIZ TO DATABASE
+  const handleSaveQuiz = async (quiz: Quiz) => {
+      if (!user) return;
+      setIsLoading(true);
+      try {
+          const quizData = {
+              user_id: user.id,
+              title: quiz.title,
+              questions: quiz.questions,
+              theme: quiz.theme,
+              custom_theme: quiz.customTheme,
+              shuffle_questions: quiz.shuffleQuestions,
+              background_music: quiz.backgroundMusic,
+              visibility: quiz.visibility,
+              is_sensitive: quiz.isSensitive,
+              username_at_creation: user.username,
+              avatar_url_at_creation: user.avatarUrl
+          };
+
+          let error;
+          // Check if we are updating an existing quiz or inserting a new one
+          // activeQuiz is set when clicking 'Edit' from the dashboard
+          if (activeQuiz && activeQuiz.id && activeQuiz.userId === user.id) {
+              const { error: updateError } = await supabase
+                  .from('quizzes')
+                  .update(quizData)
+                  .eq('id', activeQuiz.id);
+              error = updateError;
+          } else {
+              const { error: insertError } = await supabase
+                  .from('quizzes')
+                  .insert(quizData);
+              error = insertError;
+              if (!error) handleStatUpdate('create');
+          }
+
+          if (error) throw error;
+
+          // Sync local state
+          await fetchQuizzes(user.id);
+          setView('home');
+      } catch (e: any) {
+          alert("Signal Error: Infrastructure failed to store module. " + e.message);
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
   const persistUser = async (updatedUser: User) => {
     setUser(updatedUser);
     // Ensure sound preference is updated in real-time
@@ -375,7 +423,7 @@ export default function App() {
       
       switch(view) {
           case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={() => {}} onClearNotifications={() => {}} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={() => {}} onLogout={async () => { await supabase.auth.signOut(); safePushState('/'); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => { safePushState('/community'); setView('community'); }} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={handleHostSession} onViewLeaderboard={() => setView('leaderboard')} onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} />;
-          case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user!} onSave={(q) => { setView('home'); }} onExit={() => setView('home')} startWithTutorial={!user!.hasSeenTutorial} onOpenSettings={() => setView('settings')} onStatUpdate={handleStatUpdate} onRefreshProfile={() => fetchProfile(user!.id, user!.email)} />;
+          case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user!} onSave={handleSaveQuiz} onExit={() => setView('home')} startWithTutorial={!user!.hasSeenTutorial} onOpenSettings={() => setView('settings')} onStatUpdate={handleStatUpdate} onRefreshProfile={() => fetchProfile(user!.id, user!.email)} />;
           case 'auth': return <Auth onLogin={() => {}} onBackToLanding={() => { safePushState('/'); setView('landing'); }} onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} />;
           case 'onboarding': return user ? <UsernameSetup email={user.email} onComplete={(u) => { persistUser({...user, username: u}); setView('home'); }} onCancel={() => supabase.auth.signOut()} /> : null;
           case 'multiplayer_lobby': return <MultiplayerLobby room={activeRoom!} user={user} onBack={() => setView('home')} onStart={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;

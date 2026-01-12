@@ -24,7 +24,6 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
   const quizDataRef = useRef<Quiz | null>(null);
   const isHost = user?.id === room.hostId;
 
-  // Use a stable ID for guests to prevent duplication on refresh
   const getPersistentGuestId = () => {
     let gid = sessionStorage.getItem('qx_guest_id');
     if (!gid) {
@@ -37,7 +36,6 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
   useEffect(() => {
     fetchInitialData();
     
-    // Listen for players joining/leaving
     const subscription = supabase
         .channel(`room-participants-${room.id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'room_participants', filter: `room_id=eq.${room.id}` }, () => {
@@ -45,17 +43,14 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
         })
         .subscribe();
 
-    // Listen for the Host starting the game
     const roomSub = supabase
         .channel(`room-status-${room.id}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` }, payload => {
             const updated = payload.new as any;
             if (updated.status === 'playing') {
-                // IMPORTANT: We use the Ref to ensure we have the data even if state hasn't re-rendered
                 if (quizDataRef.current) {
                     onStart(quizDataRef.current);
                 } else {
-                    // Fallback: if data isn't here yet, fetch it immediately and then start
                     fetchQuizAndStart();
                 }
             }
@@ -103,7 +98,6 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
 
       await fetchParticipants();
 
-      // Automatically join if logged in or if username was provided in JoinPinPage
       const prefilledName = sessionStorage.getItem('qx_temp_username');
       if ((user || prefilledName) && !hasJoined) {
           handleJoin(null, user?.username || prefilledName || '');
@@ -117,24 +111,16 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       if (e) e.preventDefault();
       const nameToUse = nameOverride !== undefined ? nameOverride : tempUsername;
       const trimmedName = nameToUse.trim();
-      
       if (!trimmedName || trimmedName.length < 2) return;
-      
       const userId = user?.id || getPersistentGuestId();
       
-      // FIX: Manually check existence to avoid 42P10 error if unique constraint is missing in DB
       try {
-          // 1. Check if participant already exists
-          const { data: existing, error: fetchError } = await supabase
+          const { data: existing } = await supabase
               .from('room_participants')
               .select('id')
               .eq('room_id', room.id)
               .eq('user_id', userId)
               .maybeSingle();
-
-          if (fetchError && fetchError.code !== 'PGRST116') {
-              console.error("Participant check error:", fetchError);
-          }
 
           if (existing) {
               setHasJoined(true);
@@ -142,7 +128,6 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
               return;
           }
 
-          // 2. Insert if not found
           const { error: insertError } = await supabase.from('room_participants').insert({
               room_id: room.id,
               user_id: userId,
@@ -150,18 +135,11 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
               score: 0
           });
           
-          if (insertError) {
-              console.error("Join insert error:", insertError);
-              // Handle duplicate key error gracefully (23505) just in case race condition
-              if (insertError.code === '23505') {
-                  setHasJoined(true);
-                  fetchParticipants();
-              } else {
-                  alert("Could not join lobby. Please try again.");
-              }
-          } else {
+          if (!insertError || insertError.code === '23505') {
               setHasJoined(true);
               fetchParticipants();
+          } else {
+              alert("Could not join lobby.");
           }
       } catch (err) {
           console.error("Join exception:", err);
@@ -173,11 +151,19 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       setIsStarting(true);
       
       try {
-          // Start game. We DO NOT set pin to null because the DB has a not-null constraint.
-          // Changing status to 'playing' is sufficient to prevent new joins in JoinPinPage.
+          // 1. Initialize players_answers map (e.g. {"uuid1": 0, "uuid2": 0})
+          const initialAnswers: Record<string, number> = {};
+          participants.forEach(p => {
+              initialAnswers[p.id] = 0;
+          });
+
+          // 2. Start game and set the answer tracking status
           const { error } = await supabase
             .from('rooms')
-            .update({ status: 'playing' })
+            .update({ 
+                status: 'playing',
+                players_answers: initialAnswers 
+            })
             .eq('id', room.id);
             
           if (error) throw error;
@@ -195,7 +181,6 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       setTimeout(() => setCopied(false), 2000);
   };
 
-  // Explicitly filter out the host from the list of players
   const displayPlayers = participants.filter(p => p.id !== room.hostId);
 
   return (
@@ -204,7 +189,7 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
 
       {showQR && (
           <div className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-xl animate-in fade-in">
-              <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full text-center relative animate-in zoom-in shadow-2xl">
+              <div className="bg-white rounded-[3rem] p-10 max-sm w-full text-center relative animate-in zoom-in shadow-2xl text-slate-900">
                   <button onClick={() => setShowQR(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
                       <X size={24} />
                   </button>
@@ -221,7 +206,6 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
           </div>
       )}
 
-      {/* Username Entry Popup for Direct Links */}
       {!isHost && !hasJoined && !isLoading && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[150] flex items-center justify-center p-6 animate-in fade-in duration-300">
             <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full text-slate-900 shadow-2xl animate-in zoom-in duration-500 border-4 border-indigo-100">
@@ -263,7 +247,6 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
       )}
 
       <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col relative z-10">
-        
         <header className="flex justify-between items-center mb-12 animate-in slide-in-from-top duration-700">
             <div className="flex items-center gap-6">
                 <button onClick={onBack} className="p-4 bg-white/5 hover:bg-white/10 rounded-[1.5rem] transition-all border border-white/5 click-scale"><ArrowLeft size={24} /></button>
@@ -291,17 +274,11 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
                                 <div className="text-7xl sm:text-8xl font-black tracking-[0.1em] text-white drop-shadow-[0_0_40px_rgba(99,102,241,0.3)] transition-all group-hover:scale-105 select-all">{room.pin}</div>
                             </div>
                             <div className="flex flex-col gap-4">
-                                <button 
-                                    onClick={handleCopyLink}
-                                    className="bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 px-8 py-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 transition-all click-scale min-w-[140px] group flex-1"
-                                >
+                                <button onClick={handleCopyLink} className="bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 px-8 py-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 transition-all click-scale min-w-[140px] group flex-1">
                                     {copied ? <Check className="text-emerald-400" size={24} /> : <Copy className="text-slate-400 group-hover:text-white transition-colors" size={24} />}
                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300">{copied ? 'Copied' : 'Copy Link'}</span>
                                 </button>
-                                <button 
-                                    onClick={() => setShowQR(true)}
-                                    className="bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 px-8 py-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 transition-all click-scale min-w-[140px] group flex-1"
-                                >
+                                <button onClick={() => setShowQR(true)} className="bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 px-8 py-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 transition-all click-scale min-w-[140px] group flex-1">
                                     <QrCode className="text-slate-400 group-hover:text-white transition-colors" size={24} />
                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300">QR Code</span>
                                 </button>
@@ -341,7 +318,6 @@ export const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ room, user, 
             </div>
 
             <div className="space-y-6 animate-in slide-in-from-right duration-1000">
-                {/* Status Column */}
                 {hasJoined && !isHost && (
                     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[3rem] p-12 text-center shadow-2xl animate-in fade-in flex flex-col items-center">
                         <div className="w-20 h-20 bg-emerald-500 rounded-3xl flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(16,185,129,0.3)] animate-bounce"><Check size={40} /></div>
