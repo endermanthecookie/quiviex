@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Quiz, Question, Room, User } from '../types';
 import { Logo } from './Logo';
-import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame, X, MousePointerClick, Hourglass, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame, X, MousePointerClick, Hourglass, ArrowRight, Loader2, ExternalLink, BookOpen } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { sfx } from '../services/soundService';
 
@@ -48,7 +48,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const [isCorrectFeedback, setIsCorrectFeedback] = useState<boolean | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [sessionPoints, setSessionPoints] = useState(0);
-  const [correctCount, setCorrectCount] = useState(0); // Added to fix counting bug
+  const [correctCount, setCorrectCount] = useState(0);
   const [lastPointsGained, setLastPointsGained] = useState(0);
   const [streak, setStreak] = useState(0);
   const [startCountdown, setStartCountdown] = useState(3);
@@ -62,7 +62,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const [shuffledMatches, setShuffledMatches] = useState<string[]>([]);
   const [blankAnswers, setBlankAnswers] = useState<(number | null)[]>([]);
   const [draggedOrderIndex, setDraggedOrderIndex] = useState<number | null>(null);
-  const [draggedMatchItem, setDraggedMatchItem] = useState<string | null>(null);
   const [selectedMatchItem, setSelectedMatchItem] = useState<string | null>(null);
   const [selectedBlankOption, setSelectedBlankOption] = useState<number | null>(null);
   const [draggedBlankOptionIndex, setDraggedBlankOptionIndex] = useState<number | null>(null);
@@ -170,7 +169,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       userAnswersRef.current.forEach((ans, idx) => {
           if (shuffledQuestions[idx]) finalAnswers[shuffledQuestions[idx].originalIndex] = ans;
       });
-      // FIX: Pass correctCount as score instead of sessionPoints
       onComplete(finalAnswers, correctCount, sessionPoints);
   };
 
@@ -328,7 +326,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
     
     if (isCorrect) {
         sfx.play('correct');
-        setCorrectCount(prev => prev + 1); // Increment actual correct answer count
+        setCorrectCount(prev => prev + 1);
     } else {
         sfx.play('wrong');
     }
@@ -412,9 +410,8 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       setDraggedOrderIndex(index);
   };
   const handleMatchSelect = (item: string) => { if (selectedMatchItem === item) setSelectedMatchItem(null); else setSelectedMatchItem(item); };
-  const handleMatchDragStart = (item: string) => { setDraggedMatchItem(item); setSelectedMatchItem(item); };
   const handleMatchDrop = (index: number) => {
-      const itemToPlace = draggedMatchItem || selectedMatchItem;
+      const itemToPlace = selectedMatchItem;
       if (itemToPlace) {
           setMatchingState(prev => {
               const next = [...prev];
@@ -423,7 +420,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               next[index].right = itemToPlace;
               return next;
           });
-          setDraggedMatchItem(null); setSelectedMatchItem(null);
+          setSelectedMatchItem(null);
       }
   };
 
@@ -439,19 +436,9 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
           setBlankAnswers(newAnswers);
           setSelectedBlankOption(null);
       } else if (blankAnswers[blankIdx] !== null) {
-          // If tapping an already filled blank without a selection, clear it
           const newAnswers = [...blankAnswers];
           newAnswers[blankIdx] = null;
           setBlankAnswers(newAnswers);
-      }
-  };
-
-  const handleBlankOptionDragStart = (optIndex: number) => setDraggedBlankOptionIndex(optIndex);
-  const handleBlankDrop = (blankIndex: number) => {
-      if (draggedBlankOptionIndex !== null) {
-          const newAnswers = [...blankAnswers];
-          newAnswers[blankIndex] = draggedBlankOptionIndex;
-          setBlankAnswers(newAnswers); setDraggedBlankOptionIndex(null);
       }
   };
 
@@ -480,10 +467,10 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
           case 'multiple-choice':
           case 'true-false':
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 stagger-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 stagger-in">
                     {currentQuestion.options.map((opt, i) => (
-                        <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className={`glass p-8 rounded-[2.5rem] text-xl font-black text-left flex items-center gap-6 group click-scale border border-white/10 transition-all ${zenMode ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'hover:bg-white/20 hover-lift'}`}>
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black italic group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all ${zenMode ? 'bg-white/5 text-white/50' : 'bg-white/10 text-white/30 group-hover:rotate-12'}`}>{i+1}</div>
+                        <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className={`glass p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] text-lg sm:text-xl font-black text-left flex items-center gap-4 sm:gap-6 group click-scale border border-white/10 transition-all ${zenMode ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'hover:bg-white/20 hover-lift'}`}>
+                            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black italic group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all ${zenMode ? 'bg-white/5 text-white/50' : 'bg-white/10 text-white/30 group-hover:rotate-12'}`}>{i+1}</div>
                             <span className="flex-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">{opt}</span>
                         </button>
                     ))}
@@ -493,68 +480,66 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               return (
                   <div className="max-w-2xl mx-auto w-full stagger-in relative">
                       <div className="relative">
-                        <input type="text" value={tempInput} onChange={(e) => setTempInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && tempInput.trim() && submitAnswer(tempInput)} placeholder="Type answer..." className="w-full bg-black/40 backdrop-blur-xl border-4 border-white/10 rounded-[2.5rem] p-10 pr-20 text-3xl font-black text-center focus:outline-none focus:border-indigo-500 transition-all mb-8 shadow-2xl text-white placeholder-white/30" autoFocus />
-                        <button onClick={handleVoiceInput} className={`absolute right-6 top-1/2 -translate-y-1/2 p-4 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`} title="Voice Input"><Mic size={24} /></button>
+                        <input type="text" value={tempInput} onChange={(e) => setTempInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && tempInput.trim() && submitAnswer(tempInput)} placeholder="Type answer..." className="w-full bg-black/40 backdrop-blur-xl border-4 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-10 pr-16 sm:pr-20 text-2xl sm:text-3xl font-black text-center focus:outline-none focus:border-indigo-500 transition-all mb-6 sm:mb-8 shadow-2xl text-white placeholder-white/30" autoFocus />
+                        <button onClick={handleVoiceInput} className={`absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`} title="Voice Input"><Mic size={20} /></button>
                       </div>
-                      <button onClick={() => submitAnswer(tempInput)} disabled={!tempInput.trim()} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit</button>
+                      <button onClick={() => submitAnswer(tempInput)} disabled={!tempInput.trim()} className="w-full py-5 sm:py-6 bg-indigo-600 rounded-[1.5rem] sm:rounded-3xl font-black text-lg sm:text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit</button>
                   </div>
               );
           case 'fill-in-the-blank':
               const parts = currentQuestion.question.split(/(\[\s*\])/g);
               let blankCounter = 0;
               return (
-                  <div className="max-w-4xl mx-auto w-full stagger-in flex flex-col gap-12">
-                      <div className="bg-black/30 backdrop-blur-xl p-10 rounded-[3rem] border border-white/10 shadow-2xl text-center leading-loose">
-                          <div className="text-2xl sm:text-4xl font-bold inline-block">
+                  <div className="max-w-4xl mx-auto w-full stagger-in flex flex-col gap-8 sm:gap-12">
+                      <div className="bg-black/30 backdrop-blur-xl p-6 sm:p-10 rounded-[2rem] sm:rounded-[3rem] border border-white/10 shadow-2xl text-center leading-loose">
+                          <div className="text-xl sm:text-4xl font-bold inline-block">
                               {parts.map((part, i) => {
                                   if (part.match(/\[\s*\]/)) {
                                       const currentIndex = blankCounter++; const filledOptIndex = blankAnswers[currentIndex];
-                                      return ( <span key={i} onDragOver={(e) => e.preventDefault()} onDrop={() => handleBlankDrop(currentIndex)} onClick={() => handleBlankTargetClick(currentIndex)} className={`inline-flex items-center justify-center min-w-[120px] h-14 mx-2 align-middle border-b-4 border-dashed rounded-lg transition-all cursor-pointer ${filledOptIndex !== null ? 'bg-indigo-500 border-indigo-400 text-white px-4 border-solid shadow-lg scale-110' : selectedBlankOption !== null ? 'bg-indigo-500/20 border-indigo-500/30 animate-pulse' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}> {filledOptIndex !== null ? currentQuestion.options[filledOptIndex] : ''} </span> );
+                                      return ( <span key={i} onDragOver={(e) => e.preventDefault()} onClick={() => handleBlankTargetClick(currentIndex)} className={`inline-flex items-center justify-center min-w-[80px] sm:min-w-[120px] h-10 sm:h-14 mx-1 sm:mx-2 align-middle border-b-2 sm:border-b-4 border-dashed rounded-lg transition-all cursor-pointer ${filledOptIndex !== null ? 'bg-indigo-500 border-indigo-400 text-white px-2 sm:px-4 border-solid shadow-lg scale-110' : selectedBlankOption !== null ? 'bg-indigo-500/20 border-indigo-500/30 animate-pulse' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}> {filledOptIndex !== null ? currentQuestion.options[filledOptIndex] : ''} </span> );
                                   }
                                   return <span key={i}>{part}</span>;
                               })}
                           </div>
                       </div>
-                      <div className="flex flex-wrap justify-center gap-4">
+                      <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
                           {currentQuestion.options.map((opt, i) => ( 
                             <div 
                                 key={i} 
-                                draggable 
-                                onDragStart={() => handleBlankOptionDragStart(i)} 
                                 onClick={() => handleBlankOptionClick(i)}
-                                className={`px-8 py-4 rounded-2xl font-black text-lg transition-all cursor-pointer active:scale-95 shadow-lg border-b-4 ${selectedBlankOption === i ? 'bg-indigo-600 text-white border-indigo-800 scale-110 ring-4 ring-white/20' : 'bg-white text-slate-900 border-slate-300 hover:-translate-y-1 hover:shadow-xl'}`}
+                                className={`px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black text-sm sm:text-lg transition-all cursor-pointer active:scale-95 shadow-lg border-b-4 ${selectedBlankOption === i ? 'bg-indigo-600 text-white border-indigo-800 scale-110 ring-4 ring-white/20' : 'bg-white text-slate-900 border-slate-300 hover:-translate-y-1 hover:shadow-xl'}`}
                             > 
                                 {opt} 
                             </div> 
                           ))}
                       </div>
                       <div className="text-center">
-                        <button onClick={() => submitAnswer(blankAnswers)} disabled={blankAnswers.some(a => a === null)} className="px-12 py-5 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale transition-all hover:bg-indigo-500">Submit Answer</button>
+                        <button onClick={() => submitAnswer(blankAnswers)} disabled={blankAnswers.some(a => a === null)} className="px-10 py-4 sm:px-12 sm:py-5 bg-indigo-600 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale transition-all hover:bg-indigo-500">Submit Answer</button>
                       </div>
                   </div>
               );
           case 'matching':
               return (
-                  <div className="max-w-5xl mx-auto w-full stagger-in flex flex-col md:flex-row gap-8 items-start">
-                      <div className="flex-1 space-y-4 w-full">
+                  <div className="max-w-5xl mx-auto w-full stagger-in flex flex-col md:flex-row gap-6 sm:gap-8 items-start">
+                      <div className="flex-1 space-y-3 sm:space-y-4 w-full">
                           {matchingState.map((pair, idx) => (
-                              <div key={idx} className={`flex items-center gap-4 p-4 rounded-3xl border transition-colors ${selectedMatchItem && !pair.right ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-black/20 border-white/10'}`}>
-                                  <div className="flex-1 p-4 bg-white/10 rounded-2xl font-bold text-center border border-white/5">{pair.left}</div>
-                                  <div className="text-white/30"><CornerDownRight size={24} /></div>
-                                  <div onDragOver={(e) => e.preventDefault()} onDrop={() => handleMatchDrop(idx)} onClick={() => { if (pair.right) setMatchingState(prev => { const n = [...prev]; n[idx].right = null; return n; }); else if (selectedMatchItem) handleMatchDrop(idx); }} className={`flex-1 p-4 rounded-2xl font-bold text-center border-2 border-dashed transition-all cursor-pointer min-h-[64px] flex items-center justify-center overflow-hidden ${pair.right ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg' : selectedMatchItem ? 'bg-indigo-500/20 border-indigo-400/50 animate-pulse' : 'bg-white/5 border-white/20 hover:bg-white/10'}`}> {pair.right ? ( isImage(pair.right) ? <img src={pair.right} className="max-w-full max-h-32 object-contain rounded-lg" /> : pair.right ) : <span className="text-xs uppercase tracking-widest opacity-30">{selectedMatchItem ? 'Tap to Place' : 'Drop Here'}</span>} </div>
+                              <div key={idx} className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl sm:rounded-3xl border transition-colors ${selectedMatchItem && !pair.right ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-black/20 border-white/10'}`}>
+                                  <div className="flex-1 p-3 sm:p-4 bg-white/10 rounded-xl sm:rounded-2xl font-bold text-center border border-white/5 text-sm sm:text-base">{pair.left}</div>
+                                  <div className="text-white/30"><CornerDownRight size={20} /></div>
+                                  <div onClick={() => { if (pair.right) setMatchingState(prev => { const n = [...prev]; n[idx].right = null; return n; }); else if (selectedMatchItem) handleMatchDrop(idx); }} className={`flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl font-bold text-center border-2 border-dashed transition-all cursor-pointer min-h-[50px] sm:min-h-[64px] flex items-center justify-center overflow-hidden text-sm sm:text-base ${pair.right ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg' : selectedMatchItem ? 'bg-indigo-500/20 border-indigo-400/50 animate-pulse' : 'bg-white/5 border-white/20 hover:bg-white/10'}`}> {pair.right ? ( isImage(pair.right) ? <img src={pair.right} className="max-w-full max-h-24 sm:max-h-32 object-contain rounded-lg" /> : pair.right ) : <span className="text-[10px] uppercase tracking-widest opacity-30">{selectedMatchItem ? 'Tap to Place' : 'Select Side'}</span>} </div>
                               </div>
                           ))}
                       </div>
-                      <div className="w-full md:w-64 bg-white/10 p-6 rounded-[2.5rem] border border-white/10 min-h-[300px]">
-                          <p className="text-center text-[10px] font-black uppercase tracking-widest opacity-50 mb-4">Tap or Drag to Match</p>
-                          <div className="flex flex-col gap-3">
+                      <div className="w-full md:w-64 bg-white/10 p-6 rounded-[2.5rem] border border-white/10 min-h-[250px] sm:min-h-[300px]">
+                          <p className="text-center text-[10px] font-black uppercase tracking-widest opacity-50 mb-4">Tap to Match</p>
+                          <div className="flex flex-row flex-wrap md:flex-col gap-2 sm:gap-3 justify-center">
                               {shuffledMatches.map((item, i) => {
                                   if (matchingState.some(p => p.right === item)) return null;
                                   const isSelected = selectedMatchItem === item;
-                                  return ( <div key={i} draggable="true" onDragStart={() => handleMatchDragStart(item)} onClick={() => handleMatchSelect(item)} className={`p-3 rounded-2xl font-bold text-center shadow-lg cursor-pointer transition-transform border-b-4 flex items-center justify-center min-h-[60px] relative ${isSelected ? 'bg-indigo-500 text-white border-indigo-700 scale-105 ring-2 ring-white' : 'bg-white text-slate-900 border-slate-200 hover:scale-105 active:scale-95'}`}> {isImage(item) ? <img src={item} className="max-w-full max-h-24 object-contain rounded-lg" /> : item} {isSelected && <div className="absolute -top-2 -right-2 bg-white text-indigo-600 rounded-full p-1 shadow-md"><MousePointerClick size={12} /></div>} </div> )
+                                  return ( <div key={i} onClick={() => handleMatchSelect(item)} className={`p-3 rounded-xl sm:rounded-2xl font-bold text-center shadow-lg cursor-pointer transition-transform border-b-4 flex items-center justify-center min-h-[50px] sm:min-h-[60px] relative text-xs sm:text-base ${isSelected ? 'bg-indigo-600 text-white border-indigo-800 scale-105 ring-2 ring-white' : 'bg-white text-slate-900 border-slate-200 hover:scale-105 active:scale-95'}`}> {isImage(item) ? <img src={item} className="max-w-full max-h-20 sm:max-h-24 object-contain rounded-lg" /> : item} {isSelected && <div className="absolute -top-2 -right-2 bg-white text-indigo-600 rounded-full p-1 shadow-md"><MousePointerClick size={10} /></div>} </div> )
                               })}
                           </div>
-                          <button onClick={() => submitAnswer(matchingState)} className="w-full mt-8 py-4 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale hover:bg-indigo-500">Submit</button>
+                          <button onClick={() => submitAnswer(matchingState)} className="w-full mt-6 sm:mt-8 py-3 sm:py-4 bg-indigo-600 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale hover:bg-indigo-500">Submit</button>
                       </div>
                   </div>
               );
@@ -562,17 +547,17 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               return (
                   <div className="max-w-xl mx-auto w-full space-y-3 stagger-in">
                       {tempOrder.map((originalIdx, displayIdx) => (
-                          <div key={originalIdx} draggable="true" onDragStart={() => handleOrderDragStart(displayIdx)} onDragOver={(e) => handleOrderDragOver(e, displayIdx)} onDragEnd={() => setDraggedOrderIndex(null)} className={`glass p-5 rounded-2xl border border-white/10 flex items-center gap-6 cursor-grab active:cursor-grabbing transition-all ${draggedOrderIndex === displayIdx ? 'opacity-50 scale-95 border-indigo-500/50' : 'hover:bg-white/10 hover:shadow-lg'}`}> <div className="text-white/20"> <GripVertical size={24} /> </div> <span className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center font-black text-indigo-400 border border-white/5 group-hover:rotate-6 transition-transform">{displayIdx + 1}</span> <span className="flex-1 font-bold text-lg">{currentQuestion.options[originalIdx]}</span> </div> ))}
-                      <button onClick={() => submitAnswer(tempOrder)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale mt-8 shadow-xl hover:bg-indigo-500">Confirm Order</button>
+                          <div key={originalIdx} draggable="true" onDragStart={() => handleOrderDragStart(displayIdx)} onDragOver={(e) => { e.preventDefault(); if (draggedOrderIndex === null || draggedOrderIndex === displayIdx) return; const n = [...tempOrder]; const d = n[draggedOrderIndex]; n.splice(draggedOrderIndex, 1); n.splice(displayIdx, 0, d); setTempOrder(n); setDraggedOrderIndex(displayIdx); }} onDragEnd={() => setDraggedOrderIndex(null)} className={`glass p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-white/10 flex items-center gap-4 sm:gap-6 cursor-grab active:cursor-grabbing transition-all ${draggedOrderIndex === displayIdx ? 'opacity-50 scale-95 border-indigo-500/50' : 'hover:bg-white/10 hover:shadow-lg'}`}> <div className="text-white/20"> <GripVertical size={24} /> </div> <span className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/10 flex items-center justify-center font-black text-indigo-400 border border-white/5 text-sm sm:text-base">{displayIdx + 1}</span> <span className="flex-1 font-bold text-sm sm:text-lg">{currentQuestion.options[originalIdx]}</span> </div> ))}
+                      <button onClick={() => submitAnswer(tempOrder)} className="w-full py-5 sm:py-6 bg-indigo-600 rounded-[1.5rem] sm:rounded-3xl font-black text-lg sm:text-xl uppercase tracking-widest click-scale mt-6 sm:mt-8 shadow-xl hover:bg-indigo-500">Confirm Order</button>
                   </div>
               );
           case 'slider':
               const min = parseInt(currentQuestion.options[0]); const max = parseInt(currentQuestion.options[1]);
               return (
-                  <div className="max-w-2xl mx-auto w-full stagger-in bg-black/40 backdrop-blur-xl p-12 rounded-[3.5rem] border border-white/10 shadow-2xl">
-                      <div className="text-center mb-12"> <div className="text-7xl font-black text-indigo-400 mb-2 drop-shadow-[0_0_20px_rgba(129,140,241,0.5)] animate-pulse">{tempSlider}</div> </div>
-                      <input type="range" min={min} max={max} value={tempSlider} onChange={(e) => setTempSlider(parseInt(e.target.value))} className="w-full h-4 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-500 mb-12" />
-                      <button onClick={() => submitAnswer(tempSlider)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit Value</button>
+                  <div className="max-w-2xl mx-auto w-full stagger-in bg-black/40 backdrop-blur-xl p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] border border-white/10 shadow-2xl">
+                      <div className="text-center mb-8 sm:mb-12"> <div className="text-5xl sm:text-7xl font-black text-indigo-400 mb-2 drop-shadow-[0_0_20px_rgba(129,140,241,0.5)] animate-pulse">{tempSlider}</div> </div>
+                      <input type="range" min={min} max={max} value={tempSlider} onChange={(e) => setTempSlider(parseInt(e.target.value))} className="w-full h-3 sm:h-4 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-500 mb-8 sm:mb-12" />
+                      <button onClick={() => submitAnswer(tempSlider)} className="w-full py-5 sm:py-6 bg-indigo-600 rounded-[1.5rem] sm:rounded-3xl font-black text-lg sm:text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit Value</button>
                   </div>
               );
           default: return <div className="text-center text-rose-500 font-black">Question Error</div>;
@@ -581,77 +566,84 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
   return (
     <div className={`min-h-screen text-white flex flex-col relative overflow-hidden font-['Plus_Jakarta_Sans'] transition-colors duration-1000 ${zenMode ? 'bg-[#000000]' : isOnFire ? 'bg-orange-950' : 'bg-slate-950'}`}>
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-         <div className={`text-[40rem] sm:text-[65rem] font-black leading-none tabular-nums transition-all duration-300 ${timeLeft <= 5 ? 'text-rose-500/20 animate-pulse scale-110' : zenMode ? 'text-white/[0.01]' : 'text-white/[0.03]'}`}> {timeLeft} </div>
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden">
+         <div className={`text-[15rem] sm:text-[65rem] font-black leading-none tabular-nums transition-all duration-300 ${timeLeft <= 5 ? 'text-rose-500/20 animate-pulse scale-110' : zenMode ? 'text-white/[0.01]' : 'text-white/[0.03]'}`}> {timeLeft} </div>
       </div>
       
       {showExplanation && (
           <div className="absolute inset-0 z-[100] bg-[#05010d]/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
               <div className="max-w-2xl w-full text-center stagger-in">
-                  <div className={`mb-2 text-7xl font-black tracking-tighter drop-shadow-2xl ${isCorrectFeedback ? 'text-emerald-400' : 'text-rose-500'}`}> {isCorrectFeedback ? 'CORRECT!' : 'INCORRECT'} </div>
+                  <div className={`mb-2 text-5xl sm:text-7xl font-black tracking-tighter drop-shadow-2xl ${isCorrectFeedback ? 'text-emerald-400' : 'text-rose-500'}`}> {isCorrectFeedback ? 'CORRECT!' : 'INCORRECT'} </div>
                   {feedbackMessage && <div className="text-indigo-400 font-black uppercase text-sm mb-6 animate-bounce"> {feedbackMessage} </div>}
                   <div className="mb-8 flex flex-col items-center">
-                      <div className="inline-block bg-white/5 border border-white/10 px-8 py-4 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                      <div className="inline-block bg-white/5 border border-white/10 px-6 sm:px-8 py-3 sm:py-4 rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl relative overflow-hidden group">
                           <div className="absolute inset-0 bg-indigo-600 opacity-0 group-hover:opacity-10 transition-opacity"></div>
-                          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mb-1">Personal Round Score</p>
-                          <div className="flex items-center justify-center gap-3"> <span className="text-4xl font-black text-white">{lastPointsGained}</span> <span className="text-indigo-400 font-black text-xs uppercase">PTS</span> </div>
+                          <p className="text-slate-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] mb-1">Round Score</p>
+                          <div className="flex items-center justify-center gap-2 sm:gap-3"> <span className="text-3xl sm:text-4xl font-black text-white">{lastPointsGained}</span> <span className="text-indigo-400 font-black text-[10px] sm:text-xs uppercase">PTS</span> </div>
                       </div>
                       {room && <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-4">Total Session: {sessionPoints} pts</p>}
                   </div>
                   
                   {currentQuestion.explanation && (
-                      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-4 text-lg font-medium text-slate-300 leading-relaxed italic shadow-xl animate-in slide-in-from-bottom-4"> 
+                      <div className="bg-white/5 border border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 mb-4 text-base sm:text-lg font-medium text-slate-300 leading-relaxed italic shadow-xl animate-in slide-in-from-bottom-4"> 
                         "{currentQuestion.explanation}" 
                       </div>
                   )}
 
                   {room && roomLeaderboard.length > 0 && (
-                      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-10 shadow-2xl">
+                      <div className="bg-white/5 border border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 mb-6 sm:mb-10 shadow-2xl">
                           <h4 className="text-indigo-400 font-black uppercase text-[10px] tracking-widest mb-6 flex items-center justify-center gap-2"> <Trophy size={14} /> Global Standings </h4>
                           <div className="space-y-3">
                              {roomLeaderboard.slice(0, 5).map((p, i) => {
                                  if (p.score !== lastScore) currentRank = i + 1; lastScore = p.score;
-                                 return ( <div key={i} className={`flex items-center justify-between px-6 py-3 rounded-xl border transition-all ${p.user_id === myId ? 'bg-indigo-600 border-indigo-400 shadow-2xl scale-105' : 'bg-white/5 border-white/5'}`}> <div className="flex items-center gap-4"> <span className={`text-[10px] font-black w-6 ${currentRank === 1 ? 'text-yellow-400' : 'text-slate-500'}`}>#{currentRank}</span> <span className="font-bold text-sm">@{p.username}</span> </div> <span className="font-black text-indigo-400 text-sm">{p.score}</span> </div> );
+                                 return ( <div key={i} className={`flex items-center justify-between px-4 sm:px-6 py-2 sm:py-3 rounded-xl border transition-all ${p.user_id === myId ? 'bg-indigo-600 border-indigo-400 shadow-2xl scale-105' : 'bg-white/5 border-white/5'}`}> <div className="flex items-center gap-4"> <span className={`text-[10px] font-black w-6 ${currentRank === 1 ? 'text-yellow-400' : 'text-slate-500'}`}>#{currentRank}</span> <span className="font-bold text-xs sm:text-sm">@{p.username}</span> </div> <span className="font-black text-indigo-400 text-xs sm:text-sm">{p.score}</span> </div> );
                              })}
                           </div>
                       </div>
                   )}
-                  {room ? ( isHost ? <button onClick={handleHostNextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2.5rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-all flex items-center justify-center gap-4"> Next Question <ArrowRight size={28} /> </button> : <div className="flex flex-col items-center gap-4 animate-pulse"> <Loader2 className="text-indigo-500 animate-spin" size={32} /> <div className="text-white font-black uppercase tracking-[0.4em] text-xs">Waiting for Host Signal...</div> </div> ) : ( <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2.5rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-colors group"> Next Question <ArrowRight className="inline-block ml-2 group-hover:translate-x-2 transition-transform" /> </button> )}
+                  {room ? ( isHost ? <button onClick={handleHostNextQuestion} className="w-full bg-white text-slate-950 font-black py-6 sm:py-8 rounded-[1.5rem] sm:rounded-[2.5rem] text-xl sm:text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-all flex items-center justify-center gap-4"> Next Question <ArrowRight size={24} /> </button> : <div className="flex flex-col items-center gap-4 animate-pulse"> <Loader2 className="text-indigo-500 animate-spin" size={28} /> <div className="text-white font-black uppercase tracking-[0.4em] text-[10px]">Waiting for Host...</div> </div> ) : ( <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-6 sm:py-8 rounded-[1.5rem] sm:rounded-[2.5rem] text-xl sm:text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-colors group"> Next Question <ArrowRight className="inline-block ml-2 group-hover:translate-x-2 transition-transform" /> </button> )}
               </div>
           </div>
       )}
       
       <div className={`flex flex-col h-full relative z-10 ${startCountdown > 0 ? 'opacity-0 blur-xl' : 'opacity-100 blur-0'} transition-all duration-1000`}>
-        <header className={`px-8 py-6 flex items-center justify-between z-40 bg-transparent border-b border-white/5 transition-all duration-500 ${zenMode ? 'opacity-0 -translate-y-full pointer-events-none absolute' : ''}`}>
-            <div className="flex items-center gap-4">
-                <Logo variant="small" className="shadow-2xl hover:scale-110 transition-transform" />
-                <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-full"> <span className="text-xs font-black tracking-widest uppercase text-slate-400">Step <span className="text-white">{currentQuestionIndex+1} / {shuffledQuestions.length}</span></span> </div>
+        <header className={`px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between z-40 bg-transparent border-b border-white/5 transition-all duration-500 ${zenMode ? 'opacity-0 -translate-y-full pointer-events-none absolute' : ''}`}>
+            <div className="flex items-center gap-3 sm:gap-4">
+                <Logo variant="small" className="shadow-2xl hover:scale-110 transition-transform w-8 h-8 sm:w-10 sm:h-10" />
+                <div className="px-3 py-1 sm:px-4 sm:py-1.5 bg-white/5 border border-white/10 rounded-full"> <span className="text-[10px] sm:text-xs font-black tracking-widest uppercase text-slate-400">Step <span className="text-white">{currentQuestionIndex+1} / {shuffledQuestions.length}</span></span> </div>
             </div>
-            <div className="flex items-center gap-6">
-                {isOnFire && <div className="flex items-center gap-2 text-orange-500 font-black uppercase text-xs tracking-widest animate-pulse"> <Flame size={18} fill="currentColor" /> Streak x{streak} </div>}
-                <div className="text-right"> <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Score</div> <div className={`text-2xl font-black tracking-tight ${isOnFire ? 'text-orange-400' : 'text-indigo-400'}`}>{sessionPoints}</div> </div>
-                <button onClick={() => setZenMode(true)} className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-slate-400 hover:text-white" title="Enter Zen Mode"><Eye size={20} /></button>
+            <div className="flex items-center gap-4 sm:gap-6">
+                {isOnFire && <div className="hidden sm:flex items-center gap-2 text-orange-500 font-black uppercase text-xs tracking-widest animate-pulse"> <Flame size={18} fill="currentColor" /> x{streak} </div>}
+                <div className="text-right"> <div className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Score</div> <div className={`text-xl sm:text-2xl font-black tracking-tight ${isOnFire ? 'text-orange-400' : 'text-indigo-400'}`}>{sessionPoints}</div> </div>
+                <button onClick={() => setZenMode(true)} className="p-2 sm:p-3 bg-white/10 hover:bg-white/20 rounded-lg sm:rounded-xl transition-all text-slate-400 hover:text-white" title="Enter Zen Mode"><Eye size={18} /></button>
             </div>
         </header>
+
         {zenMode && <div className="absolute top-6 right-6 z-50 animate-in fade-in"><button onClick={() => setZenMode(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-white/30 hover:text-white transition-all" title="Exit Zen Mode"><EyeOff size={20} /></button></div>}
-        <div className={`absolute top-0 left-0 w-full h-1.5 z-30 transition-opacity duration-500 ${zenMode ? 'opacity-0' : 'opacity-100'}`}><div className={`h-full absolute left-0 transition-all duration-1000 ease-linear ${timeLeft <= 5 ? 'bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,1)]' : isOnFire ? 'bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]' : 'bg-indigo-500'}`} style={{ width: `${timePercentage}%` }} /></div>
-        <main className="flex-1 flex flex-col justify-center px-6 py-12 relative overflow-y-auto">
+        
+        <div className={`absolute top-0 left-0 w-full h-1 z-30 transition-opacity duration-500 ${zenMode ? 'opacity-0' : 'opacity-100'}`}><div className={`h-full absolute left-0 transition-all duration-1000 ease-linear ${timeLeft <= 5 ? 'bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,1)]' : isOnFire ? 'bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]' : 'bg-indigo-500'}`} style={{ width: `${timePercentage}%` }} /></div>
+        
+        <main className="flex-1 flex flex-col justify-center px-4 sm:px-6 py-8 sm:py-12 relative overflow-y-auto">
             <div className="max-w-4xl mx-auto w-full text-center">
-                {currentQuestion.type !== 'fill-in-the-blank' && (
-                    <div className={`mb-10 inline-block p-10 sm:p-16 rounded-[4rem] animate-in slide-in-from-bottom-10 duration-700 w-full transition-all ${zenMode ? 'bg-transparent shadow-none' : 'bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl'} ${isOnFire && !zenMode ? 'border-orange-500/30 shadow-[0_0_50px_rgba(249,115,22,0.1)]' : ''}`}>
-                        <h2 className={`text-3xl sm:text-5xl font-black leading-tight tracking-tighter text-white transition-all ${zenMode ? 'scale-110 drop-shadow-2xl' : ''}`}> {currentQuestion.question} </h2>
-                        {currentQuestion.image && <div className={`mt-8 rounded-3xl overflow-hidden shadow-2xl max-w-md mx-auto aspect-video transition-all ${zenMode ? 'border-0' : 'border border-white/10'} hover:scale-105 transition-transform`}> <img src={currentQuestion.image} alt="" className="w-full h-full object-cover" /> </div>}
-                    </div>
-                )}
+                <div className="relative">
+                    {currentQuestion.type !== 'fill-in-the-blank' && (
+                        <div className={`mb-6 sm:mb-10 inline-block p-6 sm:p-16 rounded-[2.5rem] sm:rounded-[4rem] animate-in slide-in-from-bottom-10 duration-700 w-full transition-all ${zenMode ? 'bg-transparent shadow-none' : 'bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl'} ${isOnFire && !zenMode ? 'border-orange-500/30 shadow-[0_0_50px_rgba(249,115,22,0.1)]' : ''}`}>
+                            <h2 className={`text-2xl sm:text-5xl font-black leading-tight tracking-tighter text-white transition-all ${zenMode ? 'scale-110 drop-shadow-2xl' : ''}`}> {currentQuestion.question} </h2>
+                            {currentQuestion.image && <div className={`mt-6 sm:mt-8 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl max-w-md mx-auto aspect-video transition-all ${zenMode ? 'border-0' : 'border border-white/10'} hover:scale-105 transition-transform`}> <img src={currentQuestion.image} alt="" className="w-full h-full object-cover" /> </div>}
+                        </div>
+                    )}
+                </div>
+
                 <div className="relative z-20"> {renderInputs()} </div>
             </div>
         </main>
       </div>
+
       {startCountdown > 0 && (
           <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center text-center">
-              <Logo variant="large" className="mb-12 shadow-[0_0_100px_rgba(168,85,247,0.4)] animate-bounce" />
-              <p className="text-indigo-400 font-black uppercase tracking-[0.6em] text-sm mb-6">Game Initializing</p>
-              <div className="text-[15rem] font-black tracking-tighter leading-none animate-in zoom-in duration-500 text-white drop-shadow-[0_0_60px_rgba(255,255,255,0.2)]" key={startCountdown}> {startCountdown} </div>
+              <Logo variant="large" className="mb-8 sm:mb-12 shadow-[0_0_100px_rgba(168,85,247,0.4)] animate-bounce w-24 h-24 sm:w-32 sm:h-32" />
+              <p className="text-indigo-400 font-black uppercase tracking-[0.4em] sm:tracking-[0.6em] text-[10px] sm:text-sm mb-6">Initial Loading Sequence</p>
+              <div className="text-[10rem] sm:text-[15rem] font-black tracking-tighter leading-none animate-in zoom-in duration-500 text-white drop-shadow-[0_0_60px_rgba(255,255,255,0.2)]" key={startCountdown}> {startCountdown} </div>
           </div>
       )}
     </div>
