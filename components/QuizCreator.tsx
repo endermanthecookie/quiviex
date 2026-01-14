@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Home, X, Trash2, Image as ImageIcon, Sparkles, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, Wand2, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2, Info, RefreshCw, Type, ListOrdered, Layers, Sliders, AlignLeft, CheckSquare, Brackets, MinusCircle } from 'lucide-react';
+import { Menu, Home, X, Trash2, Image as ImageIcon, Palette, Shuffle, GripVertical, ArrowUp, ArrowDown, PenTool, ArrowRight, ArrowLeft, Camera, Music, PlusCircle, Eye, ShieldAlert, Book, Check, AlertTriangle, ShieldCheck, Infinity as InfinityIcon, Loader2, Info, RefreshCw, Type, ListOrdered, Layers, Sliders, AlignLeft, CheckSquare, Brackets, MinusCircle } from 'lucide-react';
 import { Quiz, Question, QuestionType, User, CustomTheme, QuizVisibility } from '../types';
 import { COLORS, TUTORIAL_STEPS, THEMES, BANNED_WORDS, SOFT_FILTER_WORDS } from '../constants';
-import { TutorialWidget } from './TutorialWidget';
 import { ValidationModal } from './ValidationModal';
-import { ImageSelectionModal } from './ImageSelectionModal';
-import { GitHubAIModal } from './GitHubAIModal';
-import { ImageQuizModal } from './ImageQuizModal';
 import { MusicSelectionModal } from './MusicSelectionModal';
 import { ThemeEditorModal } from './ThemeEditorModal';
-import { GitHubTokenHelpModal } from './GitHubTokenHelpModal';
 import { SaveOptionsModal } from './SaveOptionsModal';
-import { LegalModal } from './LegalModal';
 import { supabase } from '../services/supabase';
 import { Logo } from './Logo';
 
@@ -22,7 +16,7 @@ interface QuizCreatorProps {
   onExit: () => void;
   startWithTutorial: boolean;
   onTutorialComplete?: () => void;
-  onStatUpdate: (type: 'create' | 'ai_img' | 'ai_quiz') => void;
+  onStatUpdate: (type: 'create') => void;
   onOpenSettings: () => void;
   onRefreshProfile?: () => void;
 }
@@ -47,11 +41,6 @@ const TYPE_CONFIG = [
     { id: 'fill-in-the-blank', label: 'Blanks', icon: AlignLeft, gradient: 'from-fuchsia-500 to-purple-600', shadow: 'shadow-fuchsia-500/40', ring: 'ring-fuchsia-200' }
 ];
 
-const isImage = (url: string) => {
-    if (!url) return false;
-    return url.startsWith('data:image') || /\.(jpeg|jpg|gif|png|webp)$/i.test(url) || url.startsWith('https://images.unsplash.com');
-};
-
 const getBlankCount = (text: string) => (text.match(/\[\s*\]/g) || []).length;
 
 export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUser, onSave, onExit, startWithTutorial, onTutorialComplete, onStatUpdate, onOpenSettings, onRefreshProfile }) => {
@@ -64,20 +53,15 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
   const [bgMusic, setBgMusic] = useState('');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [showValidationModal, setShowValidationModal] = useState(false);
-  const [showAIModal, setShowAIModal] = useState(false);
   const [showMusicModal, setShowMusicModal] = useState(false);
   const [showThemeEditor, setShowThemeEditor] = useState(false);
   const [showSaveOptionsModal, setShowSaveOptionsModal] = useState(false);
   const [showModerationAlert, setShowModerationAlert] = useState<{detected: string[], warningsRemaining: number, isSudo: boolean} | null>(null);
   const [showTerminalBanAlert, setShowTerminalBanAlert] = useState(false);
   const [isProcessingModeration, setIsProcessingModeration] = useState(false);
-  const [isAiGenerated, setIsAiGenerated] = useState(false);
   
   // Drag state for reordering options
   const [draggedOptionIndex, setDraggedOptionIndex] = useState<number | null>(null);
-  
-  // Image selection for Match type
-  const [activeMatchIndex, setActiveMatchIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (initialQuiz) {
@@ -87,14 +71,13 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       setCustomTheme(initialQuiz.customTheme);
       setShuffleQuestions(initialQuiz.shuffleQuestions || false);
       setBgMusic(initialQuiz.backgroundMusic || '');
-      setIsAiGenerated(false); // Reset on edit load
     }
   }, [initialQuiz]);
 
   const scanForBannedWords = (text: string): string[] => {
       if (!text) return [];
       const normalized = text.toLowerCase();
-      if (text.startsWith('data:image')) return []; // Skip base64 images
+      if (text.startsWith('data:image')) return []; 
       return BANNED_WORDS.filter(word => {
           if (!word) return false;
           try {
@@ -133,12 +116,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
       });
 
       if (detected.size > 0) {
-          if (isAiGenerated) {
-              setValidationErrors(Array.from(detected).map(w => `• AI Safety Filter: Found word "${w}". Please remove or edit this content.`));
-              setShowValidationModal(true);
-              return false;
-          }
-
           setIsProcessingModeration(true);
           const isSudo = currentUser.email === 'sudo@quiviex.com';
           try {
@@ -223,12 +200,9 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
         const q = updated[currentQuestionIndex];
         let newValue = value;
 
-        // Auto-update blanks logic
         if (q.type === 'fill-in-the-blank' && field === 'question') {
             const blankCount = getBlankCount(value);
             let currentAns = Array.isArray(q.correctAnswer) ? [...q.correctAnswer] : [];
-            
-            // Adjust answer array size
             if (currentAns.length !== blankCount) {
                 if (currentAns.length < blankCount) {
                     while (currentAns.length < blankCount) currentAns.push(-1);
@@ -275,11 +249,10 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
               options = ['', '', '', '', '', '', '', ''];
               correct = null;
           } else if (type === 'fill-in-the-blank') {
-              options = ['', '', '', '']; // Initial word bank
+              options = ['', '', '', '']; 
               const blankCount = getBlankCount(q.question);
               correct = new Array(blankCount).fill(-1);
           } else { 
-              // Multiple Choice, Ordering
               if (options.length < 4) options = ['', '', '', '']; 
               if (typeof correct !== 'number') correct = 0; 
           }
@@ -327,20 +300,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] relative overflow-hidden font-['Plus_Jakarta_Sans']">
-        {activeMatchIndex !== null && (
-            <ImageSelectionModal
-                onSelect={(url) => {
-                    const newOpts = [...currentQ.options];
-                    newOpts[activeMatchIndex] = url;
-                    updateQuestion('options', newOpts);
-                    setActiveMatchIndex(null);
-                }}
-                onClose={() => setActiveMatchIndex(null)}
-                onAiUsed={() => onStatUpdate('ai_img')}
-                preferences={currentUser.preferences}
-            />
-        )}
-
         {showModerationAlert && (
             <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-4">
                 <div className="bg-white rounded-[3.5rem] shadow-2xl max-w-xl w-full p-12 text-center animate-in zoom-in">
@@ -376,22 +335,8 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
         )}
         {showValidationModal && <ValidationModal errors={validationErrors} onClose={() => setShowValidationModal(false)} />}
         {showSaveOptionsModal && <SaveOptionsModal onConfirm={handleFinalizeSave} onCancel={() => setShowSaveOptionsModal(false)} />}
-        
-        {showAIModal && (
-            <GitHubAIModal 
-                onGenerate={(qs, t) => { 
-                    setQuestions(prev => [...prev, ...qs]); 
-                    setQuizTitle(t); 
-                    setIsAiGenerated(true); 
-                }} 
-                onClose={() => setShowAIModal(false)} 
-                onAiUsed={() => onStatUpdate('ai_quiz')} 
-                user={currentUser} 
-            />
-        )}
-        
         {showMusicModal && <MusicSelectionModal currentMusic={bgMusic} onSelect={setBgMusic} onClose={() => setShowMusicModal(false)} />}
-        {showThemeEditor && <ThemeEditorModal initialTheme={customTheme} onSave={(t) => { setCustomTheme(t); setShowThemeEditor(false); }} onClose={() => setShowThemeEditor(false)} onAiUsed={() => onStatUpdate('ai_img')} />}
+        {showThemeEditor && <ThemeEditorModal initialTheme={customTheme} onSave={(t) => { setCustomTheme(t); setShowThemeEditor(false); }} onClose={() => setShowThemeEditor(false)} onAiUsed={() => {}} />}
 
         <div className="w-[320px] bg-[#1a1f2e] text-white flex flex-col relative z-20 shadow-2xl flex-shrink-0">
             <div className="p-8 border-b border-white/5 flex items-center gap-4"><Logo variant="small" /><h1 className="text-2xl font-black tracking-tight">Creator</h1></div>
@@ -404,7 +349,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                 ))}
                 <button onClick={addQuestion} className="w-full py-6 border-2 border-dashed border-white/10 rounded-[1.5rem] text-slate-400 hover:text-white hover:border-white/30 transition-all font-black flex items-center justify-center gap-3 uppercase text-xs tracking-widest"><PlusCircle size={20} /> Add Question</button>
             </div>
-            <div className="p-6 border-t border-white/5 bg-[#1a1f2e]"><button onClick={() => setShowAIModal(true)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl uppercase tracking-widest text-xs"><Sparkles size={16} className="text-yellow-400" /> AI Generator</button></div>
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden bg-[#f1f5f9]">
@@ -418,19 +362,20 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                 <div className="w-full max-w-6xl animate-in fade-in duration-500">
                     
                     <div className="w-full mb-10">
-                        <div className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 custom-scrollbar snap-x">
+                        <div className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 custom-scrollbar">
                             {TYPE_CONFIG.map(t => {
                                 const isActive = currentQ.type === t.id;
                                 return (
                                     <button
                                         key={t.id}
+                                        type="button"
                                         onClick={() => handleTypeChange(t.id as QuestionType)}
                                         className={`
                                             relative group flex-shrink-0 flex flex-col items-center justify-center gap-3 
-                                            w-28 h-28 rounded-3xl transition-all duration-300 snap-center
+                                            w-28 h-28 rounded-3xl transition-all duration-300 click-scale
                                             ${isActive 
                                                 ? `bg-gradient-to-br ${t.gradient} text-white scale-110 shadow-2xl ${t.shadow} z-10` 
-                                                : 'bg-white text-slate-400 hover:bg-slate-50 hover:scale-105 border-2 border-slate-100 hover:border-slate-200 shadow-sm'
+                                                : 'bg-white text-slate-400 hover:bg-slate-50 border-2 border-slate-100 hover:border-slate-200 shadow-sm'
                                             }
                                         `}
                                     >
@@ -443,11 +388,6 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                                         <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-white' : 'text-slate-500'}`}>
                                             {t.label}
                                         </span>
-                                        {isActive && (
-                                            <div className="absolute -bottom-3 bg-white text-slate-900 text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-slate-100">
-                                                ACTIVE
-                                            </div>
-                                        )}
                                     </button>
                                 )
                             })}
@@ -563,34 +503,15 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ initialQuiz, currentUs
                                                     <div className="text-slate-300 md:hidden"><ArrowDown size={20} /></div>
                                                     <div className="flex-1 w-full bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-sm relative group/match">
                                                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Match</label>
-                                                        {isImage(currentQ.options[i * 2 + 1] || '') ? (
-                                                            <div className="relative w-full h-12 group/img">
-                                                                <img src={currentQ.options[i * 2 + 1]} alt="Match" className="w-full h-full object-contain rounded-lg" />
-                                                                <button 
-                                                                    onClick={() => { const o = [...currentQ.options]; o[i * 2 + 1] = ''; updateQuestion('options', o); }}
-                                                                    className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover/img:opacity-100 transition-opacity"
-                                                                >
-                                                                    <X size={12} />
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex gap-2 items-center">
-                                                                <input 
-                                                                    type="text" 
-                                                                    value={currentQ.options[i * 2 + 1] || ''} 
-                                                                    onChange={(e) => { const o = [...currentQ.options]; o[i * 2 + 1] = e.target.value; updateQuestion('options', o); }} 
-                                                                    placeholder="Right Side Item"
-                                                                    className="flex-1 font-bold text-slate-800 bg-transparent border-none p-0 focus:ring-0 min-w-0" 
-                                                                />
-                                                                <button 
-                                                                    onClick={() => setActiveMatchIndex(i * 2 + 1)}
-                                                                    className="p-1.5 bg-indigo-50 text-indigo-500 rounded-lg hover:bg-indigo-100 transition-colors"
-                                                                    title="Add Image"
-                                                                >
-                                                                    <ImageIcon size={16} />
-                                                                </button>
-                                                            </div>
-                                                        )}
+                                                        <div className="flex gap-2 items-center">
+                                                            <input 
+                                                                type="text" 
+                                                                value={currentQ.options[i * 2 + 1] || ''} 
+                                                                onChange={(e) => { const o = [...currentQ.options]; o[i * 2 + 1] = e.target.value; updateQuestion('options', o); }} 
+                                                                placeholder="Right Side Item"
+                                                                className="flex-1 font-bold text-slate-800 bg-transparent border-none p-0 focus:ring-0 min-w-0" 
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}

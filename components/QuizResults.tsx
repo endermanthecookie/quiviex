@@ -165,7 +165,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, sco
                                     1
                                 </div>
                             </div>
-                            <div className="bg-yellow-400/20 backdrop-blur-md w-32 h-48 rounded-t-2xl border-t border-x border-white/20 flex flex-col items-center justify-end pb-4">
+                            <div className="bg-yellow-400/20 backdrop-blur-md w-32 h-48 rounded-t-2xl border-t border-x border-white/10 flex flex-col items-center justify-end pb-4">
                                 <div className="font-black text-2xl text-white">{leaderboard[0].username}</div>
                                 <div className="text-sm font-bold text-yellow-200">{leaderboard[0].score} pts</div>
                             </div>
@@ -211,7 +211,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, sco
           
           <div className="text-2xl sm:text-3xl font-medium bg-black/20 inline-block px-8 py-3 rounded-full backdrop-blur-sm" style={quiz.customTheme ? { color: '#ffffff' } : {}}>
             {score} / {quiz.questions.length} Correct
-            {points !== undefined && <span className="ml-4 text-indigo-400 font-black">+{points} PTS</span>}
+            {points !== undefined && <span className="ml-4 text-indigo-400 font-black">+{points} XP</span>}
           </div>
         </div>
 
@@ -232,7 +232,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ quiz, userAnswers, sco
           </button>
         </div>
 
-        {/* Breakdown - Only show in solo or if finished */}
+        {/* Breakdown */}
         <h3 className="text-2xl font-bold mb-6 px-4 opacity-90">Question Breakdown</h3>
         <div className="space-y-4">
           {quiz.questions.map((q, index) => {

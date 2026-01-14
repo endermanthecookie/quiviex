@@ -30,7 +30,6 @@ import { exportQuizToQZX, exportAllQuizzesToZip } from './services/exportService
 import { supabase, checkSupabaseConnection } from './services/supabase';
 import { sfx } from './services/soundService';
 
-// Localization Imports
 import en from './lang/english';
 import nl from './lang/dutch';
 import de from './lang/german';
@@ -43,7 +42,6 @@ import br from './lang/brazilian';
 import zh from './lang/chinese';
 import it from './lang/italian';
 
-// Exact mapping to requested IDs
 const translations: Record<string, any> = { 
     en, 
     nl, 
@@ -106,16 +104,12 @@ export default function App() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   
-  // Initial language state detection
   const [language, setLanguage] = useState(() => {
       const browserLang = navigator.language;
       const supported = Object.keys(translations);
-      
       if (supported.includes(browserLang)) return browserLang;
-      
       const short = browserLang.split('-')[0];
       if (supported.includes(short)) return short;
-      
       return 'en';
   });
 
@@ -289,12 +283,10 @@ export default function App() {
     } catch (error) { console.error(error); } finally { setIsLoading(false); }
   };
 
-  const handleStatUpdate = (type: 'create' | 'ai_img' | 'ai_quiz') => {
+  const handleStatUpdate = (type: 'create') => {
     if (!user) return;
     const updatedStats = { ...user.stats };
     if (type === 'create') updatedStats.quizzesCreated++;
-    if (type === 'ai_img') updatedStats.aiImagesGenerated++;
-    if (type === 'ai_quiz') updatedStats.aiQuizzesGenerated++;
     persistUser({ ...user, stats: updatedStats });
   };
 
@@ -337,7 +329,6 @@ export default function App() {
               background_music: quiz.backgroundMusic, 
               visibility: quiz.visibility,
               is_sensitive: quiz.isSensitive
-              // Removed redundant snapshot columns missing in some schemas
           };
           let error;
           if (activeQuiz && activeQuiz.id && activeQuiz.userId === user.id) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Quiz, Question, Room, User } from '../types';
 import { Logo } from './Logo';
-import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame, X, MousePointerClick, Hourglass, ArrowRight, Loader2, Sparkles, MessageSquare, Brain } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame, X, MousePointerClick, Hourglass, ArrowRight, Loader2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { sfx } from '../services/soundService';
 
@@ -48,6 +48,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const [isCorrectFeedback, setIsCorrectFeedback] = useState<boolean | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [sessionPoints, setSessionPoints] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0); // Added to fix counting bug
   const [lastPointsGained, setLastPointsGained] = useState(0);
   const [streak, setStreak] = useState(0);
   const [startCountdown, setStartCountdown] = useState(3);
@@ -63,6 +64,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const [draggedOrderIndex, setDraggedOrderIndex] = useState<number | null>(null);
   const [draggedMatchItem, setDraggedMatchItem] = useState<string | null>(null);
   const [selectedMatchItem, setSelectedMatchItem] = useState<string | null>(null);
+  const [selectedBlankOption, setSelectedBlankOption] = useState<number | null>(null);
   const [draggedBlankOptionIndex, setDraggedBlankOptionIndex] = useState<number | null>(null);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -70,7 +72,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
   const startTimeRef = useRef<number>(0);
   const isHost = user?.id === room?.hostId;
-  const [totalParticipants, setTotalParticipants] = useState(0);
   const totalParticipantsRef = useRef(0);
 
   const getGuestId = () => sessionStorage.getItem('qx_guest_id') || 'guest';
@@ -159,7 +160,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       const { data } = await supabase.from('room_participants').select('id, user_id, username, score').eq('room_id', room.id).order('score', { ascending: false });
       if (data) {
           setRoomLeaderboard(data);
-          setTotalParticipants(data.length);
           totalParticipantsRef.current = data.length;
       }
   };
@@ -170,7 +170,8 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       userAnswersRef.current.forEach((ans, idx) => {
           if (shuffledQuestions[idx]) finalAnswers[shuffledQuestions[idx].originalIndex] = ans;
       });
-      onComplete(finalAnswers, sessionPoints, sessionPoints);
+      // FIX: Pass correctCount as score instead of sessionPoints
+      onComplete(finalAnswers, correctCount, sessionPoints);
   };
 
   const handleHostNextQuestion = async () => {
@@ -246,6 +247,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       if (q.type === 'fill-in-the-blank') {
           const blanksCount = (q.question.match(/\[\s*\]/g) || []).length;
           setBlankAnswers(new Array(blanksCount).fill(null));
+          setSelectedBlankOption(null);
       }
   };
 
@@ -324,7 +326,13 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
         }
     }
     
-    if (isCorrect) sfx.play('correct'); else sfx.play('wrong');
+    if (isCorrect) {
+        sfx.play('correct');
+        setCorrectCount(prev => prev + 1); // Increment actual correct answer count
+    } else {
+        sfx.play('wrong');
+    }
+
     const pointsGained = calculatePoints(isCorrect, timeTaken, currentQuestion.timeLimit, multiplier);
     setSessionPoints(prev => prev + pointsGained);
     setLastPointsGained(pointsGained);
@@ -418,6 +426,26 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
           setDraggedMatchItem(null); setSelectedMatchItem(null);
       }
   };
+
+  const handleBlankOptionClick = (idx: number) => {
+      if (selectedBlankOption === idx) setSelectedBlankOption(null);
+      else setSelectedBlankOption(idx);
+  };
+
+  const handleBlankTargetClick = (blankIdx: number) => {
+      if (selectedBlankOption !== null) {
+          const newAnswers = [...blankAnswers];
+          newAnswers[blankIdx] = selectedBlankOption;
+          setBlankAnswers(newAnswers);
+          setSelectedBlankOption(null);
+      } else if (blankAnswers[blankIdx] !== null) {
+          // If tapping an already filled blank without a selection, clear it
+          const newAnswers = [...blankAnswers];
+          newAnswers[blankIdx] = null;
+          setBlankAnswers(newAnswers);
+      }
+  };
+
   const handleBlankOptionDragStart = (optIndex: number) => setDraggedBlankOptionIndex(optIndex);
   const handleBlankDrop = (blankIndex: number) => {
       if (draggedBlankOptionIndex !== null) {
@@ -481,14 +509,24 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                               {parts.map((part, i) => {
                                   if (part.match(/\[\s*\]/)) {
                                       const currentIndex = blankCounter++; const filledOptIndex = blankAnswers[currentIndex];
-                                      return ( <span key={i} onDragOver={(e) => e.preventDefault()} onDrop={() => handleBlankDrop(currentIndex)} onClick={() => { const newAnswers = [...blankAnswers]; newAnswers[currentIndex] = null; setBlankAnswers(newAnswers); }} className={`inline-flex items-center justify-center min-w-[120px] h-14 mx-2 align-middle border-b-4 border-dashed rounded-lg transition-all cursor-pointer ${filledOptIndex !== null ? 'bg-indigo-500 border-indigo-400 text-white px-4 border-solid shadow-lg scale-110' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}> {filledOptIndex !== null ? currentQuestion.options[filledOptIndex] : ''} </span> );
+                                      return ( <span key={i} onDragOver={(e) => e.preventDefault()} onDrop={() => handleBlankDrop(currentIndex)} onClick={() => handleBlankTargetClick(currentIndex)} className={`inline-flex items-center justify-center min-w-[120px] h-14 mx-2 align-middle border-b-4 border-dashed rounded-lg transition-all cursor-pointer ${filledOptIndex !== null ? 'bg-indigo-500 border-indigo-400 text-white px-4 border-solid shadow-lg scale-110' : selectedBlankOption !== null ? 'bg-indigo-500/20 border-indigo-500/30 animate-pulse' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}> {filledOptIndex !== null ? currentQuestion.options[filledOptIndex] : ''} </span> );
                                   }
                                   return <span key={i}>{part}</span>;
                               })}
                           </div>
                       </div>
                       <div className="flex flex-wrap justify-center gap-4">
-                          {currentQuestion.options.map((opt, i) => ( <div key={i} draggable onDragStart={() => handleBlankOptionDragStart(i)} className="px-8 py-4 rounded-2xl font-black text-lg transition-all cursor-grab active:cursor-grabbing shadow-lg border-b-4 bg-white text-slate-900 border-slate-300 hover:-translate-y-1 hover:shadow-xl active:scale-95"> {opt} </div> ))}
+                          {currentQuestion.options.map((opt, i) => ( 
+                            <div 
+                                key={i} 
+                                draggable 
+                                onDragStart={() => handleBlankOptionDragStart(i)} 
+                                onClick={() => handleBlankOptionClick(i)}
+                                className={`px-8 py-4 rounded-2xl font-black text-lg transition-all cursor-pointer active:scale-95 shadow-lg border-b-4 ${selectedBlankOption === i ? 'bg-indigo-600 text-white border-indigo-800 scale-110 ring-4 ring-white/20' : 'bg-white text-slate-900 border-slate-300 hover:-translate-y-1 hover:shadow-xl'}`}
+                            > 
+                                {opt} 
+                            </div> 
+                          ))}
                       </div>
                       <div className="text-center">
                         <button onClick={() => submitAnswer(blankAnswers)} disabled={blankAnswers.some(a => a === null)} className="px-12 py-5 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale transition-all hover:bg-indigo-500">Submit Answer</button>
