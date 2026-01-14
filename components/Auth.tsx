@@ -58,15 +58,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
     setIsLoading(true);
     try {
       let loginEmail = identifier.trim();
-      
-      // If not an email, assume it's a username and find the email
       if (!loginEmail.includes('@')) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('email, warnings, suspended_until')
-          .ilike('username', loginEmail)
-          .maybeSingle();
-        
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('email, warnings, suspended_until').ilike('username', loginEmail).maybeSingle();
         if (profileError || !profile) throw new Error('Account not found.');
         
         // Strike 2 Suspension Check
@@ -83,22 +76,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
         loginEmail = profile.email;
       }
       
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ 
-        email: loginEmail, 
-        password 
-      });
-
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
       if (signInError) throw signInError;
-
       if (data.user) {
           const userProfile = await fetchUserProfile(data.user.id);
           if (userProfile) onLogin(userProfile);
       }
-    } catch (err: any) { 
-      setError(err.message || 'Invalid credentials'); 
-    } finally { 
-      setIsLoading(false); 
-    }
+    } catch (err: any) { setError(err.message || 'Invalid credentials'); } finally { setIsLoading(false); }
   };
 
   return (
@@ -117,7 +101,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
         </div>
 
         {suspension && (
-            <div className="w-full bg-rose-50 border-2 border-rose-100 p-6 rounded-[2rem] mb-8 animate-in bounce-in">
+            <div className="w-full bg-rose-50 border-2 border-rose-100 p-6 rounded-[2.5rem] mb-8 animate-in bounce-in">
                 <div className="flex items-center gap-4 text-rose-600 mb-2">
                     <Ban size={24} />
                     <span className="font-black uppercase tracking-widest text-sm">Access Revoked</span>
@@ -129,72 +113,21 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
             </div>
         )}
 
-        {error && !suspension && (
-          <div className="w-full bg-rose-50 text-rose-500 p-4 rounded-2xl mb-6 text-xs font-black border border-rose-100 flex items-center gap-3 justify-center animate-in slide-in-from-top-1">
-            <AlertTriangle size={18} />
-            {error}
-          </div>
-        )}
+        {error && !suspension && <div className="w-full bg-rose-50 text-rose-500 p-4 rounded-2xl mb-6 text-xs font-black border border-rose-100 flex items-center gap-3 justify-center"><AlertTriangle size={18} />{error}</div>}
 
         <form onSubmit={handleLogin} className="w-full space-y-4 relative z-10">
             {mode === 'login' && !suspension && (
                 <>
-                <div className="space-y-4">
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      placeholder={t('auth.username') + " / " + t('auth.email')} 
-                      value={identifier} 
-                      onChange={(e) => setIdentifier(e.target.value)} 
-                      className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" 
-                      required 
-                    />
-                  </div>
-                  <div className="relative">
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        placeholder={t('auth.password')} 
-                        value={password} 
-                        onChange={(e) => setPassword(e.target.value)} 
-                        className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" 
-                        required 
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => setShowPassword(!showPassword)} 
-                        className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-indigo-600 transition-colors"
-                      >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                  </div>
+                <input type="text" placeholder={t('auth.username') + " / " + t('auth.email')} value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" required />
+                <div className="relative">
+                    <input type={showPassword ? "text" : "password"} placeholder={t('auth.password')} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" required />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-indigo-600">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
                 </div>
-                
-                <button 
-                  type="submit" 
-                  disabled={isLoading || !isFormValid} 
-                  className="w-full h-14 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 click-scale shadow-lg transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50"
-                >
+                <button type="submit" disabled={isLoading || !isFormValid} className="w-full h-14 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 click-scale shadow-lg transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50">
                     {isLoading ? <Loader2 className="animate-spin" /> : <ArrowRight size={20} />} 
                     {t('auth.sign_in')}
                 </button>
-
-                <div className="pt-4 text-center">
-                  <button 
-                    type="button" 
-                    onClick={() => setMode('signup')} 
-                    className="text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:underline"
-                  >
-                    Don't have an account? Create one
-                  </button>
-                </div>
                 </>
-            )}
-            
-            {mode === 'signup' && (
-               <div className="text-center py-10">
-                 <p className="text-slate-400 font-bold">Sign up is currently restricted to invited architects.</p>
-                 <button onClick={() => setMode('login')} className="mt-4 text-indigo-600 font-black text-[10px] uppercase tracking-widest">Back to Login</button>
-               </div>
             )}
         </form>
       </div>

@@ -409,10 +409,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       setTempOrder(newOrder);
       setDraggedOrderIndex(index);
   };
-  const handleMatchSelect = (item: string) => { 
-    sfx.play('click');
-    if (selectedMatchItem === item) setSelectedMatchItem(null); else setSelectedMatchItem(item); 
-  };
+  const handleMatchSelect = (item: string) => { if (selectedMatchItem === item) setSelectedMatchItem(null); else setSelectedMatchItem(item); };
   const handleMatchDrop = (index: number) => {
       const itemToPlace = selectedMatchItem;
       if (itemToPlace) {
@@ -428,7 +425,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   };
 
   const handleBlankOptionClick = (idx: number) => {
-      sfx.play('click');
       if (selectedBlankOption === idx) setSelectedBlankOption(null);
       else setSelectedBlankOption(idx);
   };
@@ -473,7 +469,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 stagger-in">
                     {currentQuestion.options.map((opt, i) => (
-                        <button key={i} onClick={() => { if(timerActive) { sfx.play('click'); submitAnswer(i); } }} disabled={!timerActive} className={`glass p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] text-lg sm:text-xl font-black text-left flex items-center gap-4 sm:gap-6 group click-scale border border-white/10 transition-all ${zenMode ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'hover:bg-white/20 hover-lift'}`}>
+                        <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className={`glass p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] text-lg sm:text-xl font-black text-left flex items-center gap-4 sm:gap-6 group click-scale border border-white/10 transition-all ${zenMode ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'hover:bg-white/20 hover-lift'}`}>
                             <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black italic group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all ${zenMode ? 'bg-white/5 text-white/50' : 'bg-white/10 text-white/30 group-hover:rotate-12'}`}>{i+1}</div>
                             <span className="flex-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">{opt}</span>
                         </button>
@@ -487,7 +483,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                         <input type="text" value={tempInput} onChange={(e) => setTempInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && tempInput.trim() && submitAnswer(tempInput)} placeholder="Type answer..." className="w-full bg-black/40 backdrop-blur-xl border-4 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-10 pr-16 sm:pr-20 text-2xl sm:text-3xl font-black text-center focus:outline-none focus:border-indigo-500 transition-all mb-6 sm:mb-8 shadow-2xl text-white placeholder-white/30" autoFocus />
                         <button onClick={handleVoiceInput} className={`absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`} title="Voice Input"><Mic size={20} /></button>
                       </div>
-                      <button onClick={() => { sfx.play('click'); submitAnswer(tempInput); }} disabled={!tempInput.trim()} className="w-full py-5 sm:py-6 bg-indigo-600 rounded-[1.5rem] sm:rounded-3xl font-black text-lg sm:text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit</button>
+                      <button onClick={() => submitAnswer(tempInput)} disabled={!tempInput.trim()} className="w-full py-5 sm:py-6 bg-indigo-600 rounded-[1.5rem] sm:rounded-3xl font-black text-lg sm:text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit</button>
                   </div>
               );
           case 'fill-in-the-blank':
@@ -518,7 +514,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                           ))}
                       </div>
                       <div className="text-center">
-                        <button onClick={() => { sfx.play('click'); submitAnswer(blankAnswers); }} disabled={blankAnswers.some(a => a === null)} className="px-10 py-4 sm:px-12 sm:py-5 bg-indigo-600 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale transition-all hover:bg-indigo-500">Submit Answer</button>
+                        <button onClick={() => submitAnswer(blankAnswers)} disabled={blankAnswers.some(a => a === null)} className="px-10 py-4 sm:px-12 sm:py-5 bg-indigo-600 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale transition-all hover:bg-indigo-500">Submit Answer</button>
                       </div>
                   </div>
               );
@@ -543,7 +539,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                                   return ( <div key={i} onClick={() => handleMatchSelect(item)} className={`p-3 rounded-xl sm:rounded-2xl font-bold text-center shadow-lg cursor-pointer transition-transform border-b-4 flex items-center justify-center min-h-[50px] sm:min-h-[60px] relative text-xs sm:text-base ${isSelected ? 'bg-indigo-600 text-white border-indigo-800 scale-105 ring-2 ring-white' : 'bg-white text-slate-900 border-slate-200 hover:scale-105 active:scale-95'}`}> {isImage(item) ? <img src={item} className="max-w-full max-h-20 sm:max-h-24 object-contain rounded-lg" /> : item} {isSelected && <div className="absolute -top-2 -right-2 bg-white text-indigo-600 rounded-full p-1 shadow-md"><MousePointerClick size={10} /></div>} </div> )
                               })}
                           </div>
-                          <button onClick={() => { sfx.play('click'); submitAnswer(matchingState); }} className="w-full mt-6 sm:mt-8 py-3 sm:py-4 bg-indigo-600 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale hover:bg-indigo-500">Submit</button>
+                          <button onClick={() => submitAnswer(matchingState)} className="w-full mt-6 sm:mt-8 py-3 sm:py-4 bg-indigo-600 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale hover:bg-indigo-500">Submit</button>
                       </div>
                   </div>
               );
@@ -552,7 +548,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                   <div className="max-w-xl mx-auto w-full space-y-3 stagger-in">
                       {tempOrder.map((originalIdx, displayIdx) => (
                           <div key={originalIdx} draggable="true" onDragStart={() => handleOrderDragStart(displayIdx)} onDragOver={(e) => { e.preventDefault(); if (draggedOrderIndex === null || draggedOrderIndex === displayIdx) return; const n = [...tempOrder]; const d = n[draggedOrderIndex]; n.splice(draggedOrderIndex, 1); n.splice(displayIdx, 0, d); setTempOrder(n); setDraggedOrderIndex(displayIdx); }} onDragEnd={() => setDraggedOrderIndex(null)} className={`glass p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-white/10 flex items-center gap-4 sm:gap-6 cursor-grab active:cursor-grabbing transition-all ${draggedOrderIndex === displayIdx ? 'opacity-50 scale-95 border-indigo-500/50' : 'hover:bg-white/10 hover:shadow-lg'}`}> <div className="text-white/20"> <GripVertical size={24} /> </div> <span className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/10 flex items-center justify-center font-black text-indigo-400 border border-white/5 text-sm sm:text-base">{displayIdx + 1}</span> <span className="flex-1 font-bold text-sm sm:text-lg">{currentQuestion.options[originalIdx]}</span> </div> ))}
-                      <button onClick={() => { sfx.play('click'); submitAnswer(tempOrder); }} className="w-full py-5 sm:py-6 bg-indigo-600 rounded-[1.5rem] sm:rounded-3xl font-black text-lg sm:text-xl uppercase tracking-widest click-scale mt-6 sm:mt-8 shadow-xl hover:bg-indigo-500">Confirm Order</button>
+                      <button onClick={() => submitAnswer(tempOrder)} className="w-full py-5 sm:py-6 bg-indigo-600 rounded-[1.5rem] sm:rounded-3xl font-black text-lg sm:text-xl uppercase tracking-widest click-scale mt-6 sm:mt-8 shadow-xl hover:bg-indigo-500">Confirm Order</button>
                   </div>
               );
           case 'slider':
@@ -561,7 +557,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                   <div className="max-w-2xl mx-auto w-full stagger-in bg-black/40 backdrop-blur-xl p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] border border-white/10 shadow-2xl">
                       <div className="text-center mb-8 sm:mb-12"> <div className="text-5xl sm:text-7xl font-black text-indigo-400 mb-2 drop-shadow-[0_0_20px_rgba(129,140,241,0.5)] animate-pulse">{tempSlider}</div> </div>
                       <input type="range" min={min} max={max} value={tempSlider} onChange={(e) => setTempSlider(parseInt(e.target.value))} className="w-full h-3 sm:h-4 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-500 mb-8 sm:mb-12" />
-                      <button onClick={() => { sfx.play('click'); submitAnswer(tempSlider); }} className="w-full py-5 sm:py-6 bg-indigo-600 rounded-[1.5rem] sm:rounded-3xl font-black text-lg sm:text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit Value</button>
+                      <button onClick={() => submitAnswer(tempSlider)} className="w-full py-5 sm:py-6 bg-indigo-600 rounded-[1.5rem] sm:rounded-3xl font-black text-lg sm:text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit Value</button>
                   </div>
               );
           default: return <div className="text-center text-rose-500 font-black">Question Error</div>;

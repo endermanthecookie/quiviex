@@ -1,10 +1,11 @@
+
 import React, { useRef, useState } from 'react';
 
 interface TiltCardProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-  // Fix: Added style prop to TiltCardProps to resolve assignability error in QuizHome.tsx
+  // Added style property to support inline styles like animationDelay from parent components
   style?: React.CSSProperties;
 }
 
@@ -42,11 +43,11 @@ export const TiltCard: React.FC<TiltCardProps> = ({ children, className = '', on
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
       style={{ 
+        // Fixed: Merged external style with component's dynamic styles
+        ...style,
         transform, 
         boxShadow: shadow,
-        transformStyle: 'preserve-3d',
-        // Fix: spread the style prop onto the div
-        ...style
+        transformStyle: 'preserve-3d' 
       }}
     >
       {children}

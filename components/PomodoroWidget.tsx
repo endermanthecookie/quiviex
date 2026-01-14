@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, Timer, ChevronDown, CheckCircle2, Plus, Minus, Music, Volume2, Upload, X } from 'lucide-react';
 import { sfx } from '../services/soundService';
@@ -39,6 +40,12 @@ export const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ stopAudio }) => 
           audioRef.current.pause();
           setIsPlayingMusic(false);
       }
+      // Added: Cleanup to stop audio on unmount to prevent leaks and music playing during quizzes
+      return () => {
+          if (audioRef.current) {
+              audioRef.current.pause();
+          }
+      };
   }, [stopAudio]);
 
   useEffect(() => {
