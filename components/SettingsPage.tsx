@@ -111,7 +111,7 @@ export const SettingsPage: React.FC<any> = ({
 
   const handleLanguageChange = (newLang: string) => {
       setLanguage(newLang);
-      setGlobalLanguage(newLang); // Update UI instantly
+      setGlobalLanguage(newLang);
   };
 
   return (
@@ -129,7 +129,6 @@ export const SettingsPage: React.FC<any> = ({
       </div>
 
       <div className="max-w-3xl mx-auto p-6 space-y-8 pb-20 stagger-in">
-        {/* Localization Section */}
         <section className="bg-indigo-600 rounded-[2.5rem] p-8 shadow-xl shadow-indigo-100 border border-indigo-400 text-white">
             <div className="flex items-center gap-4 mb-6">
                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">

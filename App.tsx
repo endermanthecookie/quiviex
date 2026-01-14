@@ -43,7 +43,7 @@ import br from './lang/brazilian';
 import zh from './lang/chinese';
 import it from './lang/italian';
 
-// Mapping translations to the specific IDs provided by user
+// Exact mapping to requested IDs
 const translations: Record<string, any> = { 
     en, 
     nl, 
@@ -111,10 +111,8 @@ export default function App() {
       const browserLang = navigator.language;
       const supported = Object.keys(translations);
       
-      // Exact match (e.g. pt-BR, zh-CN)
       if (supported.includes(browserLang)) return browserLang;
       
-      // Partial match (e.g. 'en-US' -> 'en')
       const short = browserLang.split('-')[0];
       if (supported.includes(short)) return short;
       
@@ -145,7 +143,6 @@ export default function App() {
       if (current[key] !== undefined) {
         current = current[key];
       } else {
-        // Fallback to English if key missing in current language
         let fallback = translations['en'];
         for (const fKey of keys) {
             if (fallback && fallback[fKey] !== undefined) fallback = fallback[fKey];
@@ -280,12 +277,9 @@ export default function App() {
           warnings: data.warnings || 0
         };
         setUser(userData);
-        
-        // Use saved preference if available, otherwise stay with detected language
         if (userData.preferences?.language) {
             setLanguage(userData.preferences.language);
         }
-        
         sfx.setEnabled(userData.preferences?.soundEnabled ?? true);
         fetchQuizzes(userId);
         const isNewAccount = !data.username || data.username.startsWith('user_');
@@ -334,10 +328,16 @@ export default function App() {
       setIsLoading(true);
       try {
           const quizData = {
-              user_id: user.id, title: quiz.title, questions: quiz.questions,
-              theme: quiz.theme, custom_theme: quiz.customTheme, shuffle_questions: quiz.shuffleQuestions,
-              background_music: quiz.backgroundMusic, visibility: quiz.visibility,
-              is_sensitive: quiz.isSensitive, username_at_creation: user.username, avatar_url_at_creation: user.avatarUrl
+              user_id: user.id, 
+              title: quiz.title, 
+              questions: quiz.questions,
+              theme: quiz.theme, 
+              custom_theme: quiz.customTheme, 
+              shuffle_questions: quiz.shuffleQuestions,
+              background_music: quiz.backgroundMusic, 
+              visibility: quiz.visibility,
+              is_sensitive: quiz.isSensitive
+              // Removed redundant snapshot columns missing in some schemas
           };
           let error;
           if (activeQuiz && activeQuiz.id && activeQuiz.userId === user.id) {

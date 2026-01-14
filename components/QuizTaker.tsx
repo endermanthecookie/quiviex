@@ -71,6 +71,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
   const startTimeRef = useRef<number>(0);
   const isHost = user?.id === room?.hostId;
   const [totalParticipants, setTotalParticipants] = useState(0);
+  const totalParticipantsRef = useRef(0);
 
   const getGuestId = () => sessionStorage.getItem('qx_guest_id') || 'guest';
   const myId = user?.id || getGuestId();
@@ -103,10 +104,16 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                     const statuses = Object.values(playersAnswers);
                     const answeredCount = statuses.filter(s => s === 1).length;
                     
-                    // If everyone has answered (including solo players), trigger results
-                    if (totalParticipants > 0 && answeredCount >= totalParticipants) {
+                    // Always ensure we have at least 1 participant (the host)
+                    const required = Math.max(1, totalParticipantsRef.current);
+                    
+                    if (answeredCount >= required) {
                         setTimeout(async () => {
-                            await supabase.from('rooms').update({ status: 'results' }).eq('id', room.id);
+                            // Verify we are still in playing state before switching
+                            const { data: latest } = await supabase.from('rooms').select('status').eq('id', room.id).single();
+                            if (latest?.status === 'playing') {
+                                await supabase.from('rooms').update({ status: 'results' }).eq('id', room.id);
+                            }
                         }, 400);
                     }
                 }
@@ -150,7 +157,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               supabase.removeChannel(partSub);
           }
       }
-  }, [room?.id, isHost, currentQuestionIndex, totalParticipants, shuffledQuestions]);
+  }, [room?.id, isHost, currentQuestionIndex, shuffledQuestions]);
 
   const fetchLeaderboard = async () => {
       if (!room) return;
@@ -158,6 +165,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       if (data) {
           setRoomLeaderboard(data);
           setTotalParticipants(data.length);
+          totalParticipantsRef.current = data.length;
       }
   };
 
@@ -174,7 +182,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       if (!isHost || !room) return;
       const nextIdx = currentQuestionIndex + 1;
       
-      // Re-initialize players_answers map for the NEW question round
       const { data: currentPlayers } = await supabase.from('room_participants').select('user_id').eq('room_id', room.id);
       const resetAnswers: Record<string, number> = {};
       currentPlayers?.forEach(p => {
@@ -261,12 +268,24 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
   useEffect(() => {
     if (!timerActive || timeLeft === null || showExplanation || waitingForOthers) return;
-    if (timeLeft <= 0) { submitAnswer(-1); return; }
+    if (timeLeft <= 0) { 
+        submitAnswer(-1); 
+        // Force host to transition if time is out
+        if (isHost && room) {
+            setTimeout(async () => {
+                const { data } = await supabase.from('rooms').select('status').eq('id', room.id).single();
+                if (data?.status === 'playing') {
+                    await supabase.from('rooms').update({ status: 'results' }).eq('id', room.id);
+                }
+            }, 1000);
+        }
+        return; 
+    }
     const timer = window.setInterval(() => {
       setTimeLeft(p => p - 1);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [timeLeft, timerActive, showExplanation, waitingForOthers]);
+  }, [timeLeft, timerActive, showExplanation, waitingForOthers, isHost, room]);
 
   const calculatePoints = (isCorrect: boolean, timeTakenSeconds: number, timeLimit: number, multiplier: number = 1) => {
       if (!isCorrect && multiplier === 0) return 0;
@@ -329,11 +348,21 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
         const me = participants?.find(p => p.user_id === myId);
         if (me) await supabase.from('room_participants').update({ score: me.score + pointsGained }).eq('id', me.id);
 
-        // Commit answer status to registry
-        const { data: roomData } = await supabase.from('rooms').select('players_answers').eq('id', room.id).single();
-        const currentTracking = roomData?.players_answers || {};
-        currentTracking[myId] = 1;
-        await supabase.from('rooms').update({ players_answers: currentTracking }).eq('id', room.id);
+        // Commit answer status to registry with retry to handle race conditions
+        let success = false;
+        let attempts = 0;
+        while (!success && attempts < 5) {
+            const { data: roomData } = await supabase.from('rooms').select('players_answers').eq('id', room.id).single();
+            const currentTracking = roomData?.players_answers || {};
+            currentTracking[myId] = 1;
+            const { error } = await supabase.from('rooms').update({ players_answers: currentTracking }).eq('id', room.id);
+            if (!error) {
+                success = true;
+            } else {
+                attempts++;
+                await new Promise(r => setTimeout(r, Math.random() * 200));
+            }
+        }
     } else {
         if (user && pointsGained > 0) supabase.rpc('increment_user_points', { p_user_id: user.id, p_points: pointsGained });
         setShowExplanation(true);
