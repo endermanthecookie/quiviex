@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Quiz, QuizResult, User, UserStats, Achievement, Feedback, QXNotification, Room } from './types';
 import { QuizHome } from './components/QuizHome';
 import { QuizCreator } from './components/QuizCreator';
@@ -29,6 +29,48 @@ import { ShortcutsModal } from './components/ShortcutsModal';
 import { exportQuizToQZX, exportAllQuizzesToZip } from './services/exportService';
 import { supabase, checkSupabaseConnection } from './services/supabase';
 import { sfx } from './services/soundService';
+
+// Localization Imports
+import en from './lang/english';
+import nl from './lang/dutch';
+import de from './lang/german';
+import fr from './lang/french';
+import ja from './lang/japanese';
+import ko from './lang/korean';
+import es from './lang/spanish';
+import tr from './lang/turkish';
+import br from './lang/brazilian';
+import zh from './lang/chinese';
+import it from './lang/italian';
+
+// Mapping translations to the specific IDs provided by user
+const translations: Record<string, any> = { 
+    en, 
+    nl, 
+    de, 
+    fr, 
+    ja, 
+    ko, 
+    es, 
+    'pt-BR': br, 
+    it, 
+    tr, 
+    'zh-CN': zh 
+};
+
+interface LanguageContextType {
+  t: (key: string) => string;
+  language: string;
+  setLanguage: (lang: string) => void;
+}
+
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+export const useTranslation = () => {
+  const context = useContext(LanguageContext);
+  if (!context) throw new Error("useTranslation must be used within LanguageProvider");
+  return context;
+};
 
 type ViewState = 'landing' | 'auth' | 'home' | 'create' | 'take' | 'results' | 'study' | 'achievements' | 'history' | 'focus' | 'settings' | 'community' | 'admin' | 'multiplayer_lobby' | 'leaderboard' | 'join_pin' | 'onboarding' | 'not_found' | 'profile_view';
 
@@ -63,6 +105,21 @@ export default function App() {
   const [activeLegalModal, setActiveLegalModal] = useState<'terms' | 'guidelines' | 'privacy' | null>(null);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  
+  // Initial language state detection
+  const [language, setLanguage] = useState(() => {
+      const browserLang = navigator.language;
+      const supported = Object.keys(translations);
+      
+      // Exact match (e.g. pt-BR, zh-CN)
+      if (supported.includes(browserLang)) return browserLang;
+      
+      // Partial match (e.g. 'en-US' -> 'en')
+      const short = browserLang.split('-')[0];
+      if (supported.includes(short)) return short;
+      
+      return 'en';
+  });
 
   useEffect(() => {
     checkSupabaseConnection().then(res => {
@@ -71,12 +128,6 @@ export default function App() {
     fetchAchievementDefinitions();
     handleUrlRouting();
     
-    // Handle back button
-    window.onpopstate = () => {
-        handleUrlRouting();
-    };
-
-    // Global Shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault();
@@ -86,6 +137,25 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  const t = (keyPath: string): string => {
+    const keys = keyPath.split('.');
+    let current = translations[language] || translations['en'];
+    for (const key of keys) {
+      if (current[key] !== undefined) {
+        current = current[key];
+      } else {
+        // Fallback to English if key missing in current language
+        let fallback = translations['en'];
+        for (const fKey of keys) {
+            if (fallback && fallback[fKey] !== undefined) fallback = fallback[fKey];
+            else return keyPath;
+        }
+        return typeof fallback === 'string' ? fallback : keyPath;
+      }
+    }
+    return typeof current === 'string' ? current : keyPath;
+  };
 
   const safePushState = (path: string) => {
       try {
@@ -104,9 +174,7 @@ export default function App() {
 
       if (path === 'community') {
           const quizId = segments[1];
-          if (quizId && !isNaN(Number(quizId))) {
-              setInitialCommunityQuizId(Number(quizId));
-          }
+          if (quizId && !isNaN(Number(quizId))) setInitialCommunityQuizId(Number(quizId));
           setView('community');
           return;
       }
@@ -114,45 +182,21 @@ export default function App() {
       if (path === 'profiles') {
           let identifier = segments[1];
           if (identifier) {
-              // Handle Vanity URL format: /profiles/@username
               if (identifier.startsWith('@')) {
                   const username = decodeURIComponent(identifier.substring(1));
-                  const { data, error } = await supabase
-                    .from('profiles')
-                    .select('user_id')
-                    .ilike('username', username)
-                    .maybeSingle();
-
-                  if (data) {
-                      setTargetProfileId(data.user_id);
-                  } else {
-                      setView('not_found');
-                      return;
-                  }
-              } else {
-                  // Handle standard UUID format: /profiles/uuid
-                  setTargetProfileId(identifier);
-              }
+                  const { data } = await supabase.from('profiles').select('user_id').ilike('username', username).maybeSingle();
+                  if (data) setTargetProfileId(data.user_id);
+                  else { setView('not_found'); return; }
+              } else setTargetProfileId(identifier);
               setView('profile_view');
               return;
           }
       }
 
       const validStates = ['home', 'community', 'leaderboard', 'achievements', 'history', 'settings', 'focus', 'admin'];
-      if (validStates.includes(path)) {
-          setView(path as ViewState);
-          return;
-      }
-
-      if (path === 'login' || path === 'auth') {
-          setView('auth');
-          return;
-      }
-
-      if (path === 'code' || path === 'join') {
-          setView('join_pin');
-          return;
-      }
+      if (validStates.includes(path)) { setView(path as ViewState); return; }
+      if (path === 'login' || path === 'auth') { setView('auth'); return; }
+      if (path === 'code' || path === 'join') { setView('join_pin'); return; }
 
       if (path.length === 6 && /^\d+$/.test(path)) {
           const { data: room } = await supabase.from('rooms').select('*').eq('pin', path).eq('status', 'waiting').single();
@@ -202,9 +246,7 @@ export default function App() {
         if (session) {
           await fetchProfile(session.user.id, session.user.email || '');
           fetchNotifications(session.user.id);
-        } else {
-          setIsLoading(false);
-        }
+        } else setIsLoading(false);
     };
     handleAuth();
 
@@ -217,7 +259,7 @@ export default function App() {
         setNotifications([]);
         setIsLoading(false);
         const segments = window.location.pathname.split('/').filter(Boolean);
-        if (segments[0] !== 'login' && segments[0] !== 'code' && segments[0] !== 'auth' && segments[0] !== 'community' && segments[0] !== 'profiles') {
+        if (!['login', 'code', 'auth', 'community', 'profiles'].includes(segments[0] || '')) {
           const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view', 'take', 'results'];
           if (!publicViews.includes(view)) setView('landing');
         }
@@ -238,6 +280,12 @@ export default function App() {
           warnings: data.warnings || 0
         };
         setUser(userData);
+        
+        // Use saved preference if available, otherwise stay with detected language
+        if (userData.preferences?.language) {
+            setLanguage(userData.preferences.language);
+        }
+        
         sfx.setEnabled(userData.preferences?.soundEnabled ?? true);
         fetchQuizzes(userId);
         const isNewAccount = !data.username || data.username.startsWith('user_');
@@ -281,20 +329,6 @@ export default function App() {
     } catch (e: any) { alert(e.message || "Failed to create lobby."); } finally { setIsLoading(false); }
   };
 
-  const handleRemixQuiz = (quiz: Quiz) => {
-      const remixedQuiz: Quiz = {
-          ...quiz,
-          id: Date.now(),
-          title: `Remix: ${quiz.title}`,
-          userId: user?.id || '',
-          visibility: 'private',
-          questions: quiz.questions.map(q => ({...q})),
-          createdAt: new Date().toISOString()
-      };
-      setActiveQuiz(remixedQuiz);
-      setView('create');
-  };
-
   const handleSaveQuiz = async (quiz: Quiz) => {
       if (!user) return;
       setIsLoading(true);
@@ -320,26 +354,35 @@ export default function App() {
       } catch (e: any) { alert("Infrastructure error: " + e.message); } finally { setIsLoading(false); }
   };
 
+  const handleFeedbackSubmit = async (fb: Feedback) => {
+    try {
+      const { error } = await supabase.from('feedback').insert({
+        user_id: fb.userId,
+        username: fb.username,
+        type: fb.type,
+        content: fb.content,
+        status: fb.status
+      });
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("Error submitting feedback:", e);
+      throw e;
+    }
+  };
+
   const persistUser = async (updatedUser: User) => {
     setUser(updatedUser);
+    setLanguage(updatedUser.preferences?.language || language);
     sfx.setEnabled(updatedUser.preferences?.soundEnabled ?? true);
     try {
       await supabase.from('profiles').update({
         username: updatedUser.username, stats: updatedUser.stats, history: updatedUser.history,
         preferences: updatedUser.preferences, saved_quiz_ids: updatedUser.savedQuizIds, 
-        avatar_url: updatedUser.avatarUrl, has_seen_tutorial: updatedUser.hasSeenTutorial, updated_at: new Date().toISOString()
+        avatar_url: updatedUser.avatarUrl, 
+        has_seen_tutorial: updatedUser.hasSeenTutorial, 
+        updated_at: new Date().toISOString()
       }).eq('user_id', updatedUser.id);
     } catch (error) { console.error(error); }
-  };
-
-  const handleFeedbackSubmit = async (feedback: Feedback) => {
-    try {
-        const { error } = await supabase.from('feedback').insert({
-            user_id: feedback.userId, username: feedback.username, type: feedback.type,
-            content: feedback.content, status: feedback.status
-        });
-        if (error) throw error;
-    } catch (e: any) { console.error(e); throw e; }
   };
 
   const handleCommandNavigate = (target: string) => {
@@ -356,9 +399,8 @@ export default function App() {
       if (dbError) return <div className="p-20 text-center text-red-500 font-bold">{dbError}</div>;
       if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse text-2xl tracking-tighter">Quiviex...</div>;
       const publicViews = ['landing', 'auth', 'community', 'multiplayer_lobby', 'join_pin', 'not_found', 'profile_view', 'take', 'results'];
-      if (!user && !publicViews.includes(view)) {
-          return <LandingPage onGetStarted={() => { safePushState('/login'); setView('auth'); }} onExplore={() => { safePushState('/community'); setView('community'); }} onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} onShowLegal={(type) => setActiveLegalModal(type)} />;
-      }
+      if (!user && !publicViews.includes(view)) return <LandingPage onGetStarted={() => { safePushState('/login'); setView('auth'); }} onExplore={() => { safePushState('/community'); setView('community'); }} onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} onShowLegal={(type) => setActiveLegalModal(type)} />;
+      
       switch(view) {
           case 'home': return <QuizHome quizzes={quizzes} savedQuizzes={savedQuizzes} user={user!} notifications={notifications} onMarkNotificationRead={() => {}} onClearNotifications={() => {}} onStartQuiz={(q) => { setActiveQuiz(q); setView('take'); }} onStartStudy={(q) => { setActiveQuiz(q); setView('study'); }} onCreateNew={() => { setActiveQuiz(null); setView('create'); }} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} onDeleteQuiz={() => {}} onLogout={async () => { await supabase.auth.signOut(); safePushState('/'); setView('landing'); }} onViewAchievements={() => setView('achievements')} onViewHistory={() => setView('history')} onStartFocus={() => setView('focus')} onViewSettings={() => setView('settings')} onExportQuiz={(q) => exportQuizToQZX(q)} onImportQuiz={() => {}} onViewCommunity={() => { safePushState('/community'); setView('community'); }} onOpenFeedback={() => setShowFeedbackModal(true)} onViewAdmin={() => setView('admin')} onHostSession={handleHostSession} onViewLeaderboard={() => setView('leaderboard')} onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} />;
           case 'create': return <QuizCreator initialQuiz={activeQuiz} currentUser={user!} onSave={handleSaveQuiz} onExit={() => setView('home')} startWithTutorial={!user!.hasSeenTutorial} onOpenSettings={() => setView('settings')} onStatUpdate={handleStatUpdate} onRefreshProfile={() => fetchProfile(user!.id, user!.email)} />;
@@ -374,7 +416,7 @@ export default function App() {
           case 'history': return <HistoryPage user={user!} onBack={() => setView('home')} />;
           case 'focus': return <FocusMode user={user!} quizzes={quizzes} onBack={() => setView('home')} onStartQuiz={(quiz) => { setActiveQuiz(quiz); setView('take'); }} />;
           case 'settings': return <SettingsPage user={user!} onBack={() => setView('home')} onUpdateProfile={(p: any) => persistUser({...user!, ...p})} onExportAll={() => exportAllQuizzesToZip(quizzes)} onDeleteAccount={() => {}} onOpenShortcuts={() => setShowShortcutsModal(true)} />;
-          case 'community': return <CommunityPage user={user} onBack={() => { if (user) { setView('home'); safePushState('/'); } else { setView('landing'); safePushState('/'); } }} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} initialQuizId={initialCommunityQuizId} onRemixQuiz={handleRemixQuiz} />;
+          case 'community': return <CommunityPage user={user} onBack={() => { if (user) { setView('home'); safePushState('/'); } else { setView('landing'); safePushState('/'); } }} onPlayQuiz={(q) => { setActiveQuiz(q); setView('take'); }} initialQuizId={initialCommunityQuizId} onRemixQuiz={(q) => { const remixed: Quiz = { ...q, id: Date.now(), title: `Remix: ${q.title}`, userId: user?.id || '', visibility: 'private', questions: q.questions.map(qu => ({...qu})), createdAt: new Date().toISOString() }; setActiveQuiz(remixed); setView('create'); }} />;
           case 'study': return activeQuiz ? <FlashcardViewer quiz={activeQuiz} onExit={() => setView('home')} /> : null;
           case 'admin': return <AdminDashboard onBack={() => setView('home')} onEditQuiz={(q) => { setActiveQuiz(q); setView('create'); }} />;
           case 'landing': return <LandingPage onGetStarted={() => { safePushState('/login'); setView('auth'); }} onExplore={() => { safePushState('/community'); setView('community'); }} onJoinGame={() => { safePushState('/join'); setView('join_pin'); }} onShowLegal={(type) => setActiveLegalModal(type)} />;
@@ -385,14 +427,16 @@ export default function App() {
 
   const theme = (user && THEMES[user?.preferences?.appTheme || 'light']) || THEMES.light;
   return (
-    <div className={`min-h-screen transition-all duration-500 bg-gradient-to-br ${theme.gradient} ${theme.text}`}>
-        <NotificationToast title={notification?.title || ''} message={notification?.message || ''} isVisible={showNotification} onClose={() => setShowNotification(false)} />
-        {showFeedbackModal && user && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} onSubmit={handleFeedbackSubmit} />}
-        {activeLegalModal && <LegalModal type={activeLegalModal} onClose={() => setActiveLegalModal(null)} />}
-        {showShortcutsModal && <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
-        <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} onNavigate={handleCommandNavigate} />
-        {user && view !== 'take' && <PomodoroWidget stopAudio={view === 'focus'} />}
-        <div key={view} className="view-transition">{renderContent()}</div>
-    </div>
+    <LanguageContext.Provider value={{ t, language, setLanguage }}>
+        <div className={`min-h-screen transition-all duration-500 bg-gradient-to-br ${theme.gradient} ${theme.text}`}>
+            <NotificationToast title={notification?.title || ''} message={notification?.message || ''} isVisible={showNotification} onClose={() => setShowNotification(false)} />
+            {showFeedbackModal && user && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} onSubmit={handleFeedbackSubmit} />}
+            {activeLegalModal && <LegalModal type={activeLegalModal} onClose={() => setActiveLegalModal(null)} />}
+            {showShortcutsModal && <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
+            <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} onNavigate={handleCommandNavigate} />
+            {user && view !== 'take' && <PomodoroWidget stopAudio={view === 'focus'} />}
+            <div key={view} className="view-transition">{renderContent()}</div>
+        </div>
+    </LanguageContext.Provider>
   );
 }

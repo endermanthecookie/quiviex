@@ -70,6 +70,7 @@ export interface UserPreferences {
   appTheme?: string;
   customThemeData?: CustomTheme; 
   soundEnabled?: boolean;
+  language?: string;
 }
 
 export interface User {
@@ -97,7 +98,6 @@ export interface Room {
     createdAt: string;
 }
 
-// Added Participant interface to resolve missing exported member error in MultiplayerLobby.tsx
 export interface Participant {
   id: string;
   username: string;

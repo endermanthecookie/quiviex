@@ -98,15 +98,16 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                 const newIndex = payload.new.current_question_index;
                 const playersAnswers = payload.new.players_answers || {};
                 
-                // HOST LOGIC: Check if EVERYONE'S status in the JSON is 1
+                // HOST LOGIC: Synchronize results transition
                 if (isHost && newStatus === 'playing') {
                     const statuses = Object.values(playersAnswers);
-                    const allAnswered = statuses.length > 0 && statuses.every(s => s === 1);
+                    const answeredCount = statuses.filter(s => s === 1).length;
                     
-                    if (allAnswered) {
+                    // If everyone has answered (including solo players), trigger results
+                    if (totalParticipants > 0 && answeredCount >= totalParticipants) {
                         setTimeout(async () => {
                             await supabase.from('rooms').update({ status: 'results' }).eq('id', room.id);
-                        }, 500);
+                        }, 400);
                     }
                 }
 
@@ -173,7 +174,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       if (!isHost || !room) return;
       const nextIdx = currentQuestionIndex + 1;
       
-      // Initialize players_answers map for the NEW question round
+      // Re-initialize players_answers map for the NEW question round
       const { data: currentPlayers } = await supabase.from('room_participants').select('user_id').eq('room_id', room.id);
       const resetAnswers: Record<string, number> = {};
       currentPlayers?.forEach(p => {
@@ -323,10 +324,12 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
     if (room) {
         setWaitingForOthers(true);
+        // Register personal score
         const { data: participants } = await supabase.from('room_participants').select('*').eq('room_id', room.id);
         const me = participants?.find(p => p.user_id === myId);
         if (me) await supabase.from('room_participants').update({ score: me.score + pointsGained }).eq('id', me.id);
 
+        // Commit answer status to registry
         const { data: roomData } = await supabase.from('rooms').select('players_answers').eq('id', room.id).single();
         const currentTracking = roomData?.players_answers || {};
         currentTracking[myId] = 1;
@@ -416,7 +419,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                       </div>
                       <h3 className="text-3xl font-black text-white mb-2 tracking-tight">Syncing Results</h3>
                       <p className="text-indigo-200 font-bold uppercase tracking-[0.2em] text-xs text-center leading-relaxed">
-                        Waiting for other units <br/> to commit their data...
+                        Waiting for all units <br/> to commit their data...
                       </p>
                   </div>
               </div>
