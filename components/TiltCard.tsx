@@ -4,9 +4,11 @@ interface TiltCardProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
+  // Fix: Added style prop to TiltCardProps to resolve assignability error in QuizHome.tsx
+  style?: React.CSSProperties;
 }
 
-export const TiltCard: React.FC<TiltCardProps> = ({ children, className = '', onClick }) => {
+export const TiltCard: React.FC<TiltCardProps> = ({ children, className = '', onClick, style }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState('');
   const [shadow, setShadow] = useState('');
@@ -42,7 +44,9 @@ export const TiltCard: React.FC<TiltCardProps> = ({ children, className = '', on
       style={{ 
         transform, 
         boxShadow: shadow,
-        transformStyle: 'preserve-3d' 
+        transformStyle: 'preserve-3d',
+        // Fix: spread the style prop onto the div
+        ...style
       }}
     >
       {children}
