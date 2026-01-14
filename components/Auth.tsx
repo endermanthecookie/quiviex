@@ -1,10 +1,8 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { User } from '../types';
 import { Lock, Mail, Eye, EyeOff, Loader2, ArrowRight, User as UserIcon, CheckCircle2, AlertTriangle, Home, Calendar, ShieldX, CheckCircle, Zap, ShieldCheck, Github, Key as KeyIcon, Hash, Shield, Ban } from 'lucide-react';
 import { Logo } from './Logo';
 import { supabase } from '../services/supabase';
-import ReCAPTCHA from 'react-google-recaptcha';
 import { useTranslation } from '../App';
 
 interface AuthProps {
@@ -23,11 +21,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [otpCode, setOtpCode] = useState('');
   const [birthday, setBirthday] = useState('');
-  const [isUnder13, setIsUnder13] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [suspension, setSuspension] = useState<{ daysLeft: number } | null>(null);
@@ -36,9 +31,25 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
   const isFormValid = useMemo(() => {
     if (mode === 'login') return identifier.length > 0 && password.length > 0;
     if (mode === 'forgot') return email.includes('@');
-    if (mode === 'verify_otp') return otpCode.length === 8 && password.length >= 8 && password === confirmPassword;
     return (username.length >= 3 && birthday !== '' && password.length >= 8 && password === confirmPassword && acceptedTerms);
-  }, [mode, username, birthday, email, password, confirmPassword, acceptedTerms, identifier, otpCode]);
+  }, [mode, username, birthday, email, password, confirmPassword, acceptedTerms, identifier]);
+
+  const fetchUserProfile = async (userId: string) => {
+    const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', userId).single();
+    if (!profile) return null;
+    return {
+      id: profile.user_id,
+      username: profile.username,
+      email: profile.email,
+      avatarUrl: profile.avatar_url,
+      stats: profile.stats || {},
+      achievements: profile.achievements || [],
+      history: profile.history || [],
+      preferences: profile.preferences || {},
+      savedQuizIds: profile.saved_quiz_ids || [],
+      warnings: profile.warnings || 0
+    } as User;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,12 +58,19 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
     setIsLoading(true);
     try {
       let loginEmail = identifier.trim();
+      
+      // If not an email, assume it's a username and find the email
       if (!loginEmail.includes('@')) {
-        const { data: profile } = await supabase.from('profiles').select('email, warnings, suspended_until').ilike('username', loginEmail).single();
-        if (!profile) throw new Error('Account not found.');
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('email, warnings, suspended_until')
+          .ilike('username', loginEmail)
+          .maybeSingle();
+        
+        if (profileError || !profile) throw new Error('Account not found.');
         
         // Strike 2 Suspension Check
-        if (profile.warnings === 2 && profile.suspended_until) {
+        if (profile.warnings >= 2 && profile.suspended_until) {
             const until = new Date(profile.suspended_until);
             if (until > new Date()) {
                 const diff = until.getTime() - new Date().getTime();
@@ -65,9 +83,22 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
         loginEmail = profile.email;
       }
       
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ 
+        email: loginEmail, 
+        password 
+      });
+
       if (signInError) throw signInError;
-    } catch (err: any) { setError(err.message || 'Invalid credentials'); } finally { setIsLoading(false); }
+
+      if (data.user) {
+          const userProfile = await fetchUserProfile(data.user.id);
+          if (userProfile) onLogin(userProfile);
+      }
+    } catch (err: any) { 
+      setError(err.message || 'Invalid credentials'); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   return (
@@ -94,25 +125,76 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
                 <p className="text-slate-800 font-bold leading-relaxed">
                     Account is suspended. Wait <span className="text-rose-600 font-black">{suspension.daysLeft}</span> day(s) until unbanned.
                 </p>
-                <p className="text-slate-400 text-[10px] font-black uppercase mt-3 tracking-widest">Reason: Strike 02 Protocol</p>
+                <p className="text-slate-400 text-[10px] font-black uppercase mt-3 tracking-widest italic">Protocol: Strike 02 Enforcement</p>
             </div>
         )}
 
-        {error && !suspension && <div className="w-full bg-rose-50 text-rose-500 p-4 rounded-xl mb-6 text-xs font-black border border-rose-100 flex items-center gap-3 justify-center"><AlertTriangle size={18} />{error}</div>}
+        {error && !suspension && (
+          <div className="w-full bg-rose-50 text-rose-500 p-4 rounded-2xl mb-6 text-xs font-black border border-rose-100 flex items-center gap-3 justify-center animate-in slide-in-from-top-1">
+            <AlertTriangle size={18} />
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="w-full space-y-4 relative z-10">
             {mode === 'login' && !suspension && (
                 <>
-                <input type="text" placeholder={t('auth.username') + " / " + t('auth.email')} value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" required />
-                <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder={t('auth.password')} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" required />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-indigo-600">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      placeholder={t('auth.username') + " / " + t('auth.email')} 
+                      value={identifier} 
+                      onChange={(e) => setIdentifier(e.target.value)} 
+                      className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" 
+                      required 
+                    />
+                  </div>
+                  <div className="relative">
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder={t('auth.password')} 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                        className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" 
+                        required 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)} 
+                        className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-indigo-600 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                  </div>
                 </div>
-                <button type="submit" disabled={isLoading || !isFormValid} className="w-full h-14 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 click-scale shadow-lg transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50">
+                
+                <button 
+                  type="submit" 
+                  disabled={isLoading || !isFormValid} 
+                  className="w-full h-14 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 click-scale shadow-lg transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50"
+                >
                     {isLoading ? <Loader2 className="animate-spin" /> : <ArrowRight size={20} />} 
                     {t('auth.sign_in')}
                 </button>
+
+                <div className="pt-4 text-center">
+                  <button 
+                    type="button" 
+                    onClick={() => setMode('signup')} 
+                    className="text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:underline"
+                  >
+                    Don't have an account? Create one
+                  </button>
+                </div>
                 </>
+            )}
+            
+            {mode === 'signup' && (
+               <div className="text-center py-10">
+                 <p className="text-slate-400 font-bold">Sign up is currently restricted to invited architects.</p>
+                 <button onClick={() => setMode('login')} className="mt-4 text-indigo-600 font-black text-[10px] uppercase tracking-widest">Back to Login</button>
+               </div>
             )}
         </form>
       </div>
