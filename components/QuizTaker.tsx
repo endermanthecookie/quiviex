@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Quiz, Question, Room, User } from '../types';
 import { Logo } from './Logo';
-import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame, X, MousePointerClick, Hourglass, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Users, Trophy, ChevronUp, ChevronDown, AlignLeft, Layers, ListOrdered, Sliders, Type, CheckSquare, GripVertical, CornerDownRight, Mic, Eye, EyeOff, Flame, X, MousePointerClick, Hourglass, ArrowRight, Loader2, Sparkles, MessageSquare, Brain } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { sfx } from '../services/soundService';
 
@@ -99,17 +99,12 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                 const newIndex = payload.new.current_question_index;
                 const playersAnswers = payload.new.players_answers || {};
                 
-                // HOST LOGIC: Synchronize results transition
                 if (isHost && newStatus === 'playing') {
                     const statuses = Object.values(playersAnswers);
                     const answeredCount = statuses.filter(s => s === 1).length;
-                    
-                    // Always ensure we have at least 1 participant (the host)
                     const required = Math.max(1, totalParticipantsRef.current);
-                    
                     if (answeredCount >= required) {
                         setTimeout(async () => {
-                            // Verify we are still in playing state before switching
                             const { data: latest } = await supabase.from('rooms').select('status').eq('id', room.id).single();
                             if (latest?.status === 'playing') {
                                 await supabase.from('rooms').update({ status: 'results' }).eq('id', room.id);
@@ -270,7 +265,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
     if (!timerActive || timeLeft === null || showExplanation || waitingForOthers) return;
     if (timeLeft <= 0) { 
         submitAnswer(-1); 
-        // Force host to transition if time is out
         if (isHost && room) {
             setTimeout(async () => {
                 const { data } = await supabase.from('rooms').select('status').eq('id', room.id).single();
@@ -343,12 +337,10 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
     if (room) {
         setWaitingForOthers(true);
-        // Register personal score
         const { data: participants } = await supabase.from('room_participants').select('*').eq('room_id', room.id);
         const me = participants?.find(p => p.user_id === myId);
         if (me) await supabase.from('room_participants').update({ score: me.score + pointsGained }).eq('id', me.id);
 
-        // Commit answer status to registry with retry to handle race conditions
         let success = false;
         let attempts = 0;
         while (!success && attempts < 5) {
@@ -399,6 +391,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
 
   const currentQuestion = shuffledQuestions[currentQuestionIndex];
   const timePercentage = currentQuestion ? (timeLeft / currentQuestion.timeLimit) * 100 : 0;
+  
   const handleOrderDragStart = (index: number) => setDraggedOrderIndex(index);
   const handleOrderDragOver = (e: React.DragEvent, index: number) => {
       e.preventDefault();
@@ -461,9 +454,9 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 stagger-in">
                     {currentQuestion.options.map((opt, i) => (
-                        <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className={`glass p-8 rounded-[2.5rem] text-xl font-black text-left flex items-center gap-6 group click-scale border border-white/10 transition-all ${zenMode ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'hover:bg-white/20'}`}>
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black italic group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all ${zenMode ? 'bg-white/5 text-white/50' : 'bg-white/10 text-white/30'}`}>{i+1}</div>
-                            <span className="flex-1 drop-shadow-sm">{opt}</span>
+                        <button key={i} onClick={() => timerActive && submitAnswer(i)} disabled={!timerActive} className={`glass p-8 rounded-[2.5rem] text-xl font-black text-left flex items-center gap-6 group click-scale border border-white/10 transition-all ${zenMode ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'hover:bg-white/20 hover-lift'}`}>
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black italic group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-all ${zenMode ? 'bg-white/5 text-white/50' : 'bg-white/10 text-white/30 group-hover:rotate-12'}`}>{i+1}</div>
+                            <span className="flex-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">{opt}</span>
                         </button>
                     ))}
                 </div>
@@ -475,7 +468,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                         <input type="text" value={tempInput} onChange={(e) => setTempInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && tempInput.trim() && submitAnswer(tempInput)} placeholder="Type answer..." className="w-full bg-black/40 backdrop-blur-xl border-4 border-white/10 rounded-[2.5rem] p-10 pr-20 text-3xl font-black text-center focus:outline-none focus:border-indigo-500 transition-all mb-8 shadow-2xl text-white placeholder-white/30" autoFocus />
                         <button onClick={handleVoiceInput} className={`absolute right-6 top-1/2 -translate-y-1/2 p-4 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`} title="Voice Input"><Mic size={24} /></button>
                       </div>
-                      <button onClick={() => submitAnswer(tempInput)} disabled={!tempInput.trim()} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale shadow-xl">Submit</button>
+                      <button onClick={() => submitAnswer(tempInput)} disabled={!tempInput.trim()} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit</button>
                   </div>
               );
           case 'fill-in-the-blank':
@@ -495,10 +488,10 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                           </div>
                       </div>
                       <div className="flex flex-wrap justify-center gap-4">
-                          {currentQuestion.options.map((opt, i) => ( <div key={i} draggable onDragStart={() => handleBlankOptionDragStart(i)} className="px-8 py-4 rounded-2xl font-black text-lg transition-all cursor-grab active:cursor-grabbing shadow-lg border-b-4 bg-white text-slate-900 border-slate-300 hover:-translate-y-1 hover:shadow-xl"> {opt} </div> ))}
+                          {currentQuestion.options.map((opt, i) => ( <div key={i} draggable onDragStart={() => handleBlankOptionDragStart(i)} className="px-8 py-4 rounded-2xl font-black text-lg transition-all cursor-grab active:cursor-grabbing shadow-lg border-b-4 bg-white text-slate-900 border-slate-300 hover:-translate-y-1 hover:shadow-xl active:scale-95"> {opt} </div> ))}
                       </div>
                       <div className="text-center">
-                        <button onClick={() => submitAnswer(blankAnswers)} disabled={blankAnswers.some(a => a === null)} className="px-12 py-5 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale transition-all">Submit Answer</button>
+                        <button onClick={() => submitAnswer(blankAnswers)} disabled={blankAnswers.some(a => a === null)} className="px-12 py-5 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale transition-all hover:bg-indigo-500">Submit Answer</button>
                       </div>
                   </div>
               );
@@ -523,7 +516,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                                   return ( <div key={i} draggable="true" onDragStart={() => handleMatchDragStart(item)} onClick={() => handleMatchSelect(item)} className={`p-3 rounded-2xl font-bold text-center shadow-lg cursor-pointer transition-transform border-b-4 flex items-center justify-center min-h-[60px] relative ${isSelected ? 'bg-indigo-500 text-white border-indigo-700 scale-105 ring-2 ring-white' : 'bg-white text-slate-900 border-slate-200 hover:scale-105 active:scale-95'}`}> {isImage(item) ? <img src={item} className="max-w-full max-h-24 object-contain rounded-lg" /> : item} {isSelected && <div className="absolute -top-2 -right-2 bg-white text-indigo-600 rounded-full p-1 shadow-md"><MousePointerClick size={12} /></div>} </div> )
                               })}
                           </div>
-                          <button onClick={() => submitAnswer(matchingState)} className="w-full mt-8 py-4 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale">Submit</button>
+                          <button onClick={() => submitAnswer(matchingState)} className="w-full mt-8 py-4 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl click-scale hover:bg-indigo-500">Submit</button>
                       </div>
                   </div>
               );
@@ -531,17 +524,17 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
               return (
                   <div className="max-w-xl mx-auto w-full space-y-3 stagger-in">
                       {tempOrder.map((originalIdx, displayIdx) => (
-                          <div key={originalIdx} draggable="true" onDragStart={() => handleOrderDragStart(displayIdx)} onDragOver={(e) => handleOrderDragOver(e, displayIdx)} onDragEnd={() => setDraggedOrderIndex(null)} className={`glass p-5 rounded-2xl border border-white/10 flex items-center gap-6 cursor-grab active:cursor-grabbing transition-all ${draggedOrderIndex === displayIdx ? 'opacity-50 scale-95 border-indigo-500/50' : 'hover:bg-white/10'}`}> <div className="text-white/20"> <GripVertical size={24} /> </div> <span className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center font-black text-indigo-400 border border-white/5">{displayIdx + 1}</span> <span className="flex-1 font-bold text-lg">{currentQuestion.options[originalIdx]}</span> </div> ))}
-                      <button onClick={() => submitAnswer(tempOrder)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale mt-8 shadow-xl">Confirm Order</button>
+                          <div key={originalIdx} draggable="true" onDragStart={() => handleOrderDragStart(displayIdx)} onDragOver={(e) => handleOrderDragOver(e, displayIdx)} onDragEnd={() => setDraggedOrderIndex(null)} className={`glass p-5 rounded-2xl border border-white/10 flex items-center gap-6 cursor-grab active:cursor-grabbing transition-all ${draggedOrderIndex === displayIdx ? 'opacity-50 scale-95 border-indigo-500/50' : 'hover:bg-white/10 hover:shadow-lg'}`}> <div className="text-white/20"> <GripVertical size={24} /> </div> <span className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center font-black text-indigo-400 border border-white/5 group-hover:rotate-6 transition-transform">{displayIdx + 1}</span> <span className="flex-1 font-bold text-lg">{currentQuestion.options[originalIdx]}</span> </div> ))}
+                      <button onClick={() => submitAnswer(tempOrder)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale mt-8 shadow-xl hover:bg-indigo-500">Confirm Order</button>
                   </div>
               );
           case 'slider':
               const min = parseInt(currentQuestion.options[0]); const max = parseInt(currentQuestion.options[1]);
               return (
                   <div className="max-w-2xl mx-auto w-full stagger-in bg-black/40 backdrop-blur-xl p-12 rounded-[3.5rem] border border-white/10 shadow-2xl">
-                      <div className="text-center mb-12"> <div className="text-7xl font-black text-indigo-400 mb-2 drop-shadow-[0_0_20px_rgba(129,140,241,0.5)]">{tempSlider}</div> </div>
+                      <div className="text-center mb-12"> <div className="text-7xl font-black text-indigo-400 mb-2 drop-shadow-[0_0_20px_rgba(129,140,241,0.5)] animate-pulse">{tempSlider}</div> </div>
                       <input type="range" min={min} max={max} value={tempSlider} onChange={(e) => setTempSlider(parseInt(e.target.value))} className="w-full h-4 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-500 mb-12" />
-                      <button onClick={() => submitAnswer(tempSlider)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale shadow-xl">Submit Value</button>
+                      <button onClick={() => submitAnswer(tempSlider)} className="w-full py-6 bg-indigo-600 rounded-3xl font-black text-xl uppercase tracking-widest click-scale shadow-xl hover:bg-indigo-500">Submit Value</button>
                   </div>
               );
           default: return <div className="text-center text-rose-500 font-black">Question Error</div>;
@@ -553,19 +546,27 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
          <div className={`text-[40rem] sm:text-[65rem] font-black leading-none tabular-nums transition-all duration-300 ${timeLeft <= 5 ? 'text-rose-500/20 animate-pulse scale-110' : zenMode ? 'text-white/[0.01]' : 'text-white/[0.03]'}`}> {timeLeft} </div>
       </div>
+      
       {showExplanation && (
           <div className="absolute inset-0 z-[100] bg-[#05010d]/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
               <div className="max-w-2xl w-full text-center stagger-in">
                   <div className={`mb-2 text-7xl font-black tracking-tighter drop-shadow-2xl ${isCorrectFeedback ? 'text-emerald-400' : 'text-rose-500'}`}> {isCorrectFeedback ? 'CORRECT!' : 'INCORRECT'} </div>
                   {feedbackMessage && <div className="text-indigo-400 font-black uppercase text-sm mb-6 animate-bounce"> {feedbackMessage} </div>}
                   <div className="mb-8 flex flex-col items-center">
-                      <div className="inline-block bg-white/5 border border-white/10 px-8 py-4 rounded-[2rem] shadow-2xl relative overflow-hidden">
+                      <div className="inline-block bg-white/5 border border-white/10 px-8 py-4 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                          <div className="absolute inset-0 bg-indigo-600 opacity-0 group-hover:opacity-10 transition-opacity"></div>
                           <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mb-1">Personal Round Score</p>
                           <div className="flex items-center justify-center gap-3"> <span className="text-4xl font-black text-white">{lastPointsGained}</span> <span className="text-indigo-400 font-black text-xs uppercase">PTS</span> </div>
                       </div>
                       {room && <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-4">Total Session: {sessionPoints} pts</p>}
                   </div>
-                  {currentQuestion.explanation && <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-8 text-lg font-medium text-slate-300 leading-relaxed italic shadow-xl"> "{currentQuestion.explanation}" </div>}
+                  
+                  {currentQuestion.explanation && (
+                      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-4 text-lg font-medium text-slate-300 leading-relaxed italic shadow-xl animate-in slide-in-from-bottom-4"> 
+                        "{currentQuestion.explanation}" 
+                      </div>
+                  )}
+
                   {room && roomLeaderboard.length > 0 && (
                       <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 mb-10 shadow-2xl">
                           <h4 className="text-indigo-400 font-black uppercase text-[10px] tracking-widest mb-6 flex items-center justify-center gap-2"> <Trophy size={14} /> Global Standings </h4>
@@ -577,14 +578,15 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                           </div>
                       </div>
                   )}
-                  {room ? ( isHost ? <button onClick={handleHostNextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2.5rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-all flex items-center justify-center gap-4"> Next Question <ArrowRight size={28} /> </button> : <div className="flex flex-col items-center gap-4 animate-pulse"> <Loader2 className="text-indigo-500 animate-spin" size={32} /> <div className="text-white font-black uppercase tracking-[0.4em] text-xs">Waiting for Host Signal...</div> </div> ) : ( <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2.5rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-colors"> Next Question </button> )}
+                  {room ? ( isHost ? <button onClick={handleHostNextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2.5rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-all flex items-center justify-center gap-4"> Next Question <ArrowRight size={28} /> </button> : <div className="flex flex-col items-center gap-4 animate-pulse"> <Loader2 className="text-indigo-500 animate-spin" size={32} /> <div className="text-white font-black uppercase tracking-[0.4em] text-xs">Waiting for Host Signal...</div> </div> ) : ( <button onClick={nextQuestion} className="w-full bg-white text-slate-950 font-black py-8 rounded-[2.5rem] text-2xl click-scale uppercase shadow-2xl hover:bg-slate-100 transition-colors group"> Next Question <ArrowRight className="inline-block ml-2 group-hover:translate-x-2 transition-transform" /> </button> )}
               </div>
           </div>
       )}
+      
       <div className={`flex flex-col h-full relative z-10 ${startCountdown > 0 ? 'opacity-0 blur-xl' : 'opacity-100 blur-0'} transition-all duration-1000`}>
         <header className={`px-8 py-6 flex items-center justify-between z-40 bg-transparent border-b border-white/5 transition-all duration-500 ${zenMode ? 'opacity-0 -translate-y-full pointer-events-none absolute' : ''}`}>
             <div className="flex items-center gap-4">
-                <Logo variant="small" className="shadow-2xl" />
+                <Logo variant="small" className="shadow-2xl hover:scale-110 transition-transform" />
                 <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-full"> <span className="text-xs font-black tracking-widest uppercase text-slate-400">Step <span className="text-white">{currentQuestionIndex+1} / {shuffledQuestions.length}</span></span> </div>
             </div>
             <div className="flex items-center gap-6">
@@ -600,7 +602,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, room, user, onComple
                 {currentQuestion.type !== 'fill-in-the-blank' && (
                     <div className={`mb-10 inline-block p-10 sm:p-16 rounded-[4rem] animate-in slide-in-from-bottom-10 duration-700 w-full transition-all ${zenMode ? 'bg-transparent shadow-none' : 'bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl'} ${isOnFire && !zenMode ? 'border-orange-500/30 shadow-[0_0_50px_rgba(249,115,22,0.1)]' : ''}`}>
                         <h2 className={`text-3xl sm:text-5xl font-black leading-tight tracking-tighter text-white transition-all ${zenMode ? 'scale-110 drop-shadow-2xl' : ''}`}> {currentQuestion.question} </h2>
-                        {currentQuestion.image && <div className={`mt-8 rounded-3xl overflow-hidden shadow-2xl max-w-md mx-auto aspect-video transition-all ${zenMode ? 'border-0' : 'border border-white/10'}`}> <img src={currentQuestion.image} alt="" className="w-full h-full object-cover" /> </div>}
+                        {currentQuestion.image && <div className={`mt-8 rounded-3xl overflow-hidden shadow-2xl max-w-md mx-auto aspect-video transition-all ${zenMode ? 'border-0' : 'border border-white/10'} hover:scale-105 transition-transform`}> <img src={currentQuestion.image} alt="" className="w-full h-full object-cover" /> </div>}
                     </div>
                 )}
                 <div className="relative z-20"> {renderInputs()} </div>

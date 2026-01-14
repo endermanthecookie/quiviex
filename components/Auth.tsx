@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { User } from '../types';
 import { Lock, Mail, Eye, EyeOff, Loader2, ArrowRight, User as UserIcon, CheckCircle2, AlertTriangle, Home, Calendar, ShieldX, CheckCircle, Zap, ShieldCheck, Github, Key as KeyIcon, Hash, Shield } from 'lucide-react';
@@ -130,11 +129,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
 
   return (
     <div className={`min-h-screen flex items-center justify-center p-4 sm:p-8 ${mode === 'verify_otp' ? 'bg-[#f4f7fa]' : 'bg-[#f1f5f9]'} animate-in fade-in duration-700`}>
-      <div className={`${mode === 'verify_otp' ? 'max-w-[500px] rounded-[40px] border-[#e2e8f0]' : 'max-w-[480px] rounded-[3rem] border-white'} bg-white p-8 sm:p-12 w-full shadow-[0_30px_60px_rgba(0,0,0,0.08)] flex flex-col items-center border relative overflow-hidden`}>
+      <div className={`${mode === 'verify_otp' ? 'max-w-[500px] rounded-[40px] border-[#e2e8f0]' : 'max-w-[480px] rounded-[3rem] border-white'} bg-white p-8 sm:p-12 w-full shadow-[0_30px_60px_rgba(0,0,0,0.08)] flex flex-col items-center border relative overflow-hidden transition-all duration-500`}>
         {mode === 'verify_otp' ? (
-            <div className="w-full text-center stagger-in">
+            <div className="w-full text-center pop-in">
                 <div className="mb-8 flex flex-col items-center">
-                    <Logo variant="medium" className="mb-6 shadow-[0_10px_20px_rgba(99,102,241,0.3)]" />
+                    <Logo variant="medium" className="mb-6 shadow-[0_10px_20px_rgba(99,102,241,0.3)] animate-bounce" />
                     <h2 className="text-[26px] font-black text-[#0f172a] tracking-tight leading-none mb-3">{t('auth.verification_title')}</h2>
                     <p className="text-[#64748b] font-medium text-[15px] leading-relaxed">
                         You requested a password reset for <br />
@@ -164,12 +163,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
             </div>
         ) : (
             <>
-                <div className="w-full flex justify-between items-center mb-8 relative z-10">
-                    <button onClick={onBackToLanding} className="p-3 hover:bg-slate-100 rounded-2xl transition-colors text-slate-400 group"><Home size={22} className="group-hover:text-indigo-600 transition-colors" /></button>
-                    <Logo variant="medium" className="shadow-lg" />
-                    <button onClick={onJoinGame} className="p-3 hover:bg-indigo-50 rounded-2xl transition-colors text-indigo-400 group"><Zap size={22} className="group-hover:text-indigo-600 transition-colors" /></button>
+                <div className="w-full flex justify-between items-center mb-8 relative z-10 animate-in slide-in-from-top-4 duration-700">
+                    <button onClick={onBackToLanding} className="p-3 hover:bg-slate-100 rounded-2xl transition-colors text-slate-400 group click-scale"><Home size={22} className="group-hover:text-indigo-600 transition-colors" /></button>
+                    <Logo variant="medium" className="shadow-lg hover:rotate-12 transition-transform" />
+                    <button onClick={onJoinGame} className="p-3 hover:bg-indigo-50 rounded-2xl transition-colors text-indigo-400 group click-scale"><Zap size={22} className="group-hover:text-indigo-600 transition-colors" /></button>
                 </div>
-                <div className="text-center mb-8 relative z-10">
+                <div className="text-center mb-8 relative z-10 animate-in fade-in slide-in-from-bottom-2 duration-700">
                     <h2 className="text-4xl font-black text-slate-900 mb-1 tracking-tight">
                         {mode === 'login' ? t('auth.sign_in') : mode === 'signup' ? t('auth.sign_up') : t('auth.reset_password')}
                     </h2>
@@ -177,10 +176,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
                         {mode === 'login' ? t('auth.welcome_back') : mode === 'signup' ? t('auth.join_community') : t('auth.recover_account')}
                     </p>
                 </div>
-                {error && <div className="w-full bg-rose-50 text-rose-500 p-4 rounded-xl mb-6 text-xs font-black border border-rose-100 flex items-center gap-3 justify-center animate-in slide-in-from-top-2 shadow-sm"><AlertTriangle size={18} />{error}</div>}
-                {successMsg && <div className="w-full bg-emerald-50 text-emerald-600 p-4 rounded-xl mb-6 text-xs font-black border border-emerald-100 flex items-center gap-3 justify-center animate-in slide-in-from-top-2 shadow-sm"><CheckCircle2 size={18} />{successMsg}</div>}
+                {error && <div className="w-full bg-rose-50 text-rose-500 p-4 rounded-xl mb-6 text-xs font-black border border-rose-100 flex items-center gap-3 justify-center animate-in bounce-in shadow-sm"><AlertTriangle size={18} />{error}</div>}
+                {successMsg && <div className="w-full bg-emerald-50 text-emerald-600 p-4 rounded-xl mb-6 text-xs font-black border border-emerald-100 flex items-center gap-3 justify-center animate-in pop-in shadow-sm"><CheckCircle2 size={18} />{successMsg}</div>}
                 {mode !== 'forgot' && (
-                    <div className="w-full space-y-3 mb-8 relative z-10">
+                    <div className="w-full space-y-3 mb-8 relative z-10 stagger-in">
                         <button onClick={() => handleOAuth('google')} disabled={!!oauthLoading || isLoading} className="w-full h-14 bg-white border-2 border-slate-100 hover:border-indigo-100 hover:bg-slate-50 text-slate-700 font-black rounded-2xl flex items-center justify-center gap-3 transition-all click-scale shadow-sm">
                             {oauthLoading === 'google' ? <Loader2 className="animate-spin text-slate-400" size={20} /> : <GoogleIcon />}
                             <span>{t('auth.btn_google')}</span>
@@ -197,71 +196,71 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onBackToLanding, onJoinGame
                         </div>
                     </div>
                 )}
-                <form onSubmit={mode === 'login' ? handleLogin : mode === 'signup' ? handleSignup : (e) => { e.preventDefault(); handleVerifyOTP(e); }} className="w-full space-y-4 relative z-10">
+                <form onSubmit={mode === 'login' ? handleLogin : mode === 'signup' ? handleSignup : (e) => { e.preventDefault(); handleVerifyOTP(e); }} className="w-full space-y-4 relative z-10 stagger-in">
                 {mode === 'signup' && (
                     <>
-                    <div className="relative">
-                        <input type="text" placeholder={t('auth.username')} value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" required />
+                    <div className="relative group">
+                        <input type="text" placeholder={t('auth.username')} value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm group-focus-within:translate-x-1" required />
                     </div>
-                    <div className="relative">
-                        <div className="w-full px-6 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus-within:border-indigo-500 transition-all shadow-sm">
+                    <div className="relative group">
+                        <div className="w-full px-6 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus-within:border-indigo-500 transition-all shadow-sm group-focus-within:translate-x-1">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{t('auth.birthday')}</label>
                             <input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} className="w-full bg-transparent border-none p-0 focus:ring-0 font-bold text-base text-slate-900" required />
                         </div>
                     </div>
                     {isUnder13 && (
                         <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top-2">
-                        <ShieldCheck className="text-indigo-600 flex-shrink-0" />
+                        <ShieldCheck className="text-indigo-600 flex-shrink-0 animate-pulse" />
                         <p className="text-[10px] font-black text-indigo-900 uppercase tracking-tight leading-relaxed">{t('auth.child_safety_active')}</p>
                         </div>
                     )}
                     </>
                 )}
                 {(mode === 'forgot' || (!isUnder13 && mode === 'signup')) && (
-                    <div className="relative">
-                    <input type="email" placeholder={t('auth.email')} value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" required />
+                    <div className="relative group">
+                    <input type="email" placeholder={t('auth.email')} value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm group-focus-within:translate-x-1" required />
                     </div>
                 )}
                 {mode === 'login' && (
                     <>
-                    <div className="relative">
-                        <input type="text" placeholder={t('auth.username') + " / " + t('auth.email')} value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" required />
+                    <div className="relative group">
+                        <input type="text" placeholder={t('auth.username') + " / " + t('auth.email')} value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm group-focus-within:translate-x-1" required />
                     </div>
-                    <div className="flex justify-end px-2 py-0.5"><button type="button" onClick={() => { setMode('forgot'); clearErrors(); }} className="text-[11px] font-black text-indigo-600 hover:underline uppercase tracking-widest transition-colors">{t('auth.forgot_password')}</button></div>
+                    <div className="flex justify-end px-2 py-0.5"><button type="button" onClick={() => { setMode('forgot'); clearErrors(); }} className="text-[11px] font-black text-indigo-600 hover:underline uppercase tracking-widest transition-all hover:scale-105 active:scale-95">{t('auth.forgot_password')}</button></div>
                     </>
                 )}
                 {mode !== 'forgot' && (
-                    <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder={t('auth.password')} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm" required />
+                    <div className="relative group">
+                    <input type={showPassword ? "text" : "password"} placeholder={t('auth.password')} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-indigo-500 font-bold text-base transition-all text-slate-900 shadow-sm group-focus-within:translate-x-1" required />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-indigo-600 transition-colors">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
                     </div>
                 )}
                 {mode === 'signup' && (
                     <>
-                    <div className="relative">
-                        <input type={showPassword ? "text" : "password"} placeholder={t('auth.confirm_password')} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl focus:outline-none font-bold text-base transition-all text-slate-900 shadow-sm ${confirmPassword && confirmPassword !== password ? 'border-rose-200' : 'border-slate-100 focus:border-indigo-500'}`} required />
+                    <div className="relative group">
+                        <input type={showPassword ? "text" : "password"} placeholder={t('auth.confirm_password')} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl focus:outline-none font-bold text-base transition-all text-slate-900 shadow-sm group-focus-within:translate-x-1 ${confirmPassword && confirmPassword !== password ? 'border-rose-200' : 'border-slate-100 focus:border-indigo-500'}`} required />
                     </div>
-                    <div className="flex items-center gap-3 px-3">
+                    <div className="flex items-center gap-3 px-3 animate-in fade-in duration-1000">
                         <input type="checkbox" id="terms_agree" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="w-5 h-5 accent-indigo-600 rounded-lg cursor-pointer" />
                         <label htmlFor="terms_agree" className="text-[10px] font-bold text-slate-400 cursor-pointer select-none leading-none">{t('auth.terms_agree')}</label>
                     </div>
-                    {isFormValid && <div className="flex flex-col items-center py-2 animate-in fade-in zoom-in"><ReCAPTCHA sitekey="6LfwC0MsAAAAAMF3wFKcYYLgusVeFmQQrF3Whgum" onChange={(token) => setCaptchaToken(token)} /></div>}
+                    {isFormValid && <div className="flex flex-col items-center py-2 pop-in"><ReCAPTCHA sitekey="6LfwC0MsAAAAAMF3wFKcYYLgusVeFmQQrF3Whgum" onChange={(token) => setCaptchaToken(token)} /></div>}
                     </>
                 )}
                 <button type="submit" disabled={isLoading || !isFormValid} className="w-full h-14 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 click-scale shadow-lg hover:shadow-indigo-200 transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50">
-                    {isLoading ? <Loader2 className="animate-spin" /> : <ArrowRight size={20} />} 
+                    {isLoading ? <Loader2 className="animate-spin" /> : <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />} 
                     {mode === 'login' ? t('auth.sign_in') : mode === 'signup' ? t('auth.sign_up') : "Submit"}
                 </button>
                 </form>
                 <div className="mt-10 text-center w-full relative z-10 flex flex-col gap-4">
                 {mode === 'forgot' ? (
-                    <button type="button" onClick={() => { setMode('login'); clearErrors(); }} className="text-indigo-600 font-black hover:underline uppercase text-[10px] tracking-widest">{t('common.back')}</button>
+                    <button type="button" onClick={() => { setMode('login'); clearErrors(); }} className="text-indigo-600 font-black hover:underline uppercase text-[10px] tracking-widest click-scale">{t('common.back')}</button>
                 ) : (
-                    <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); clearErrors(); }} className="text-indigo-600 font-black hover:underline uppercase text-[10px] tracking-widest">
+                    <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); clearErrors(); }} className="text-indigo-600 font-black hover:underline uppercase text-[10px] tracking-widest click-scale">
                         {mode === 'login' ? t('auth.sign_up') : t('auth.sign_in')}
                     </button>
                 )}
-                <button onClick={onJoinGame} className="text-slate-400 font-black hover:text-indigo-500 transition-colors uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"><Zap size={14} className="text-yellow-400" /> {t('landing.btn_join_game')}</button>
+                <button onClick={onJoinGame} className="text-slate-400 font-black hover:text-indigo-500 transition-colors uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 click-scale"><Zap size={14} className="text-yellow-400 animate-pulse" /> {t('landing.btn_join_game')}</button>
                 </div>
             </>
         )}

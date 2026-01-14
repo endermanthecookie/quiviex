@@ -1,7 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap, Clock, History, Printer, ChevronDown, Dices, Loader2, X, Star } from 'lucide-react';
+import { PlusCircle, Play, Edit2, Trash2, LogOut, User, BookOpen, Trophy, Brain, Settings, Download, Globe, Search, Sparkles, HelpCircle, MessageSquare, ShieldAlert, Users, Crown, Zap, Clock, History, Printer, ChevronDown, Dices, Loader2, X, Star, Calendar, ArrowRight } from 'lucide-react';
 import { Quiz, User as UserType, QXNotification } from '../types';
+// Add missing import for THEMES
+import { THEMES } from '../constants';
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
 import { PlaySelectionModal } from './PlaySelectionModal';
@@ -69,8 +70,28 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
   const [printingQuiz, setPrintingQuiz] = useState<Quiz | null>(null);
   const [isLoadingRandom, setIsLoadingRandom] = useState(false);
   const [showLevelModal, setShowLevelModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [moduleOfTheDay, setModuleOfTheDay] = useState<Quiz | null>(null);
 
-  useEffect(() => { setVisibleCount(10); }, [activeTab, searchQuery]);
+  useEffect(() => { 
+    setVisibleCount(10); 
+    setMounted(true);
+    fetchModuleOfTheDay();
+  }, [activeTab, searchQuery]);
+
+  const fetchModuleOfTheDay = async () => {
+      try {
+          const { data } = await supabase.from('quizzes').select('*').eq('visibility', 'public').limit(5);
+          if (data && data.length > 0) {
+              const randomIndex = new Date().getDate() % data.length;
+              const q = data[randomIndex];
+              setModuleOfTheDay({
+                  id: q.id, userId: q.user_id, title: q.title, questions: q.questions, createdAt: q.created_at,
+                  theme: q.theme, customTheme: q.custom_theme, shuffleQuestions: q.shuffle_questions, backgroundMusic: q.background_music, visibility: q.visibility
+              });
+          }
+      } catch (e) { console.debug("MotD fetch failed"); }
+  };
 
   const allFilteredQuizzes = (activeTab === 'my' ? quizzes : savedQuizzes)
     .filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -115,10 +136,10 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
 
       {showLevelModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-2xl z-[200] flex items-center justify-center p-6 animate-in fade-in">
-              <div className="bg-slate-900 rounded-[3rem] p-10 max-w-md w-full border border-white/10 shadow-2xl relative animate-in zoom-in">
-                  <button onClick={() => setShowLevelModal(false)} className="absolute top-6 right-6 p-2 hover:bg-white/5 rounded-full transition-colors text-slate-500"><X size={20} /></button>
+              <div className="bg-slate-900 rounded-[3rem] p-10 max-w-md w-full border border-white/10 shadow-2xl relative pop-in">
+                  <button onClick={() => setShowLevelModal(false)} className="absolute top-6 right-6 p-2 hover:bg-white/5 rounded-full transition-colors text-slate-500 click-scale"><X size={20} /></button>
                   <div className="text-center mb-10">
-                      <div className="w-24 h-24 bg-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-[0_0_50px_rgba(99,102,241,0.3)]">
+                      <div className="w-24 h-24 bg-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-[0_0_50px_rgba(99,102,241,0.3)] animate-pulse">
                           <Crown size={48} className="text-yellow-400" />
                       </div>
                       <h2 className="text-4xl font-black tracking-tighter mb-2">{t('home.level')} {level}</h2>
@@ -137,26 +158,14 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
                               </div>
                           </div>
                           <div className="w-full bg-white/5 h-3 rounded-full overflow-hidden mb-4">
-                              <div className="h-full bg-indigo-500 transition-all duration-1000 shadow-[0_0_15px_rgba(99,102,241,0.5)]" style={{ width: `${progressPercent}%` }}></div>
+                              <div className="h-full bg-indigo-500 transition-all duration-1000 shadow-[0_0_15px_rgba(99,102,241,0.5)]" style={{ width: mounted ? `${progressPercent}%` : '0%' }}></div>
                           </div>
                           <p className="text-center text-xs font-bold text-slate-400">
                               <span className="text-indigo-400">{xpRemaining.toLocaleString()} {t('home.xp')}</span> until {t('home.level')} {level + 1}
                           </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-white/5 p-5 rounded-2xl border border-white/5 text-center">
-                              <Trophy size={20} className="text-yellow-500 mx-auto mb-2" />
-                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Perfect Syncs</p>
-                              <p className="text-xl font-black">{user.stats.perfectScores}</p>
-                          </div>
-                          <div className="bg-white/5 p-5 rounded-2xl border border-white/5 text-center">
-                              <Brain size={20} className="text-purple-500 mx-auto mb-2" />
-                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Plays</p>
-                              <p className="text-xl font-black">{user.stats.quizzesPlayed}</p>
-                          </div>
-                      </div>
                   </div>
-                  <button onClick={() => setShowLevelModal(false)} className="w-full mt-10 py-5 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs click-scale shadow-xl">Acknowledge</button>
+                  <button onClick={() => setShowLevelModal(false)} className="w-full mt-10 py-5 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs click-scale shadow-xl hover:bg-slate-200">Acknowledge</button>
               </div>
           </div>
       )}
@@ -201,12 +210,53 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
+        
+        {/* Module of the Day Hero */}
+        {moduleOfTheDay && (
+            <section className="mb-16 animate-in fade-in slide-in-from-bottom-8 duration-1000 stagger-in">
+                <div className="bg-white/[0.03] border border-white/10 rounded-[4rem] p-10 sm:p-14 relative overflow-hidden group hover:border-indigo-500/30 transition-all duration-700 shadow-2xl">
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/10 via-purple-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+                    <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity rotate-12 scale-150 pointer-events-none group-hover:rotate-45 duration-1000">
+                        <Sparkles size={300} className="text-indigo-400" />
+                    </div>
+                    
+                    <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
+                        <div className="flex-1 text-center md:text-left">
+                            <div className="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-500/30 px-5 py-2 rounded-full text-indigo-400 text-[10px] font-black uppercase tracking-[0.3em] mb-8 shadow-xl animate-pulse">
+                                <Calendar size={14} /> Module of the Day
+                            </div>
+                            <h2 className="text-5xl sm:text-7xl font-black text-white mb-6 tracking-tighter leading-[0.9] group-hover:translate-x-2 transition-transform duration-700">{moduleOfTheDay.title}</h2>
+                            <p className="text-xl text-slate-400 font-bold mb-10 max-w-2xl leading-relaxed">
+                                Test your knowledge on today's spotlight module. Join the global community in mastering this topic.
+                            </p>
+                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
+                                <button onClick={() => setPendingQuizPlay(moduleOfTheDay)} className="bg-white text-slate-950 px-10 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl hover:bg-indigo-50 transition-all flex items-center gap-3 click-scale group/btn">
+                                    <Play fill="currentColor" size={20} className="group-hover/btn:scale-110 transition-transform" /> Start Challenge
+                                </button>
+                                <button onClick={onViewCommunity} className="text-[11px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-[0.4em] flex items-center gap-2 px-6">
+                                    See All Modules <ArrowRight size={14} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="hidden lg:block w-80 h-80 rounded-[3rem] bg-indigo-600 p-1 shadow-[0_0_80px_rgba(99,102,241,0.2)] group-hover:scale-105 transition-transform duration-700 rotate-3 group-hover:rotate-0 overflow-hidden border border-white/20 relative">
+                             <div className="absolute inset-0 bg-[#05010d] rounded-[2.8rem] m-1 overflow-hidden">
+                                 <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                                 <div className="absolute inset-0 flex items-center justify-center">
+                                     <Logo variant="large" className="opacity-20 scale-150" />
+                                 </div>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        )}
+
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16 stagger-in">
           <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-             <button onClick={onCreateNew} className="bg-gradient-to-br from-purple-600 to-indigo-700 p-8 sm:p-10 rounded-[3.5rem] text-white flex flex-col justify-between group click-scale shadow-2xl min-h-[360px] relative overflow-hidden transition-all duration-500 border border-white/10">
+             <button onClick={onCreateNew} className="bg-gradient-to-br from-purple-600 to-indigo-700 p-8 sm:p-10 rounded-[3.5rem] text-white flex flex-col justify-between group click-scale shadow-2xl min-h-[360px] relative overflow-hidden transition-all duration-500 border border-white/10 hover-lift">
                 <div className="flex items-start justify-between z-10">
-                   <PlusCircle size={36} className="text-white/80" />
-                   <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border border-white/10">{t('creator.header')}</span>
+                   <PlusCircle size={36} className="text-white/80 group-hover:rotate-90 transition-transform duration-500" />
+                   <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border border-white/10 shimmer">NEW</span>
                 </div>
                 <div className="text-left z-10 max-w-lg mt-auto">
                    <h3 className="text-4xl sm:text-5xl font-black tracking-tight leading-none mb-3 transform transition-transform group-hover:translate-x-2">{t('home.create_quiz')}</h3>
@@ -216,21 +266,21 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
              </button>
              <div className="grid grid-rows-2 gap-8">
                 <div className="grid grid-cols-2 gap-8">
-                   <button onClick={onViewCommunity} className="bg-white/5 p-6 rounded-[2.5rem] border border-white/10 hover:border-purple-500/50 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-sm hover:shadow-lg">
+                   <button onClick={onViewCommunity} className="bg-white/5 p-6 rounded-[2.5rem] border border-white/10 hover:border-purple-500/50 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-sm hover:shadow-lg hover-lift">
                       <Globe size={32} className="text-indigo-400 mb-3 group-hover:rotate-12 transition-transform" />
                       <h3 className="text-lg font-black tracking-tight text-white leading-tight">{t('home.explore')}</h3>
                    </button>
-                   <button onClick={onViewLeaderboard} className="bg-indigo-600 p-6 rounded-[2.5rem] border border-indigo-400 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-2xl hover:shadow-indigo-500/20">
+                   <button onClick={onViewLeaderboard} className="bg-indigo-600 p-6 rounded-[2.5rem] border border-indigo-400 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-2xl hover:shadow-indigo-500/20 hover-lift">
                       <Crown size={32} className="text-yellow-400 mb-3 group-hover:scale-110 transition-transform" />
                       <h3 className="text-lg font-black tracking-tight text-white leading-tight">{t('home.leaderboard')}</h3>
                    </button>
                 </div>
                 <div className="grid grid-cols-2 gap-8">
-                    <button onClick={onViewAchievements} className="bg-white/5 p-6 rounded-[2.5rem] border border-white/10 hover:border-yellow-500/50 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-sm hover:shadow-lg">
+                    <button onClick={onViewAchievements} className="bg-white/5 p-6 rounded-[2.5rem] border border-white/10 hover:border-yellow-500/50 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-sm hover:shadow-lg hover-lift">
                        <Trophy size={32} className="text-yellow-500 mb-3 group-hover:scale-110 transition-transform group-hover:rotate-12" />
                        <h3 className="text-lg font-black tracking-tight text-white">{t('home.trophies')}</h3>
                     </button>
-                    <button onClick={handleLuckyDip} disabled={isLoadingRandom} className="bg-emerald-600 p-6 rounded-[2.5rem] border border-emerald-500 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-2xl hover:shadow-emerald-500/20">
+                    <button onClick={handleLuckyDip} disabled={isLoadingRandom} className="bg-emerald-600 p-6 rounded-[2.5rem] border border-emerald-500 flex flex-col justify-center items-center text-center group click-scale transition-all shadow-2xl hover:shadow-emerald-500/20 hover-lift">
                        {isLoadingRandom ? <Loader2 size={32} className="text-white animate-spin mb-3" /> : <Dices size={32} className="text-white mb-3 group-hover:rotate-180 transition-transform duration-500" />}
                        <h3 className="text-lg font-black tracking-tight text-white leading-tight">{t('home.lucky_dip')}</h3>
                     </button>
@@ -238,9 +288,9 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
              </div>
           </div>
           <div className="lg:col-span-4 flex flex-col gap-8">
-             <button onClick={onJoinGame} className="bg-white p-8 rounded-[3.5rem] flex flex-col justify-between group click-scale transition-all shadow-xl min-h-[160px]">
+             <button onClick={onJoinGame} className="bg-white p-8 rounded-[3.5rem] flex flex-col justify-between group click-scale transition-all shadow-xl min-h-[160px] hover-lift">
                 <div className="flex items-center gap-4">
-                   <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white group-hover:bg-slate-900 transition-all"><Zap size={28} /></div>
+                   <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white group-hover:bg-slate-900 transition-all"><Zap size={28} className="group-hover:scale-110 transition-transform" /></div>
                    <div className="text-left">
                       <h3 className="text-2xl font-black tracking-tight text-slate-950 leading-tight">{t('landing.btn_join_game')}</h3>
                       <p className="text-xs font-black text-slate-400 uppercase tracking-widest">ENTER A PIN</p>
@@ -252,15 +302,15 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
                 <div className="relative z-10">
                    <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-4">{t('home.recent_activity')}</h4>
                    {latestResult ? (
-                     <div className="space-y-4">
+                     <div className="space-y-4 animate-in slide-in-from-right-4 duration-500">
                         <p className="text-2xl font-black text-white leading-tight line-clamp-2">{latestResult.quizTitle}</p>
                         <div className="flex items-center gap-3">
-                           <div className="px-4 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-full font-black text-xs border border-emerald-500/20">{Math.round((latestResult.score / latestResult.totalQuestions) * 100)}% Accuracy</div>
+                           <div className="px-4 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-full font-black text-xs border border-emerald-500/20 shimmer">DONE</div>
                            <span className="text-slate-500 font-bold text-xs">+{latestResult.points || 0} pts</span>
                         </div>
                      </div>
                    ) : (
-                     <div className="space-y-4">
+                     <div className="space-y-4 animate-in fade-in duration-1000">
                         <p className="text-2xl font-black text-white leading-tight">Welcome, User.</p>
                         <p className="text-sm font-bold text-slate-500 leading-relaxed">No history recorded yet. Play a quiz to populate this feed.</p>
                      </div>
@@ -273,8 +323,8 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
 
         <section className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12 stagger-in">
            <div className="bg-white/5 p-1.5 rounded-[2.5rem] flex gap-1 border border-white/10 shadow-inner w-full md:w-auto">
-              <button onClick={() => setActiveTab('my')} className={`flex-1 md:flex-none px-10 py-4 rounded-[2rem] font-black text-sm transition-all ${activeTab === 'my' ? 'bg-indigo-600 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-300'}`}>{t('home.my_quizzes')}</button>
-              <button onClick={() => setActiveTab('saved')} className={`flex-1 md:flex-none px-10 py-4 rounded-[2rem] font-black text-sm transition-all ${activeTab === 'saved' ? 'bg-indigo-600 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-300'}`}>{t('home.saved_quizzes')}</button>
+              <button onClick={() => setActiveTab('my')} className={`flex-1 md:flex-none px-10 py-4 rounded-[2rem] font-black text-sm transition-all ${activeTab === 'my' ? 'bg-indigo-600 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>{t('home.my_quizzes')}</button>
+              <button onClick={() => setActiveTab('saved')} className={`flex-1 md:flex-none px-10 py-4 rounded-[2rem] font-black text-sm transition-all ${activeTab === 'saved' ? 'bg-indigo-600 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>{t('home.saved_quizzes')}</button>
            </div>
            <div className="relative w-full md:w-96 group">
              <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-purple-500 transition-colors" />
@@ -283,26 +333,26 @@ export const QuizHome: React.FC<QuizHomeProps> = ({
         </section>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 stagger-in" key={activeTab}>
-          {displayedQuizzes.map((quiz) => (
-            <TiltCard key={quiz.id} className="group bg-white/5 rounded-[3rem] p-8 transition-all duration-500 flex flex-col relative border border-white/10 h-full hover:border-indigo-500/30">
-                <div className={`h-52 rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-purple-800 mb-10 p-8 flex flex-col justify-between overflow-hidden relative shadow-lg group-hover:shadow-indigo-500/10 transition-all duration-500 transform-style-3d border border-white/10`}>
+          {displayedQuizzes.map((quiz, qIdx) => (
+            <TiltCard key={quiz.id} className="group bg-white/5 rounded-[3rem] p-8 transition-all duration-500 flex flex-col relative border border-white/10 h-full hover:border-indigo-500/30 hover-lift" style={{ animationDelay: `${qIdx * 100}ms` }}>
+                <div className={`h-52 rounded-[2.5rem] bg-gradient-to-br ${THEMES[quiz.theme || 'classic']?.gradient || THEMES.classic.gradient} mb-10 p-8 flex flex-col justify-between overflow-hidden relative shadow-lg group-hover:shadow-indigo-500/10 transition-all duration-500 transform-style-3d border border-white/10`}>
                     <div className="absolute top-0 right-0 p-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 z-20">
-                       <button onClick={(e) => { e.stopPropagation(); setPrintingQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40 transition-colors" title="Print"><Printer size={18} /></button>
-                       <button onClick={(e) => { e.stopPropagation(); onEditQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40 transition-colors" title="Edit Quiz"><Edit2 size={18} /></button>
-                       <button onClick={(e) => { e.stopPropagation(); onDeleteQuiz(quiz.id); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-rose-600 transition-colors" title="Delete"><Trash2 size={18} /></button>
+                       <button onClick={(e) => { e.stopPropagation(); setPrintingQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40 transition-colors click-scale" title="Print"><Printer size={18} /></button>
+                       <button onClick={(e) => { e.stopPropagation(); onEditQuiz(quiz); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-white/40 transition-colors click-scale" title="Edit Quiz"><Edit2 size={18} /></button>
+                       <button onClick={(e) => { e.stopPropagation(); onDeleteQuiz(quiz.id); }} className="p-3 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-rose-600 transition-colors click-scale" title="Delete"><Trash2 size={18} /></button>
                     </div>
-                    <div className="flex justify-between items-start z-10"><div className="bg-black/40 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/10">{quiz.questions.length} {t('ai_assistant.questions_count').toUpperCase()}</div></div>
+                    <div className="flex justify-between items-start z-10"><div className="bg-black/40 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/10 shimmer">{quiz.questions.length} {t('ai_assistant.questions_count').toUpperCase()}</div></div>
                     <h3 className="text-2xl font-black text-white leading-tight drop-shadow-md relative z-10 group-hover:scale-[1.02] transition-transform translate-z-10">{quiz.title}</h3>
                 </div>
                 <div className="mt-auto grid grid-cols-2 gap-4">
-                  <button onClick={() => setPendingQuizPlay(quiz)} className="bg-white text-slate-950 font-black py-5 rounded-[1.5rem] flex items-center justify-center gap-2 click-scale shadow-lg hover:bg-slate-100 transition-all"><Play size={18} fill="currentColor" /> {t('home.btn_play')}</button>
-                  <button onClick={() => onStartStudy(quiz)} className="bg-white/5 border border-white/10 text-slate-300 font-black py-5 rounded-[1.5rem] flex items-center justify-center gap-2 click-scale hover:bg-white/10 transition-all"><BookOpen size={18} /> {t('home.btn_study')}</button>
+                  <button onClick={() => setPendingQuizPlay(quiz)} className="bg-white text-slate-950 font-black py-5 rounded-[1.5rem] flex items-center justify-center gap-2 click-scale shadow-lg hover:bg-slate-100 transition-all group/btn"><Play size={18} fill="currentColor" className="group-hover/btn:scale-110 transition-transform" /> {t('home.btn_play')}</button>
+                  <button onClick={() => onStartStudy(quiz)} className="bg-white/5 border border-white/10 text-slate-300 font-black py-5 rounded-[1.5rem] flex items-center justify-center gap-2 click-scale hover:bg-white/10 transition-all group/study"><BookOpen size={18} className="group-hover/study:scale-110 transition-transform" /> {t('home.btn_study')}</button>
                 </div>
             </TiltCard>
           ))}
         </div>
         {hasMore && (
-            <div className="flex justify-center mt-12 mb-8">
+            <div className="flex justify-center mt-12 mb-8 animate-in fade-in duration-1000">
                 <button onClick={() => setVisibleCount(prev => prev + 10)} className="px-12 py-4 bg-white/5 border border-white/10 hover:border-indigo-500/50 text-indigo-400 font-black rounded-2xl shadow-sm hover:shadow-lg transition-all click-scale flex items-center gap-2 uppercase tracking-widest text-xs"><ChevronDown size={18} />{t('home.load_more')}</button>
             </div>
         )}
