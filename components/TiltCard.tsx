@@ -1,11 +1,10 @@
-
 import React, { useRef, useState } from 'react';
 
 interface TiltCardProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-  // Added style property to support inline styles like animationDelay from parent components
+  // Added style property to fix "Property 'style' does not exist on type 'IntrinsicAttributes & TiltCardProps'" error in QuizHome.tsx
   style?: React.CSSProperties;
 }
 
@@ -42,12 +41,12 @@ export const TiltCard: React.FC<TiltCardProps> = ({ children, className = '', on
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
+      // Fixed: Merge the provided style prop (containing animationDelay, etc.) with the internal tilt effect styles
       style={{ 
-        // Fixed: Merged external style with component's dynamic styles
-        ...style,
         transform, 
         boxShadow: shadow,
-        transformStyle: 'preserve-3d' 
+        transformStyle: 'preserve-3d',
+        ...style
       }}
     >
       {children}
